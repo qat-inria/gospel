@@ -1,5 +1,7 @@
 import numpy as np
 import pytest
+from graphix import Pattern, command
+from graphix.fundamentals import Plane
 from graphix.random_objects import rand_circuit
 from graphix.sim.base_backend import Backend
 from graphix.sim.density_matrix import DensityMatrix
@@ -22,6 +24,18 @@ def compare_backend_result_with_statevec(
             )
         )
     raise NotImplementedError(backend)
+
+
+def test_simple() -> None:
+    pattern = Pattern()
+    pattern.add(command.N(node=0))
+    pattern.add(command.N(node=1))
+    pattern.add(command.E(nodes=(0, 1)))
+    pattern.add(command.M(node=0, plane=Plane.XY, angle=0.5))
+    pattern.add(command.M(node=1, plane=Plane.XY, angle=0.4, s_domain={0}))
+    # pattern1 = preprocess_pauli(pattern, leave_input=False)
+    # pattern.perform_pauli_measurements()
+    print(list(pattern))
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))

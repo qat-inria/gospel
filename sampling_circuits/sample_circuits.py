@@ -11,6 +11,8 @@ from qiskit.quantum_info import SparsePauliOp
 from qiskit_aer import StatevectorSimulator
 from tqdm import tqdm
 
+# from graphix import Circuit
+
 
 def sample_circuit(
     nqubits: int, depth: int, p_gate: float, p_cnot: float, rng: np.random.Generator
@@ -24,7 +26,7 @@ def sample_circuit(
     qubit and the next one (skipping the next qubit). Otherwise, a rotation gate (rx)
     with a random angle is applied to the current qubit.
 
-    Finally, qubit 0 is measured into the single classical bit.
+    finally, qubit 0 is measured into the single classical bit.
     """
     qc = QuantumCircuit(QuantumRegister(nqubits), ClassicalRegister(1))
     for _ in range(depth):
