@@ -137,7 +137,7 @@ def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
     result = Pattern(input_nodes)
     result.results = results
     for node in renumbered_graph.nodes:
-        if node in non_pauli_meas and node not in input_node_set:
+        if node not in results and node not in input_node_set:
             result.add(command.N(node=node))
     for nodes in edges:
         result.add(command.E(nodes=nodes))
