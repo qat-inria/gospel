@@ -1,0 +1,43 @@
+[tool.ruff.lint]
+extend-select = [
+  "A",
+  "B",
+  "C4",
+#  "D",
+  "FA",
+  "FLY",
+  "FURB",
+  "ICN",
+  "INT",
+  "ISC",
+  "I",
+  "NPY",
+  "N",
+  "PERF",
+  "PGH",
+  "PIE",
+  "PLE",
+  "PLR",
+  "PLW",
+  "PYI",
+  "RET",
+  "RUF",
+  "SIM",
+  "TC",
+  "TID",
+  "TID",
+  "UP",
+  "W",
+  "YTT",
+]
+extend-ignore = [
+  "B008",    # No function call in default value
+  "E74",     # Ambiguous name
+  "PLR091",  # Too many XXX
+  "PLR2004", # Magic vavlue comparison
+]
+# Allow "α" (U+03B1 GREEK SMALL LETTER ALPHA) which could be confused for "a"
+allowed-confusables = ["α"]
+
+[tool.ruff.format]
+docstring-code-format = true
