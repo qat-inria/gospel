@@ -143,11 +143,13 @@ def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
         result.add(command.E(nodes=nodes))
     for cmd in pattern:
         if cmd.kind == CommandKind.M and cmd.node in non_pauli_meas:
-            if vop := vops.get(cmd.node):
+            vop = vops.get(cmd.node)
+            if vop is not None:
                 result.add(cmd.clifford(vop))
             else:
                 result.add(cmd)
     for node in pattern.output_nodes:
-        if vop := vops.get(cmd.node):
+        clifford = vops.get(node)
+        if clifford is not None:
             result.add(command.C(node=node, clifford=clifford))
     return result
