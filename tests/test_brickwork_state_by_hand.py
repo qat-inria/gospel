@@ -19,7 +19,7 @@ def test_by_hand():
     circuit = Circuit(2)
     circuit.rz(0, 0.1)
     pattern = Pattern(input_nodes=[0, 1])
-    add_j(pattern, 0, 2, 0.1)
+    add_j(pattern, 0, 2, -0.1)
     add_j(pattern, 1, 3, 0)
     add_j(pattern, 2, 4, 0)
     add_j(pattern, 3, 5, 0)
