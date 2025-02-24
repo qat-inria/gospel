@@ -31,7 +31,7 @@ class XZ(Enum):
     Z = enum.auto()
 
 
-def none_zero(v: float | None) -> float:
+def value_or_zero(v: float | None) -> float:
     if v is None:
         return 0
     return v
@@ -44,7 +44,12 @@ class SingleQubit:
     rz1: float | None = None
 
     def measures(self) -> list[float]:
-        return [none_zero(self.rz0), none_zero(self.rx), none_zero(self.rz1), 0]
+        return [
+            -value_or_zero(self.rz0),
+            -value_or_zero(self.rx),
+            -value_or_zero(self.rz1),
+            0,
+        ]
 
     def is_identity(self) -> bool:
         return self.rz0 is None and self.rx is None and self.rz1 is None
@@ -68,7 +73,7 @@ class SingleQubit:
                 typing.assert_never(axis)
 
 
-@dataclass(frozen=True)
+@dataclass
 class SingleQubitPair(Brick):
     top: SingleQubit
     bottom: SingleQubit
@@ -82,7 +87,7 @@ class SingleQubitPair(Brick):
         return [self.top.measures(), self.bottom.measures()]
 
 
-@dataclass(frozen=True)
+@dataclass
 class Layer:
     odd: bool
     bricks: list[Brick]
@@ -128,7 +133,9 @@ def __insert_rotation(
                 return
         else:
             assert brick is CNot
-    if target_depth % 2 and (instr.target == 0 or instr.target == width - 1):
+    if target_depth % 2 and (
+        instr.target == 0 or (width % 2 == 0 and instr.target == width - 1)
+    ):
         target_depth += 1
     layer = __get_layer(width, layers, target_depth)
     brick, position = layer.get(instr.target)
@@ -138,9 +145,6 @@ def __insert_rotation(
     added = gate.add(axis, instr.angle)
     assert added
     depth[instr.target] = target_depth + 1
-    other_target = instr.target + int(not position) * 2 - 1
-    if other_target < len(depth) and depth[other_target] < target_depth + 1:
-        depth[other_target] = target_depth + 1
 
 
 def transpile_to_layers(circuit: Circuit) -> list[Layer]:
@@ -155,7 +159,9 @@ def transpile_to_layers(circuit: Circuit) -> list[Layer]:
                     )
                 target = min(instr.control, instr.target)
                 min_depth = max(depth[target], depth[target + 1])
-                target_depth = min_depth | 1 if target % 2 else (min_depth + 1) & ~1
+                target_depth = (
+                    min_depth if target % 2 == min_depth % 2 else min_depth + 1
+                )
                 target_layer = __get_layer(circuit.width, layers, target_depth)
                 index = target // 2
                 target_layer.bricks[index] = CNot
@@ -187,7 +193,7 @@ def add_j(
 ) -> int:
     next_node = node_generator.fresh()
     pattern.add(command.E(nodes=(node, next_node)))
-    pattern.add(command.M(node=node, angle=angle))
+    pattern.add(command.M(node=node, angle=angle / math.pi))
     pattern.add(command.X(node=next_node, domain={node}))
     return next_node
 
@@ -206,6 +212,7 @@ def layers_to_pattern(width: int, layers: list[Layer]) -> Pattern:
         all_brick_measures = [brick.measures() for brick in layer.bricks]
         for col in range(4):
             if layer.odd:
+                print(list(pattern), nodes[0])
                 nodes[0] = add_j(pattern, node_generator, nodes[0], 0)
             qubit = int(layer.odd)
             for measures in all_brick_measures:
@@ -219,7 +226,7 @@ def layers_to_pattern(width: int, layers: list[Layer]) -> Pattern:
                     pattern.add(command.E(nodes=(nodes[qubit], nodes[qubit + 1])))
                 qubit += 2
             if layer.odd:
-                nodes[last_qubit] = add_j(pattern, node_generator, nodes[0], last_qubit)
+                nodes[last_qubit] = add_j(pattern, node_generator, nodes[last_qubit], 0)
     if width % 2:
         pattern.add(command.M(node=last_qubit, angle=0))
     return pattern
@@ -230,12 +237,12 @@ def transpile(circuit: Circuit) -> Pattern:
     return layers_to_pattern(circuit.width, layers)
 
 
-def get_node_positions(pattern: Pattern) -> dict[int, array]:
+def get_node_positions(pattern: Pattern, scale: float = 1) -> dict[int, array]:
     width = len(pattern.input_nodes)
     if width % 2:
         width = width + 1
     assert pattern.n_node % width == 0
     return {
-        node: array("i", [node // width, width - node % width])
+        node: array("i", [(node // width) * scale, (width - node % width) * scale])
         for node in range(pattern.n_node)
     }

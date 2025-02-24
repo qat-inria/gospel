@@ -95,8 +95,8 @@ def test_transpile_to_layers_four_cnots():
     circuit.cnot(0, 1)
     circuit.cnot(1, 2)
     circuit.rx(1, math.pi / 4)
-    circuit.rx(3, math.pi / 4)
     circuit.rx(2, math.pi / 4)
+    circuit.rx(3, math.pi / 4)
     circuit.cnot(2, 3)
     circuit.rx(0, math.pi / 4)
     circuit.cnot(0, 1)
@@ -120,13 +120,48 @@ def test_transpile_to_layers_four_cnots():
     ]
 
 
-def test_transpile_cnot():
-    circuit = Circuit(2)
-    # circuit.rx(0, math.pi / 4)
-    circuit.rz(0, math.pi / 4)
-    # circuit.cnot(0, 1)
+def check_circuit(circuit) -> None:
     pattern = transpile(circuit)
-    print(list(pattern))
     sv1 = circuit.simulate_statevector().statevec
     sv2 = pattern.simulate_pattern()
     assert np.abs(np.dot(sv1.flatten().conjugate(), sv2.flatten())) == pytest.approx(1)
+
+
+def test_transpile_rz():
+    circuit = Circuit(2)
+    circuit.rz(0, 0.1)
+    check_circuit(circuit)
+
+
+def test_transpile_rx():
+    circuit = Circuit(2)
+    circuit.rx(0, 0.1)
+    check_circuit(circuit)
+
+
+def test_transpile_cnot():
+    circuit = Circuit(2)
+    circuit.cnot(0, 1)
+    check_circuit(circuit)
+
+
+def test_transpile_rz_rx_cnot():
+    circuit = Circuit(2)
+    circuit.rz(0, 0.1)
+    circuit.rz(1, 0.1)
+    circuit.cnot(0, 1)
+    check_circuit(circuit)
+
+
+def test_transpile_multiple_cnot():
+    circuit = Circuit(4)
+    circuit.rz(0, 0.1)
+    circuit.rx(0, 0.1)
+    circuit.rx(1, 0.1)
+    circuit.rz(1, 0.1)
+    circuit.rx(2, 0.1)
+    circuit.rz(3, 0.1)
+    #    circuit.cnot(0, 1)
+    #    circuit.cnot(2, 3)
+    #    circuit.cnot(1, 2)
+    check_circuit(circuit)
