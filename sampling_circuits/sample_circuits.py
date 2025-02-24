@@ -5,45 +5,111 @@ import numpy as np
 import qiskit
 import qiskit.qasm2
 import typer
-from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
-from qiskit.primitives import BackendEstimatorV2
-from qiskit.quantum_info import SparsePauliOp
-from qiskit_aer import StatevectorSimulator
+from graphix import Circuit
+from graphix.instruction import InstructionKind
+from qiskit import QuantumCircuit, QuantumRegister
+from qiskit.quantum_info import SparsePauliOp, Statevector
 from tqdm import tqdm
-
-# from graphix import Circuit
 
 
 def sample_circuit(
-    nqubits: int, depth: int, p_gate: float, p_cnot: float, rng: np.random.Generator
-) -> QuantumCircuit:
+    nqubits: int,
+    depth: int,
+    p_gate: float,
+    p_cnot: float,
+    p_rx: float,
+    rng: np.random.Generator,
+) -> Circuit:
     """
     Generates a quantum circuit with the given number of qubits and depth.
 
     At each layer (depth), the circuit iterates through the qubits. With probability
-    p_gate, a gate is applied. If there is room (i.e. not on the last qubit) and
-    with probability p_cnot, a controlled-NOT (CX) gate is applied between the current
-    qubit and the next one (skipping the next qubit). Otherwise, a rotation gate (rx)
-    with a random angle is applied to the current qubit.
+    `p_gate`, a gate is applied. If there is room (i.e. not on the last qubit) and
+    with probability `p_cnot`, a controlled-NOT (CX) gate is applied between the current
+    qubit and the next one (skipping the next qubit). Otherwise, a rotation gate with
+    a random angle is applied to the current qubit: with probability `p_rx`, the
+    rotation is RX, otherwise RZ.
 
-    finally, qubit 0 is measured into the single classical bit.
+    The circuit is then stripped so that gates are kept only if they can affect qubit 0.
+    Rotations on other qubits that are not followed with a CNOT connecting them to
+    qubit 0 are removed.
     """
-    qc = QuantumCircuit(QuantumRegister(nqubits), ClassicalRegister(1))
+    circuit = Circuit(nqubits)
     for _ in range(depth):
         qubit = 0
         while qubit < nqubits:
             if rng.random() < p_gate:
-                # If there's room for a CX gate and with probability p_cnot, apply CX
+                # Check if there's room for a CX gate and with probability p_cnot, apply CX.
                 if qubit < nqubits - 1 and rng.random() < p_cnot:
-                    qc.cx(qubit, qubit + 1)
+                    # Graphix's CNOT expects (control, target).
+                    circuit.cnot(qubit, qubit + 1)
                     qubit += 2  # Skip the next qubit since it's already involved in CX
                 else:
-                    qc.rx(rng.random() * 2 * np.pi, qubit)
+                    angle = rng.random() * 2 * np.pi
+                    # With probability p_rx, apply RX; otherwise, apply RZ.
+                    if rng.random() < p_rx:
+                        circuit.rx(qubit, angle)
+                    else:
+                        circuit.rz(qubit, angle)
                     qubit += 1
             else:
+                # No gate applied; move to the next qubit.
                 qubit += 1
-    # Measure the first qubit (qubit 0) into the classical register
-    qc.measure(0, 0)
+    # Initialize an empty list for the instructions that remain after stripping.
+    new_instructions = []
+    # 'reachable' tracks the index of the last qubit that can affect qubit 0.
+    reachable = 0
+    for instr in reversed(circuit.instruction):
+        match instr.kind:
+            case InstructionKind.CNOT:
+                # By construction, instr.target == instr.control + 1.
+                # If the control qubit is beyond the current reachable range,
+                # the gate cannot affect qubit 0 and is removed.
+                if instr.control > reachable:
+                    continue
+                # If the control qubit is exactly at the reachable boundary,
+                # this CX gate extends the influence to the next qubit.
+                if instr.control == reachable:
+                    reachable += 1
+                # Keep the instruction.
+                new_instructions.append(instr)
+            case InstructionKind.RX | InstructionKind.RZ:
+                # Keep the rotation only if it can affect a qubit within the reachable range.
+                if instr.target <= reachable:
+                    new_instructions.append(instr)
+    # The instructions were collected in reverse order; reverse them to restore original order.
+    new_instructions.reverse()
+    # Replace the original instruction list with the new, stripped list.
+    # TO CHECK: it appears that stripping the circuit changes the outcome on qubit 0. WHY?
+    # circuit.instruction = new_instructions
+    return circuit
+
+
+def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
+    """
+    Convert a Graphix circuit to a Qiskit QuantumCircuit.
+
+    Parameters:
+        c (Circuit): Graphix circuit
+
+    Returns:
+        QuantumCircuit: A Qiskit QuantumCircuit representing the custom circuit.
+
+    Raises:
+        ValueError: If an instruction type is not supported.
+    """
+    qc = QuantumCircuit(QuantumRegister(c.width))
+    for instr in c.instruction:
+        match instr.kind:
+            case InstructionKind.CNOT:
+                # Qiskit's cx method expects (control, target).
+                qc.cx(instr.control, instr.target)
+            case InstructionKind.RX:
+                qc.rx(instr.angle, instr.target)
+            case InstructionKind.RZ:
+                qc.rz(instr.angle, instr.target)
+            case _:
+                raise ValueError(f"Unsupported instruction: {instr.kind}")
     return qc
 
 
@@ -57,25 +123,15 @@ def estimate_circuit(qc: QuantumCircuit) -> float:
         <Z> = p(0) - p(1)
     the probability of outcome '1' is computed as:
         p(1) = (1 - <Z>) / 2
-
-    Note:
-        If the circuit qc contains an explicit measurement on the first qubit,
-        that measurement gate is typically removed (or ignored) by the estimator
-        when using a statevector simulator. That is, the estimator computes the
-        expectation value on the pre-measurement state, so the measurement does not
-        “trace out” the qubit in the simulation.
     """
     # Create an observable that acts as Z on the first qubit and Identity on the rest.
     pauli_string = "Z" + "I" * (qc.num_qubits - 1)
     observable = SparsePauliOp(pauli_string)
-    simulator = StatevectorSimulator()
-    estimator = BackendEstimatorV2(backend=simulator)
-    # Run the estimator: note that measurement operations in qc (if any) are typically ignored
-    # so that the expectation value is computed on the unitary (pre-measurement) part.
-    job = estimator.run([(qc, observable)])
-    exp_val = job.result()[0].data.evs
-    # Compute the probability of outcome "1" (eigenvalue -1 of Z) using:
-    # p(1) = (1 - <Z>)/2.
+    # Get the statevector for the circuit
+    sv = Statevector.from_instruction(qc)
+    # Compute the expectation value of the observable
+    exp_val = sv.expectation_value(observable)
+    # p(1) = (1 - <Z>)/2
     return (1 - exp_val) / 2
 
 
@@ -85,13 +141,15 @@ def generate_circuits(
     depth: int,
     p_gate: float,
     p_cnot: float,
+    p_rx: float,
     rng: np.random.Generator,
-) -> list[QuantumCircuit]:
+) -> list[Circuit]:
     """
     Generate a list of quantum circuits with the given number of qubits and depth.
     """
     return [
-        sample_circuit(nqubits, depth, p_gate, p_cnot, rng) for _ in range(ncircuits)
+        sample_circuit(nqubits, depth, p_gate, p_cnot, p_rx, rng)
+        for _ in range(ncircuits)
     ]
 
 
@@ -137,15 +195,18 @@ def sample_circuits(
     depth: int = typer.Option(..., help="Circuit depth"),
     p_gate: float = typer.Option(..., help="Probability of applying a gate"),
     p_cnot: float = typer.Option(..., help="Probability of applying a CNOT gate"),
+    p_rx: float = typer.Option(..., help="Probability of applying an RX gate"),
     seed: int = typer.Option(..., help="Random seed"),
     threshold: float = typer.Option(..., help="Threshold value"),
     target: Path = typer.Option(..., help="Target directory"),
 ) -> None:
     params = locals()
     rng = np.random.default_rng(seed=seed)
+    rng2 = np.random.default_rng(seed=seed)
     target.mkdir()
-    circuits = generate_circuits(ncircuits, nqubits, depth, p_gate, p_cnot, rng)
-    estimated_circuits = estimate_circuits(circuits)
+    circuits = generate_circuits(ncircuits, nqubits, depth, p_gate, p_cnot, p_rx, rng)
+    qiskit_circuits = map(circuit_to_qiskit, circuits)
+    estimated_circuits = estimate_circuits(qiskit_circuits)
     save_circuits(estimated_circuits, threshold, target)
     plot_distribution(estimated_circuits, target / "distribution.svg")
     arg_str = " ".join(
