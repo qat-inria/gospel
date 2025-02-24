@@ -212,7 +212,6 @@ def layers_to_pattern(width: int, layers: list[Layer]) -> Pattern:
         all_brick_measures = [brick.measures() for brick in layer.bricks]
         for col in range(4):
             if layer.odd:
-                print(list(pattern), nodes[0])
                 nodes[0] = add_j(pattern, node_generator, nodes[0], 0)
             qubit = int(layer.odd)
             for measures in all_brick_measures:
@@ -228,7 +227,7 @@ def layers_to_pattern(width: int, layers: list[Layer]) -> Pattern:
             if layer.odd:
                 nodes[last_qubit] = add_j(pattern, node_generator, nodes[last_qubit], 0)
     if width % 2:
-        pattern.add(command.M(node=last_qubit, angle=0))
+        pattern.add(command.M(node=nodes[last_qubit], angle=0))
     return pattern
 
 

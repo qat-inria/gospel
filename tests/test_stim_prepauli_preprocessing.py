@@ -73,5 +73,9 @@ def test_pauli_measurement_random_circuit(
     state = pattern.simulate_pattern(backend, rng=rng)
     state1 = pattern1.simulate_pattern(backend, rng=rng)
     state2 = pattern2.simulate_pattern(backend, rng=rng)
-    print(compare_backend_result_with_statevec("statevector", state1, state))
-    print(compare_backend_result_with_statevec("statevector", state2, state))
+    assert compare_backend_result_with_statevec(
+        backend, state1, state
+    ) == pytest.approx(1)
+    assert compare_backend_result_with_statevec(
+        backend, state2, state
+    ) == pytest.approx(1)

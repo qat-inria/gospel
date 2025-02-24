@@ -12,6 +12,7 @@ from brickwork_state_transpiler import (
     transpile,
     transpile_to_layers,
 )
+from sampling_circuits import sample_circuit
 
 
 def test_transpile_to_layers_rx_rz_on_two_qubits():
@@ -161,7 +162,15 @@ def test_transpile_multiple_cnot():
     circuit.rz(1, 0.1)
     circuit.rx(2, 0.1)
     circuit.rz(3, 0.1)
-    #    circuit.cnot(0, 1)
-    #    circuit.cnot(2, 3)
-    #    circuit.cnot(1, 2)
+    circuit.cnot(0, 1)
+    circuit.cnot(2, 3)
+    circuit.cnot(1, 2)
+    check_circuit(circuit)
+
+
+def test_sampled_circuit():
+    rng = np.random.default_rng(seed=1729)
+    circuit = sample_circuit(
+        nqubits=5, depth=10, p_gate=0.5, p_cnot=0.5, p_rx=0.5, rng=rng
+    )
     check_circuit(circuit)
