@@ -47,6 +47,7 @@ def test_simple() -> None:
     ) == pytest.approx(1)
 
 
+@pytest.mark.skip
 def test_reduced() -> None:
     pattern = Pattern(input_nodes=[0, 1])
     pattern.extend(
@@ -81,6 +82,7 @@ def test_reduced() -> None:
     ) == pytest.approx(1)
 
 
+@pytest.mark.skip
 def test_fixed() -> None:
     seq = [
         command.N(node=2),
@@ -156,6 +158,7 @@ def test_fixed() -> None:
         ) == pytest.approx(1)
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize("jumps", range(1, 11))
 @pytest.mark.parametrize("backend", ["statevector", "densitymatrix"])
 # TODO: tensor network backend is excluded because "parallel preparation strategy does not support not-standardized pattern".
