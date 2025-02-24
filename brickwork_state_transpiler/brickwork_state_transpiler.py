@@ -23,7 +23,7 @@ class Brick(ABC):
 
 class CNOT(Brick):
     def measures(self) -> list[list[float]]:
-        return [[0, 0, math.pi / 4, 0], [0, math.pi / 4, 0, -math.pi / 4]]
+        return [[0, 0, math.pi / 2, 0], [0, math.pi / 2, 0, -math.pi / 2]]
 
 
 class XZ(Enum):
