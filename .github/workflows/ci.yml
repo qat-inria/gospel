@@ -59,6 +59,7 @@ jobs:
           path: sampling_circuits/circuits/
 
   deploy:
+    needs: build
 
     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
     permissions:
