@@ -1,4 +1,7 @@
-from pathlib import Path
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,9 +10,12 @@ import qiskit.qasm2
 import typer
 from graphix import Circuit
 from graphix.instruction import InstructionKind
-from qiskit import QuantumCircuit, QuantumRegister
-from qiskit.quantum_info import SparsePauliOp, Statevector
+from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
+from qiskit_aer.primitives import SamplerV2
 from tqdm import tqdm
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def sample_circuit(
@@ -98,7 +104,7 @@ def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
     Raises:
         ValueError: If an instruction type is not supported.
     """
-    qc = QuantumCircuit(QuantumRegister(c.width))
+    qc = QuantumCircuit(QuantumRegister(c.width), ClassicalRegister(1))
     for instr in c.instruction:
         match instr.kind:
             case InstructionKind.CNOT:
@@ -110,29 +116,19 @@ def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
                 qc.rz(instr.angle, instr.target)
             case _:
                 raise ValueError(f"Unsupported instruction: {instr.kind}")
+    qc.measure(0, 0)
     return qc
 
 
-def estimate_circuit(qc: QuantumCircuit) -> float:
+def estimate_circuit(qc: QuantumCircuit, seed: int | None = None) -> float:
     """
     Estimate the probability of measuring the '1' outcome on the first qubit.
-
-    The observable is chosen as Z on the first qubit (and I on all others),
-    so that the expectation value <Z> is computed on the first qubit.
-    Given that for a qubit in state |ψ⟩:
-        <Z> = p(0) - p(1)
-    the probability of outcome '1' is computed as:
-        p(1) = (1 - <Z>) / 2
     """
-    # Create an observable that acts as Z on the first qubit and Identity on the rest.
-    pauli_string = "Z" + "I" * (qc.num_qubits - 1)
-    observable = SparsePauliOp(pauli_string)
-    # Get the statevector for the circuit
-    sv = Statevector.from_instruction(qc)
-    # Compute the expectation value of the observable
-    exp_val = sv.expectation_value(observable)
-    # p(1) = (1 - <Z>)/2
-    return (1 - exp_val) / 2
+    nb_shots = 2 << 8
+    sampler = SamplerV2(seed=seed)
+    job = sampler.run([qc], shots=nb_shots)
+    job_result = job.result()
+    return sum(next(iter(job_result[0].data.values())).bitcount()) / nb_shots
 
 
 def generate_circuits(
@@ -154,28 +150,26 @@ def generate_circuits(
 
 
 def estimate_circuits(
-    circuits: list[QuantumCircuit],
+    circuits: list[QuantumCircuit], rng: np.random.Generator
 ) -> list[tuple[QuantumCircuit, float]]:
-    return [(circuit, estimate_circuit(circuit)) for circuit in tqdm(circuits)]
+    return [
+        (circuit, estimate_circuit(circuit, seed=rng.integers(2 << 32)))
+        for circuit in tqdm(circuits)
+    ]
 
 
-def save_circuits(circuits: list[QuantumCircuit], threshold: float, root: Path) -> None:
-    no_path = root / f"0-{threshold}"
-    other_path = root / f"{threshold}-{1 - threshold}"
-    yes_path = root / f"{1 - threshold}-1"
-    no_path.mkdir()
-    other_path.mkdir()
-    yes_path.mkdir()
+def save_circuits(
+    circuits: list[tuple[QuantumCircuit, float]], threshold: float, path: Path
+) -> None:
+    table = {}
     maxlen = int(np.log10(len(circuits) - 1) + 1)
     for i, (circuit, p) in enumerate(circuits):
-        if p <= threshold:
-            path = no_path
-        elif p >= 1 - threshold:
-            path = yes_path
-        else:
-            path = other_path
-        with (path / f"circuit{str(i).zfill(maxlen)}.qasm").open("w") as f:
+        filename = f"circuit{str(i).zfill(maxlen)}.qasm"
+        with (path / filename).open("w") as f:
             qiskit.qasm2.dump(circuit, f)
+        table[filename] = p
+    with (path / "table.json").open("w") as f:
+        json.dump(table, f)
 
 
 def plot_distribution(
@@ -202,11 +196,10 @@ def sample_circuits(
 ) -> None:
     params = locals()
     rng = np.random.default_rng(seed=seed)
-    rng2 = np.random.default_rng(seed=seed)
     target.mkdir()
     circuits = generate_circuits(ncircuits, nqubits, depth, p_gate, p_cnot, p_rx, rng)
     qiskit_circuits = map(circuit_to_qiskit, circuits)
-    estimated_circuits = estimate_circuits(qiskit_circuits)
+    estimated_circuits = estimate_circuits(qiskit_circuits, rng)
     save_circuits(estimated_circuits, threshold, target)
     plot_distribution(estimated_circuits, target / "distribution.svg")
     arg_str = " ".join(
