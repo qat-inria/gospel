@@ -92,6 +92,24 @@ def get_renumbered_graph(pattern: Pattern) -> RenumberedGraph:
     return RenumberedGraph(nodes, edges, renumbering, graph)
 
 
+def pattern_to_tableau_simulator(
+    pattern: Pattern, leave_input: bool
+) -> stim.TableauSimulator:
+    pattern.move_pauli_measurements_to_the_front()
+    print(list(pattern))
+    renumbered_graph = get_renumbered_graph(pattern)
+    stabilizers = get_stabilizers(renumbered_graph.graph)
+    tableau = stim.Tableau.from_stabilizers(stabilizers)
+    sim = stim.TableauSimulator()
+    sim.do_tableau(tableau, list(renumbered_graph.graph.nodes))
+    to_measure, non_pauli_meas = pauli_nodes(pattern, leave_input)
+    results = {}
+    for cmd, measurement in to_measure:
+        node = renumbered_graph.renumbering[cmd.node]
+        results[cmd.node] = apply_pauli_measurement(sim, node, measurement)
+    return sim.state_vector(endian="big")
+
+
 def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
     pattern.move_pauli_measurements_to_the_front()
     renumbered_graph = get_renumbered_graph(pattern)
@@ -106,6 +124,7 @@ def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
         results[cmd.node] = apply_pauli_measurement(sim, node, measurement)
     tableau = sim.current_inverse_tableau().inverse()
     graph_state = tableau.to_circuit("graph_state")
+    print(graph_state)
     edges = []
     vops = {}
     for instruction in graph_state:
@@ -129,6 +148,8 @@ def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
                 pass
             case _:
                 raise ValueError(instruction.name)
+    print(renumbered_graph.nodes)
+    print(vops)
     if leave_input:
         input_nodes = pattern.input_nodes
     else:

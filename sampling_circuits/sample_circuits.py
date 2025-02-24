@@ -81,7 +81,7 @@ def sample_circuit(
     new_instructions.reverse()
     # Replace the original instruction list with the new, stripped list.
     # TO CHECK: it appears that stripping the circuit changes the outcome on qubit 0. WHY?
-    # circuit.instruction = new_instructions
+    circuit.instruction = new_instructions
     return circuit
 
 
