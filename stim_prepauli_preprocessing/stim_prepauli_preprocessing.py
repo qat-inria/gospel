@@ -96,7 +96,6 @@ def pattern_to_tableau_simulator(
     pattern: Pattern, leave_input: bool
 ) -> stim.TableauSimulator:
     pattern.move_pauli_measurements_to_the_front()
-    print(list(pattern))
     renumbered_graph = get_renumbered_graph(pattern)
     stabilizers = get_stabilizers(renumbered_graph.graph)
     tableau = stim.Tableau.from_stabilizers(stabilizers)
@@ -124,7 +123,6 @@ def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
         results[cmd.node] = apply_pauli_measurement(sim, node, measurement)
     tableau = sim.current_inverse_tableau().inverse()
     graph_state = tableau.to_circuit("graph_state")
-    print(graph_state)
     edges = []
     vops = {}
     for instruction in graph_state:
@@ -148,8 +146,6 @@ def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
                 pass
             case _:
                 raise ValueError(instruction.name)
-    print(renumbered_graph.nodes)
-    print(vops)
     if leave_input:
         input_nodes = pattern.input_nodes
     else:
@@ -169,8 +165,11 @@ def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
                 result.add(cmd.clifford(vop))
             else:
                 result.add(cmd)
+        elif cmd.kind in (CommandKind.Z, CommandKind.X, CommandKind.C):
+            result.add(cmd)
     for node in pattern.output_nodes:
         clifford = vops.get(node)
         if clifford is not None:
             result.add(command.C(node=node, clifford=clifford))
+    result.reorder_output_nodes(pattern.output_nodes)
     return result
