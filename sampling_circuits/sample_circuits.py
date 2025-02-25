@@ -11,6 +11,7 @@ import typer
 from graphix import Circuit
 from graphix.instruction import InstructionKind
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
+from qiskit.quantum_info import SparsePauliOp, Statevector
 from qiskit_aer.primitives import SamplerV2
 from tqdm import tqdm
 
@@ -131,6 +132,30 @@ def estimate_circuit(qc: QuantumCircuit, seed: int | None = None) -> float:
     return sum(next(iter(job_result[0].data.values())).bitcount()) / nb_shots
 
 
+def estimate_circuit_expectation_value(qc: QuantumCircuit) -> float:
+    """
+    Estimate the probability of measuring the '1' outcome on the first qubit.
+
+    The observable is chosen as Z on the first qubit (and I on all others),
+    so that the expectation value <Z> is computed on the first qubit.
+    Given that for a qubit in state |ψ⟩:
+        <Z> = p(0) - p(1)
+    the probability of outcome '1' is computed as:
+        p(1) = (1 - <Z>) / 2
+    """
+    # Create an observable that acts as Z on the first qubit and Identity on the rest.
+    pauli_string = "Z" + "I" * (qc.num_qubits - 1)
+    observable = SparsePauliOp(pauli_string)
+    # Get the statevector for the circuit
+    del qc.data[-1]  # Remove the measure
+    sv = Statevector.from_instruction(qc)
+    # Compute the expectation value of the observable
+    exp_val = sv.expectation_value(observable)
+    assert np.imag(exp_val) == 0
+    # p(1) = (1 - <Z>)/2
+    return (1 - np.real(exp_val)) / 2
+
+
 def generate_circuits(
     ncircuits: int,
     nqubits: int,
@@ -167,7 +192,7 @@ def save_circuits(
         filename = f"circuit{str(i).zfill(maxlen)}.qasm"
         with (path / filename).open("w") as f:
             qiskit.qasm2.dump(circuit, f)
-        table[filename] = p
+        table[filename] = [p, estimate_circuit_expectation_value(circuit)]
     with (path / "table.json").open("w") as f:
         json.dump(table, f)
 

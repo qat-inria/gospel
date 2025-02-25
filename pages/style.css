@@ -1,0 +1,19 @@
+table {
+  border-collapse: collapse;
+  width: 50%;
+}
+th, td {
+  border: 1px solid #aaa;
+  padding: 8px;
+  text-align: left;
+}
+th {
+  cursor: pointer;
+  background-color: #f2f2f2;
+}
+figcaption {
+  font-style: italic;
+}
+.name {
+  cursor: pointer;
+}

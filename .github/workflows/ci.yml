@@ -49,14 +49,26 @@ jobs:
       - name: Setup requirements
         run: pip install -r requirements.txt
 
-      - name: Run experiment
+      - name: Run sampling circuits experiment
         run: cd sampling_circuits && python experiments.py
+
+      - name: Copy experiment results in pages
+        run: cp -r sampling_circuits/circuits pages/
+
+      - name: Make circuits.tar.gz
+        run: cd pages && tar -czf circuits.tar.gz circuits
+
+      - name: Create SVG for circuits
+        run: cd pages && python ../scripts/qasm2img.py
+
+      - name: Create SVG for brickwork states
+        run: python -m scripts.qasm2brickwork_state
 
       - name: Upload files as artifact
         id: deployment
         uses: actions/upload-pages-artifact@v3
         with:
-          path: sampling_circuits/circuits/
+          path: pages/
 
   deploy:
     needs: build

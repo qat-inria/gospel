@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Gospel</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+  </head>
+  <body>
+    <h1>Gospel</h1>
+    <figure>
+      <img src="circuits/distribution.svg" />
+      <figcaption>Distribution of outcomes for qubit 0 in sampled circuits</figcaption>
+    </figure>
+    <p>
+      Download the archive of QASM files: <a href="circuits.tar.gz">circuits.tar.gz</a>.
+    </p>
+    <table id="data-table">
+      <thead>
+        <tr>
+          <th id="circuit-header">Circuits</th>
+          <th id="sampling-header">Sampled probability of outcome 1 for qubit 0</th>
+          <th id="analytic-header">Analytic probability of outcome 1 for qubit 0</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Table rows will be inserted here -->
+      </tbody>
+    </table>
+
+  <script>
+    // Global variables to hold table data and sort state.
+    let tableData = [];
+    let currentSortColumn = -1; // -1 means no column sorted yet
+    let currentSortDirection = 1; // 1 for ascending, -1 for descending
+
+    // Function to render the table using tableData array.
+    function createFigure(src, caption) {
+        const figure = document.createElement("figure");
+        const img = new Image();
+        figure.appendChild(img);
+        img.src = src;
+        const figcaption = document.createElement("figcaption");
+        figure.appendChild(figcaption);
+        figcaption.appendChild(document.createTextNode(caption))
+        return figure;
+    }
+    function renderTable() {
+      const tbody = document.querySelector('#data-table tbody');
+      tbody.innerHTML = ""; // Clear existing rows
+      
+      tableData.forEach(([circuit, [sampling, analytic]]) => {
+        const row = document.createElement('tr');
+        const keyCell = document.createElement('td');
+        const name_div = document.createElement("div");
+        keyCell.appendChild(name_div);
+        name_div.classList.add("name");
+        name_div.textContent = circuit;
+        let contents = null;
+        name_div.addEventListener("click", function () {
+            if (contents == null) {
+                contents = document.createElement("div");
+                keyCell.appendChild(contents);
+                const download_div = document.createElement("div");
+                contents.appendChild(download_div);
+                download_div.appendChild(document.createTextNode("Download QASM file: "));
+                const download_a = document.createElement("a");
+                download_div.appendChild(download_a);
+                download_a.setAttribute("href", `circuits/${circuit}`)
+                download_a.appendChild(document.createTextNode(circuit));
+                const svg_filename = circuit.replace(/\.\w+$/, ".svg");
+                contents.appendChild(createFigure(`circuits_svg/${svg_filename}`, "Circuit"));
+                contents.appendChild(createFigure(`brickwork_state_svg/${svg_filename}`, "Brickwork state"));
+            }
+            else {
+                keyCell.removeChild(contents);
+                contents = null;
+            }
+        });
+        row.appendChild(keyCell);
+        const samplingCell = document.createElement('td');
+        samplingCell.textContent = parseFloat(sampling).toFixed(2); // Format as float
+        row.appendChild(samplingCell);
+        const analyticCell = document.createElement('td');
+        analyticCell.textContent = parseFloat(analytic).toFixed(2); // Format as float
+        row.appendChild(analyticCell);
+        tbody.appendChild(row);
+      });
+    }
+
+    // Function to sort tableData by the given column (0: key, 1: value)
+    function sortTableByColumn(columnIndex) {
+      // Toggle sort direction if same column; otherwise, default to ascending.
+      if (currentSortColumn === columnIndex) {
+        currentSortDirection *= -1;
+      } else {
+        currentSortColumn = columnIndex;
+        currentSortDirection = 1;
+      }
+      
+      tableData.sort((a, b) => {
+        // Sort by key (string) or value (number)
+        if (columnIndex === 0) {
+          return a[0].localeCompare(b[0]) * currentSortDirection;
+        } else {
+          return (parseFloat(a[1][columnIndex-1]) - parseFloat(b[1][columnIndex-1])) * currentSortDirection;
+        }
+      });
+      renderTable();
+    }
+
+    // Add click event listeners to header cells for sorting.
+    document.getElementById('circuit-header').addEventListener('click', function() {
+      sortTableByColumn(0);
+    });
+    document.getElementById('sampling-header').addEventListener('click', function() {
+      sortTableByColumn(1);
+    });
+    document.getElementById('analytic-header').addEventListener('click', function() {
+      sortTableByColumn(2);
+    });
+
+    // Use XMLHttpRequest to download the table.json file.
+    function loadJSON() {
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", "circuits/table.json", true);
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+          if (xhr.status === 200) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              // Convert the dictionary into an array of [key, value] pairs.
+              tableData = Object.entries(data);
+              renderTable();
+            } catch (e) {
+              console.error("Error parsing JSON:", e);
+            }
+          } else {
+            console.error("Failed to load table.json. Status:", xhr.status);
+          }
+        }
+      };
+      xhr.send();
+    }
+
+    // Start the JSON download once the page has loaded.
+    window.onload = loadJSON;
+  </script>
+
+  </body>
+</html>
