@@ -171,6 +171,6 @@ def test_transpile_multiple_cnot():
 def test_sampled_circuit():
     rng = np.random.default_rng(seed=1729)
     circuit = sample_circuit(
-        nqubits=5, depth=10, p_gate=0.5, p_cnot=0.5, p_rx=0.5, rng=rng
+        nqubits=5, depth=10, p_gate=0.5, p_cnot=0.5, p_cnot_flip=0.5, p_rx=0.5, rng=rng
     )
     check_circuit(circuit)
