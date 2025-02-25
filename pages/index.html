@@ -19,8 +19,7 @@
       <thead>
         <tr>
           <th id="circuit-header">Circuits</th>
-          <th id="sampling-header">Sampled probability of outcome 1 for qubit 0</th>
-          <th id="analytic-header">Analytic probability of outcome 1 for qubit 0</th>
+          <th id="probability-header">Probability of outcome 1 for qubit 0</th>
         </tr>
       </thead>
       <tbody>
@@ -49,7 +48,7 @@
       const tbody = document.querySelector('#data-table tbody');
       tbody.innerHTML = ""; // Clear existing rows
       
-      tableData.forEach(([circuit, [sampling, analytic]]) => {
+      tableData.forEach(([circuit, prob]) => {
         const row = document.createElement('tr');
         const keyCell = document.createElement('td');
         const name_div = document.createElement("div");
@@ -78,12 +77,9 @@
             }
         });
         row.appendChild(keyCell);
-        const samplingCell = document.createElement('td');
-        samplingCell.textContent = parseFloat(sampling).toFixed(2); // Format as float
-        row.appendChild(samplingCell);
-        const analyticCell = document.createElement('td');
-        analyticCell.textContent = parseFloat(analytic).toFixed(2); // Format as float
-        row.appendChild(analyticCell);
+        const probCell = document.createElement('td');
+        probCell.textContent = parseFloat(prob).toFixed(2); // Format as float
+        row.appendChild(probCell);
         tbody.appendChild(row);
       });
     }
@@ -103,7 +99,7 @@
         if (columnIndex === 0) {
           return a[0].localeCompare(b[0]) * currentSortDirection;
         } else {
-          return (parseFloat(a[1][columnIndex-1]) - parseFloat(b[1][columnIndex-1])) * currentSortDirection;
+          return (parseFloat(a[1]) - parseFloat(b[1])) * currentSortDirection;
         }
       });
       renderTable();
@@ -113,11 +109,8 @@
     document.getElementById('circuit-header').addEventListener('click', function() {
       sortTableByColumn(0);
     });
-    document.getElementById('sampling-header').addEventListener('click', function() {
+    document.getElementById('probability-header').addEventListener('click', function() {
       sortTableByColumn(1);
-    });
-    document.getElementById('analytic-header').addEventListener('click', function() {
-      sortTableByColumn(2);
     });
 
     // Use XMLHttpRequest to download the table.json file.

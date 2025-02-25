@@ -11,8 +11,7 @@ import typer
 from graphix import Circuit
 from graphix.instruction import InstructionKind
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
-from qiskit.quantum_info import SparsePauliOp, Statevector
-from qiskit_aer.primitives import SamplerV2
+from qiskit.quantum_info import Pauli, Statevector
 from tqdm import tqdm
 
 if TYPE_CHECKING:
@@ -87,7 +86,6 @@ def sample_circuit(
     # The instructions were collected in reverse order; reverse them to restore original order.
     new_instructions.reverse()
     # Replace the original instruction list with the new, stripped list.
-    # TO CHECK: it appears that stripping the circuit changes the outcome on qubit 0. WHY?
     circuit.instruction = new_instructions
     return circuit
 
@@ -121,15 +119,16 @@ def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
     return qc
 
 
-def estimate_circuit(qc: QuantumCircuit, seed: int | None = None) -> float:
-    """
-    Estimate the probability of measuring the '1' outcome on the first qubit.
-    """
-    nb_shots = 2 << 8
-    sampler = SamplerV2(seed=seed)
-    job = sampler.run([qc], shots=nb_shots)
-    job_result = job.result()
-    return sum(next(iter(job_result[0].data.values())).bitcount()) / nb_shots
+## Alternative method for estimating probability by sampling
+# def estimate_circuit(qc: QuantumCircuit, seed: int | None = None) -> float:
+#    """
+#    Estimate the probability of measuring the '1' outcome on the first qubit.
+#    """
+#    nb_shots = 2 << 8
+#    sampler = SamplerV2(seed=seed)
+#    job = sampler.run([qc], shots=nb_shots)
+#    job_result = job.result()
+#    return sum(next(iter(job_result[0].data.values())).bitcount()) / nb_shots
 
 
 def estimate_circuit_expectation_value(qc: QuantumCircuit) -> float:
@@ -143,14 +142,11 @@ def estimate_circuit_expectation_value(qc: QuantumCircuit) -> float:
     the probability of outcome '1' is computed as:
         p(1) = (1 - <Z>) / 2
     """
-    # Create an observable that acts as Z on the first qubit and Identity on the rest.
-    pauli_string = "Z" + "I" * (qc.num_qubits - 1)
-    observable = SparsePauliOp(pauli_string)
     # Get the statevector for the circuit
     del qc.data[-1]  # Remove the measure
     sv = Statevector.from_instruction(qc)
     # Compute the expectation value of the observable
-    exp_val = sv.expectation_value(observable)
+    exp_val = sv.expectation_value(Pauli("Z"), [0])
     assert np.imag(exp_val) == 0
     # p(1) = (1 - <Z>)/2
     return (1 - np.real(exp_val)) / 2
@@ -175,10 +171,10 @@ def generate_circuits(
 
 
 def estimate_circuits(
-    circuits: list[QuantumCircuit], rng: np.random.Generator
+    circuits: list[QuantumCircuit],
 ) -> list[tuple[QuantumCircuit, float]]:
     return [
-        (circuit, estimate_circuit(circuit, seed=rng.integers(2 << 32)))
+        (circuit, estimate_circuit_expectation_value(circuit))
         for circuit in tqdm(circuits)
     ]
 
@@ -192,7 +188,7 @@ def save_circuits(
         filename = f"circuit{str(i).zfill(maxlen)}.qasm"
         with (path / filename).open("w") as f:
             qiskit.qasm2.dump(circuit, f)
-        table[filename] = [p, estimate_circuit_expectation_value(circuit)]
+        table[filename] = p
     with (path / "table.json").open("w") as f:
         json.dump(table, f)
 
@@ -224,7 +220,7 @@ def sample_circuits(
     target.mkdir()
     circuits = generate_circuits(ncircuits, nqubits, depth, p_gate, p_cnot, p_rx, rng)
     qiskit_circuits = map(circuit_to_qiskit, circuits)
-    estimated_circuits = estimate_circuits(qiskit_circuits, rng)
+    estimated_circuits = estimate_circuits(qiskit_circuits)
     save_circuits(estimated_circuits, threshold, target)
     plot_distribution(estimated_circuits, target / "distribution.svg")
     arg_str = " ".join(
