@@ -1,3 +1,6 @@
+[tool.ruff]
+exclude = ["examples", "*.ipynb"]
+
 [tool.ruff.lint]
 extend-select = [
   "A",
@@ -43,7 +46,7 @@ allowed-confusables = ["α"]
 docstring-code-format = true
 
 [tool.mypy]
-exclude = ["examples"]
+exclude = ["examples", "*.ipynb"]
 ignore_missing_imports = true
 follow_untyped_imports = true
 strict = true
