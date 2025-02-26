@@ -1,5 +1,6 @@
 name: Test
-on: [push]
+#on: [push]
+on: [workflow_dispatch]
 
 permissions:
   contents: read
