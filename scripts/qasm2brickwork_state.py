@@ -71,6 +71,8 @@ def read_qasm(f: TextIOBase) -> Circuit:
                 pass
             case _:
                 raise ValueError(f"Unknown command: {command_name}")
+    if circuit is None:
+        raise ValueError("No circuit defined")
     return circuit
 
 

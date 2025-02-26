@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.typing as npt
 import pytest
 from graphix import Pattern, command
 from graphix.fundamentals import Plane
@@ -17,19 +18,26 @@ from numpy.random import PCG64, Generator
 from stim_prepauli_preprocessing import preprocess_pauli
 
 
-def compare_backend_result_with_statevec(
-    backend: str, backend_state: State, statevec: Statevec
-) -> float:
-    if backend == "statevector":
-        return np.abs(np.dot(backend_state.flatten().conjugate(), statevec.flatten()))  # type: ignore[no-any-return]
-    if backend == "densitymatrix":
-        return np.abs(  # type: ignore[no-any-return]
-            np.dot(
-                backend_state.rho.flatten().conjugate(),
-                DensityMatrix(statevec).rho.flatten(),
-            )
-        )
-    raise NotImplementedError(backend)
+def fidelity(u: npt.NDArray[np.complex128], v: npt.NDArray[np.complex128]) -> float:
+    return np.abs(np.dot(u.conjugate(), v))  # type: ignore[no-any-return]
+
+
+def compare_backend_results(state1: State, state2: State) -> float:
+    if isinstance(state1, Statevec) and isinstance(state2, Statevec):
+        return fidelity(state1.flatten(), state2.flatten())
+    if isinstance(state1, DensityMatrix):
+        dm1 = state1.rho
+    elif isinstance(state1, Statevec):
+        dm1 = DensityMatrix(state1)
+    else:
+        raise NotImplementedError
+    if isinstance(state2, DensityMatrix):
+        dm2 = state2.rho
+    elif isinstance(state2, Statevec):
+        dm2 = DensityMatrix(state2)
+    else:
+        raise NotImplementedError
+    return fidelity(dm1.rho.flatten(), dm2.rho.flatten())
 
 
 def test_simple() -> None:
@@ -55,9 +63,7 @@ def test_simple() -> None:
     # Simulating the processed pattern with the measures drawn for the previous simulation
     pbs2 = FixedBranchSelector(measure_method.results)
     state2 = pattern2.simulate_pattern(backend, branch_selector=pbs2)
-    assert compare_backend_result_with_statevec(
-        backend, state2, state
-    ) == pytest.approx(1)
+    assert compare_backend_results(state2, state) == pytest.approx(1)
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
@@ -79,6 +85,4 @@ def test_pauli_measurement_random_circuit(
     # Since the patterns are deterministic, we do not need to select a particular branch
     state = pattern.simulate_pattern(backend)
     state2 = pattern2.simulate_pattern(backend)
-    assert compare_backend_result_with_statevec(
-        backend, state2, state
-    ) == pytest.approx(1)
+    assert compare_backend_results(state2, state) == pytest.approx(1)

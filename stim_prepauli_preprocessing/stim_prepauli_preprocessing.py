@@ -92,21 +92,10 @@ def get_renumbered_graph(pattern: Pattern) -> RenumberedGraph:
     return RenumberedGraph(nodes, edges, renumbering, graph)
 
 
-def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
-    pattern.move_pauli_measurements_to_the_front()
-    renumbered_graph = get_renumbered_graph(pattern)
-    stabilizers = get_stabilizers(renumbered_graph.graph)
-    tableau = stim.Tableau.from_stabilizers(stabilizers)
-    sim = stim.TableauSimulator()
-    sim.do_tableau(tableau, list(renumbered_graph.graph.nodes))
-    to_measure, non_pauli_meas = pauli_nodes(pattern, leave_input)
-    results = {}
-    for cmd, measurement in to_measure:
-        node = renumbered_graph.renumbering[cmd.node]
-        results[cmd.node] = apply_pauli_measurement(sim, node, measurement)
-    tableau = sim.current_inverse_tableau().inverse()
-    graph_state = tableau.to_circuit("graph_state")
-    edges = []
+def graph_state_to_edges_and_vops(
+    renumbered_graph: RenumberedGraph, graph_state: stim.Circuit
+) -> tuple[list[tuple[int, int]], dict[int, Clifford]]:
+    edges: list[tuple[int, int]] = []
     vops: dict[int, Clifford] = {}
     # "Circuit" has no attribute "__iter__"
     # (but __len__ and __getitem__)
@@ -131,6 +120,24 @@ def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
                 pass
             case _:
                 raise ValueError(instruction.name)
+    return edges, vops
+
+
+def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
+    pattern.move_pauli_measurements_to_the_front()
+    renumbered_graph = get_renumbered_graph(pattern)
+    stabilizers = get_stabilizers(renumbered_graph.graph)
+    tableau = stim.Tableau.from_stabilizers(stabilizers)
+    sim = stim.TableauSimulator()
+    sim.do_tableau(tableau, list(renumbered_graph.graph.nodes))
+    to_measure, non_pauli_meas = pauli_nodes(pattern, leave_input)
+    results = {}
+    for m, measurement in to_measure:
+        node = renumbered_graph.renumbering[m.node]
+        results[m.node] = apply_pauli_measurement(sim, node, measurement)
+    tableau = sim.current_inverse_tableau().inverse()
+    graph_state = tableau.to_circuit("graph_state")
+    edges, vops = graph_state_to_edges_and_vops(renumbered_graph, graph_state)
     if leave_input:
         input_nodes = pattern.input_nodes
     else:
@@ -153,7 +160,7 @@ def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
         elif cmd.kind in (CommandKind.Z, CommandKind.X, CommandKind.C):
             result.add(cmd)
     for node in pattern.output_nodes:
-        clifford = vops.get(node)
+        clifford: Clifford | None = vops.get(node)
         if clifford is not None:
             result.add(command.C(node=node, clifford=clifford))
     result.reorder_output_nodes(pattern.output_nodes)
