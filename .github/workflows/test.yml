@@ -33,7 +33,7 @@ jobs:
         run: ruff format
 
       - name: Install types
-        run: mypy --install-types --non-interactive
+        run: mypy --install-types --non-interactive .
 
       - name: Run mypy
         run: mypy .
