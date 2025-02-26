@@ -9,7 +9,7 @@ import qiskit
 import qiskit.qasm2
 import typer
 from graphix import Circuit
-from graphix.instruction import InstructionKind
+from graphix.instruction import Instruction, InstructionKind
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.quantum_info import Pauli, Statevector  # type: ignore[attr-defined]
 from tqdm import tqdm
@@ -80,27 +80,28 @@ def sample_circuit(
                 # No gate applied; move to the next qubit.
                 qubit += 1
     # Initialize an empty list for the instructions that remain after stripping.
-    new_instructions = []
+    new_instructions: list[Instruction] = []
     # 'reachable' tracks the index of the last qubit that can affect qubit 0.
     reachable = 0
     for instr in reversed(circuit.instruction):
-        match instr.kind:
-            case InstructionKind.CNOT:
-                # By construction, instr.target == instr.control + 1.
-                # If the control qubit is beyond the current reachable range,
-                # the gate cannot affect qubit 0 and is removed.
-                if instr.control > reachable:
-                    continue
-                # If the control qubit is exactly at the reachable boundary,
-                # this CX gate extends the influence to the next qubit.
-                if instr.control == reachable:
-                    reachable += 1
-                # Keep the instruction.
+        # Use of `if` instead of `match` here for mypy
+        if instr.kind == InstructionKind.CNOT:
+            # By construction, instr.target == instr.control + 1.
+            # If the control qubit is beyond the current reachable range,
+            # the gate cannot affect qubit 0 and is removed.
+            if instr.control > reachable:
+                continue
+            # If the control qubit is exactly at the reachable boundary,
+            # this CX gate extends the influence to the next qubit.
+            if instr.control == reachable:
+                reachable += 1
+            # Keep the instruction.
+            new_instructions.append(instr)
+        # Use of `==` here for mypy
+        elif instr.kind == InstructionKind.RX or instr.kind == InstructionKind.RZ:  # noqa: PLR1714
+            # Keep the rotation only if it can affect a qubit within the reachable range.
+            if instr.target <= reachable:
                 new_instructions.append(instr)
-            case InstructionKind.RX | InstructionKind.RZ:
-                # Keep the rotation only if it can affect a qubit within the reachable range.
-                if instr.target <= reachable:
-                    new_instructions.append(instr)
     # The instructions were collected in reverse order; reverse them to restore original order.
     new_instructions.reverse()
     # Replace the original instruction list with the new, stripped list.
@@ -123,16 +124,16 @@ def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
     """
     qc = QuantumCircuit(QuantumRegister(c.width), ClassicalRegister(1))
     for instr in c.instruction:
-        match instr.kind:
-            case InstructionKind.CNOT:
-                # Qiskit's cx method expects (control, target).
-                qc.cx(instr.control, instr.target)
-            case InstructionKind.RX:
-                qc.rx(instr.angle, instr.target)
-            case InstructionKind.RZ:
-                qc.rz(instr.angle, instr.target)
-            case _:
-                raise ValueError(f"Unsupported instruction: {instr.kind}")
+        # Use of `if` instead of `match` here for mypy
+        if instr.kind == InstructionKind.CNOT:
+            # Qiskit's cx method expects (control, target).
+            qc.cx(instr.control, instr.target)
+        elif instr.kind == InstructionKind.RX:
+            qc.rx(instr.angle, instr.target)
+        elif instr.kind == InstructionKind.RZ:
+            qc.rz(instr.angle, instr.target)
+        else:
+            raise ValueError(f"Unsupported instruction: {instr.kind}")
     return qc
 
 

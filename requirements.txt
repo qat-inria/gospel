@@ -11,3 +11,4 @@ scipy-stubs==1.15.2
 stim==1.14.0
 tqdm==4.67.1
 typer==0.15.1
+types-networkx==3.4.2.20241227

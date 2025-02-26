@@ -3,6 +3,7 @@ import math
 import numpy as np
 import pytest
 from graphix import Circuit
+from graphix.sim.statevec import Statevec
 
 from brickwork_state_transpiler import (
     CNot,
@@ -125,6 +126,7 @@ def check_circuit(circuit: Circuit) -> None:
     pattern = transpile(circuit)
     sv1 = circuit.simulate_statevector().statevec
     sv2 = pattern.simulate_pattern()
+    assert isinstance(sv2, Statevec)
     assert np.abs(np.dot(sv1.flatten().conjugate(), sv2.flatten())) == pytest.approx(1)
 
 

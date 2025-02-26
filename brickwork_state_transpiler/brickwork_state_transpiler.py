@@ -151,28 +151,27 @@ def transpile_to_layers(circuit: Circuit) -> list[Layer]:
     layers: list[Layer] = []
     depth = [0 for _ in range(circuit.width)]
     for instr in circuit.instruction:
-        match instr.kind:
-            case InstructionKind.CNOT:
-                if abs(instr.control - instr.target) != 1:
-                    raise ValueError(
-                        "Unsupported CNOT: control and target qubits should be consecutive"
-                    )
-                target = min(instr.control, instr.target)
-                min_depth = max(depth[target], depth[target + 1])
-                target_depth = (
-                    min_depth if target % 2 == min_depth % 2 else min_depth + 1
-                )
-                target_layer = __get_layer(circuit.width, layers, target_depth)
-                index = target // 2
-                target_layer.bricks[index] = CNot
-                depth[target] = target_depth + 1
-                depth[target + 1] = target_depth + 1
-            case InstructionKind.RX | InstructionKind.RZ:
-                __insert_rotation(circuit.width, layers, depth, instr)
-            case _:
+        # Use of `if` instead of `match` here for mypy
+        if instr.kind == InstructionKind.CNOT:
+            if abs(instr.control - instr.target) != 1:
                 raise ValueError(
-                    "Unsupported gate: circuits should contain only CNOT, RX and RZ"
+                    "Unsupported CNOT: control and target qubits should be consecutive"
                 )
+            target = min(instr.control, instr.target)
+            min_depth = max(depth[target], depth[target + 1])
+            target_depth = min_depth if target % 2 == min_depth % 2 else min_depth + 1
+            target_layer = __get_layer(circuit.width, layers, target_depth)
+            index = target // 2
+            target_layer.bricks[index] = CNot
+            depth[target] = target_depth + 1
+            depth[target + 1] = target_depth + 1
+        # Use of `==` here for mypy
+        elif instr.kind == InstructionKind.RX or instr.kind == InstructionKind.RZ:  # noqa: PLR1714
+            __insert_rotation(circuit.width, layers, depth, instr)
+        else:
+            raise ValueError(
+                "Unsupported gate: circuits should contain only CNOT, RX and RZ"
+            )
     return layers
 
 
