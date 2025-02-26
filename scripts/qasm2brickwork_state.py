@@ -74,7 +74,7 @@ def read_qasm(f: TextIOBase) -> Circuit:
     return circuit
 
 
-def format_angle(angle) -> str:
+def format_angle(angle: float) -> str:
     if angle == 0:
         return "0"
     if angle == 1:
@@ -116,7 +116,7 @@ def draw_brickwork_state(circuit: Circuit, target: Path) -> None:
     plt.close()
 
 
-def convert_circuit_directory():
+def convert_circuit_directory() -> None:
     circuits_path = Path("pages/circuits")
     circuits_svg_path = Path("pages/brickwork_state_svg")
     circuits_svg_path.mkdir()

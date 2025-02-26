@@ -5,12 +5,12 @@ from qiskit import QuantumCircuit
 
 
 def qasm2img(source: Path, target: Path) -> None:
-    qc = QuantumCircuit.from_qasm_file(source)
-    qc.draw(output="mpl", filename=target)
+    qc = QuantumCircuit.from_qasm_file(str(source))
+    qc.draw(output="mpl", filename=str(target))
     plt.close()
 
 
-def convert_circuit_directory():
+def convert_circuit_directory() -> None:
     circuits_path = Path("circuits")
     circuits_svg_path = Path("circuits_svg")
     circuits_svg_path.mkdir()

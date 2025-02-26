@@ -1,0 +1,39 @@
+name: Test
+on: [push]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: "ruff, mypy and pytest"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Setup requirements
+        run: pip install -r requirements.txt
+
+      - name: Run ruff-check
+        run: ruff check
+
+      - name: Run ruff-format
+        run: ruff format
+
+      - name: Run mypy
+        run: mypy .
+
+      - name: Run pytest
+        run: pytest

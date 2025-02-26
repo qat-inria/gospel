@@ -3,7 +3,12 @@ import pytest
 from graphix import Pattern, command
 from graphix.fundamentals import Plane
 from graphix.random_objects import rand_circuit
-from graphix.sim.base_backend import Backend, FixedBranchSelector, RandomBranchSelector
+from graphix.sim.base_backend import (
+    Backend,
+    FixedBranchSelector,
+    RandomBranchSelector,
+    State,
+)
 from graphix.sim.density_matrix import DensityMatrix
 from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod
@@ -13,12 +18,12 @@ from stim_prepauli_preprocessing import preprocess_pauli
 
 
 def compare_backend_result_with_statevec(
-    backend: str, backend_state, statevec: Statevec
+    backend: str, backend_state: State, statevec: Statevec
 ) -> float:
     if backend == "statevector":
-        return np.abs(np.dot(backend_state.flatten().conjugate(), statevec.flatten()))
+        return np.abs(np.dot(backend_state.flatten().conjugate(), statevec.flatten()))  # type: ignore[no-any-return]
     if backend == "densitymatrix":
-        return np.abs(
+        return np.abs(  # type: ignore[no-any-return]
             np.dot(
                 backend_state.rho.flatten().conjugate(),
                 DensityMatrix(statevec).rho.flatten(),

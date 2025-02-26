@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from sample_circuits import sample_circuits
+from sampling_circuits.sample_circuits import sample_circuits
 
 sample_circuits(
     ncircuits=10000,

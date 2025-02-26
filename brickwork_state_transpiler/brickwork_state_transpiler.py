@@ -148,7 +148,7 @@ def __insert_rotation(
 
 
 def transpile_to_layers(circuit: Circuit) -> list[Layer]:
-    layers = []
+    layers: list[Layer] = []
     depth = [0 for _ in range(circuit.width)]
     for instr in circuit.instruction:
         match instr.kind:
@@ -236,12 +236,14 @@ def transpile(circuit: Circuit) -> Pattern:
     return layers_to_pattern(circuit.width, layers)
 
 
-def get_node_positions(pattern: Pattern, scale: float = 1) -> dict[int, array]:
+def get_node_positions(pattern: Pattern, scale: float = 1) -> dict[int, array[int]]:
     width = len(pattern.input_nodes)
     if width % 2:
         width = width + 1
     assert pattern.n_node % width == 0
     return {
-        node: array("i", [(node // width) * scale, (width - node % width) * scale])
+        node: array(
+            "i", [int((node // width) * scale), int((width - node % width) * scale)]
+        )
         for node in range(pattern.n_node)
     }

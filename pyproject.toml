@@ -41,3 +41,9 @@ allowed-confusables = ["α"]
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.mypy]
+exclude = ["examples"]
+ignore_missing_imports = true
+follow_untyped_imports = true
+strict = true

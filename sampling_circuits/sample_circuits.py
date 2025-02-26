@@ -11,10 +11,11 @@ import typer
 from graphix import Circuit
 from graphix.instruction import InstructionKind
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
-from qiskit.quantum_info import Pauli, Statevector
+from qiskit.quantum_info import Pauli, Statevector  # type: ignore[attr-defined]
 from tqdm import tqdm
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from pathlib import Path
 
 
@@ -43,7 +44,7 @@ def sample_circuit(
     qubit 0 are removed.
     """
     circuit = Circuit(nqubits)
-    last_operation = {}
+    last_operation: dict[int, str] = {}
     for _ in range(depth):
         qubit = 0
         while qubit < nqubits:
@@ -188,7 +189,7 @@ def generate_circuits(
 
 
 def estimate_circuits(
-    circuits: list[QuantumCircuit],
+    circuits: Iterable[QuantumCircuit],
 ) -> list[tuple[QuantumCircuit, float]]:
     return [
         (circuit, estimate_circuit_expectation_value(circuit))

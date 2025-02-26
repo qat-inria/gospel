@@ -10,14 +10,14 @@ from graphix.measurements import PauliMeasurement
 from graphix.pattern import pauli_nodes
 
 
-def get_stabilizers(graph: nx.Graph) -> list[stim.PauliString]:
+def get_stabilizers(graph: nx.Graph[int]) -> list[stim.PauliString]:
     """Method to generate the canonical stabilizers for a given graph state.
 
     :param graph: graph state
     :return: list of stim.Paulistring containing len(nodes) stabilizers
     """
 
-    def get_stabilizer_for_node(node) -> stim.PauliString:
+    def get_stabilizer_for_node(node: int) -> stim.PauliString:
         ps = stim.PauliString(graph.number_of_nodes())
         ps[node] = "X"
         for k in graph.neighbors(node):
@@ -74,7 +74,7 @@ class RenumberedGraph:
     nodes: list[int]
     edges: list[tuple[int, int]]
     renumbering: dict[int, int]
-    graph: nx.Graph
+    graph: nx.Graph[int]
 
 
 def get_renumbered_graph(pattern: Pattern) -> RenumberedGraph:
@@ -86,27 +86,10 @@ def get_renumbered_graph(pattern: Pattern) -> RenumberedGraph:
     nodes, edges = pattern.get_graph()
     renumbering = {node: i for i, node in enumerate(nodes)}
     renumbered_edges = [(renumbering[u], renumbering[v]) for (u, v) in edges]
-    graph = nx.Graph()
+    graph: nx.Graph[int] = nx.Graph()
     graph.add_nodes_from(range(len(nodes)))
     graph.add_edges_from(renumbered_edges)
     return RenumberedGraph(nodes, edges, renumbering, graph)
-
-
-def pattern_to_tableau_simulator(
-    pattern: Pattern, leave_input: bool
-) -> stim.TableauSimulator:
-    pattern.move_pauli_measurements_to_the_front()
-    renumbered_graph = get_renumbered_graph(pattern)
-    stabilizers = get_stabilizers(renumbered_graph.graph)
-    tableau = stim.Tableau.from_stabilizers(stabilizers)
-    sim = stim.TableauSimulator()
-    sim.do_tableau(tableau, list(renumbered_graph.graph.nodes))
-    to_measure, non_pauli_meas = pauli_nodes(pattern, leave_input)
-    results = {}
-    for cmd, measurement in to_measure:
-        node = renumbered_graph.renumbering[cmd.node]
-        results[cmd.node] = apply_pauli_measurement(sim, node, measurement)
-    return sim.state_vector(endian="big")
 
 
 def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
@@ -124,8 +107,10 @@ def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
     tableau = sim.current_inverse_tableau().inverse()
     graph_state = tableau.to_circuit("graph_state")
     edges = []
-    vops = {}
-    for instruction in graph_state:
+    vops: dict[int, Clifford] = {}
+    # "Circuit" has no attribute "__iter__"
+    # (but __len__ and __getitem__)
+    for instruction in graph_state:  # type: ignore[attr-defined]
         match instruction.name:
             case "RX":
                 pass

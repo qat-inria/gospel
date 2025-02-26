@@ -15,7 +15,7 @@ from brickwork_state_transpiler import (
 from sampling_circuits import sample_circuit
 
 
-def test_transpile_to_layers_rx_rz_on_two_qubits():
+def test_transpile_to_layers_rx_rz_on_two_qubits() -> None:
     circuit = Circuit(2)
     circuit.rx(0, math.pi / 4)
     circuit.rz(1, math.pi / 4)
@@ -32,7 +32,7 @@ def test_transpile_to_layers_rx_rz_on_two_qubits():
     ]
 
 
-def test_transpile_to_layers_rx_rz_on_the_same_qubit():
+def test_transpile_to_layers_rx_rz_on_the_same_qubit() -> None:
     circuit = Circuit(1)
     circuit.rx(0, math.pi / 4)
     circuit.rz(0, math.pi / 4)
@@ -49,7 +49,7 @@ def test_transpile_to_layers_rx_rz_on_the_same_qubit():
     ]
 
 
-def test_transpile_to_layers_cnot_rx_cnot_rx():
+def test_transpile_to_layers_cnot_rx_cnot_rx() -> None:
     circuit = Circuit(3)
     circuit.cnot(1, 2)
     circuit.rx(0, math.pi / 4)
@@ -71,7 +71,7 @@ def test_transpile_to_layers_cnot_rx_cnot_rx():
     ]
 
 
-def test_transpile_to_layers_rx_rz_rx():
+def test_transpile_to_layers_rx_rz_rx() -> None:
     circuit = Circuit(1)
     circuit.rx(0, math.pi / 4)
     circuit.rz(0, math.pi / 4)
@@ -91,7 +91,7 @@ def test_transpile_to_layers_rx_rz_rx():
     ]
 
 
-def test_transpile_to_layers_four_cnots():
+def test_transpile_to_layers_four_cnots() -> None:
     circuit = Circuit(4)
     circuit.cnot(0, 1)
     circuit.cnot(1, 2)
@@ -121,32 +121,32 @@ def test_transpile_to_layers_four_cnots():
     ]
 
 
-def check_circuit(circuit) -> None:
+def check_circuit(circuit: Circuit) -> None:
     pattern = transpile(circuit)
     sv1 = circuit.simulate_statevector().statevec
     sv2 = pattern.simulate_pattern()
     assert np.abs(np.dot(sv1.flatten().conjugate(), sv2.flatten())) == pytest.approx(1)
 
 
-def test_transpile_rz():
+def test_transpile_rz() -> None:
     circuit = Circuit(2)
     circuit.rz(0, 0.1)
     check_circuit(circuit)
 
 
-def test_transpile_rx():
+def test_transpile_rx() -> None:
     circuit = Circuit(2)
     circuit.rx(0, 0.1)
     check_circuit(circuit)
 
 
-def test_transpile_cnot():
+def test_transpile_cnot() -> None:
     circuit = Circuit(2)
     circuit.cnot(0, 1)
     check_circuit(circuit)
 
 
-def test_transpile_rz_rx_cnot():
+def test_transpile_rz_rx_cnot() -> None:
     circuit = Circuit(2)
     circuit.rz(0, 0.1)
     circuit.rz(1, 0.1)
@@ -154,7 +154,7 @@ def test_transpile_rz_rx_cnot():
     check_circuit(circuit)
 
 
-def test_transpile_multiple_cnot():
+def test_transpile_multiple_cnot() -> None:
     circuit = Circuit(4)
     circuit.rz(0, 0.1)
     circuit.rx(0, 0.1)
@@ -168,7 +168,7 @@ def test_transpile_multiple_cnot():
     check_circuit(circuit)
 
 
-def test_sampled_circuit():
+def test_sampled_circuit() -> None:
     rng = np.random.default_rng(seed=1729)
     circuit = sample_circuit(
         nqubits=5, depth=10, p_gate=0.5, p_cnot=0.5, p_cnot_flip=0.5, p_rx=0.5, rng=rng
