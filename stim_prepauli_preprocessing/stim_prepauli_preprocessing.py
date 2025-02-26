@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import networkx as nx
 import stim
@@ -9,8 +10,13 @@ from graphix.fundamentals import Axis, Sign
 from graphix.measurements import PauliMeasurement
 from graphix.pattern import pauli_nodes
 
+if TYPE_CHECKING:
+    GraphType = nx.Graph[int]
+else:
+    GraphType = nx.Graph
 
-def get_stabilizers(graph: nx.Graph[int]) -> list[stim.PauliString]:
+
+def get_stabilizers(graph: GraphType) -> list[stim.PauliString]:
     """Method to generate the canonical stabilizers for a given graph state.
 
     :param graph: graph state
@@ -74,7 +80,7 @@ class RenumberedGraph:
     nodes: list[int]
     edges: list[tuple[int, int]]
     renumbering: dict[int, int]
-    graph: nx.Graph[int]
+    graph: GraphType
 
 
 def get_renumbered_graph(pattern: Pattern) -> RenumberedGraph:
@@ -86,7 +92,7 @@ def get_renumbered_graph(pattern: Pattern) -> RenumberedGraph:
     nodes, edges = pattern.get_graph()
     renumbering = {node: i for i, node in enumerate(nodes)}
     renumbered_edges = [(renumbering[u], renumbering[v]) for (u, v) in edges]
-    graph: nx.Graph[int] = nx.Graph()
+    graph: GraphType = GraphType()
     graph.add_nodes_from(range(len(nodes)))
     graph.add_edges_from(renumbered_edges)
     return RenumberedGraph(nodes, edges, renumbering, graph)

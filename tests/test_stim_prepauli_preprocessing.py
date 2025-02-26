@@ -26,13 +26,13 @@ def compare_backend_results(state1: State, state2: State) -> float:
     if isinstance(state1, Statevec) and isinstance(state2, Statevec):
         return fidelity(state1.flatten(), state2.flatten())
     if isinstance(state1, DensityMatrix):
-        dm1 = state1.rho
+        dm1 = state1
     elif isinstance(state1, Statevec):
         dm1 = DensityMatrix(state1)
     else:
         raise NotImplementedError
     if isinstance(state2, DensityMatrix):
-        dm2 = state2.rho
+        dm2 = state2
     elif isinstance(state2, Statevec):
         dm2 = DensityMatrix(state2)
     else:
