@@ -15,7 +15,7 @@ from brickwork_state_transpiler import (
     transpile,
     transpile_to_layers,
 )
-from sampling_circuits import sample_circuit
+from sampling_circuits import get_circuit, ncircuits
 
 
 def test_transpile_to_layers_rx_rz_on_two_qubits() -> None:
@@ -183,18 +183,14 @@ def test_transpile_multiple_cnot() -> None:
 @pytest.mark.parametrize("jumps", range(1, 11))
 def test_sampled_circuit(fx_bg: PCG64, jumps: int) -> None:
     rng = Generator(fx_bg.jumped(jumps))
-    circuit = sample_circuit(
-        nqubits=5, depth=10, p_gate=0.5, p_cnot=0.5, p_cnot_flip=0.5, p_rx=0.5, rng=rng
-    )
+    circuit = get_circuit(rng.integers(ncircuits))
     check_circuit(circuit)
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
 def test_get_bipartite_coloring(fx_bg: PCG64, jumps: int) -> None:
     rng = Generator(fx_bg.jumped(jumps))
-    circuit = sample_circuit(
-        nqubits=5, depth=10, p_gate=0.5, p_cnot=0.5, p_cnot_flip=0.5, p_rx=0.5, rng=rng
-    )
+    circuit = get_circuit(rng.integers(ncircuits))
     pattern = transpile(circuit)
     red, blue = get_bipartite_coloring(pattern)
     nodes, edges = pattern.get_graph()

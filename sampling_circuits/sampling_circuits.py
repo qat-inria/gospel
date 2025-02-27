@@ -237,25 +237,6 @@ def estimate_circuit_by_expectation_value(qc: QuantumCircuit) -> float:
     return (1 - np.real(exp_val)) / 2
 
 
-def generate_circuits(
-    ncircuits: int,
-    nqubits: int,
-    depth: int,
-    p_gate: float,
-    p_cnot: float,
-    p_cnot_flip: float,
-    p_rx: float,
-    rng: np.random.Generator,
-) -> list[Circuit]:
-    """
-    Generate a list of quantum circuits with the given number of qubits and depth.
-    """
-    return [
-        sample_circuit(nqubits, depth, p_gate, p_cnot, p_cnot_flip, p_rx, rng)
-        for _ in range(ncircuits)
-    ]
-
-
 def estimate_circuits(
     circuits: Iterable[QuantumCircuit],
 ) -> list[tuple[QuantumCircuit, float]]:
@@ -265,9 +246,7 @@ def estimate_circuits(
     ]
 
 
-def save_circuits(
-    circuits: list[tuple[QuantumCircuit, float]], threshold: float, path: Path
-) -> None:
+def save_circuits(circuits: list[tuple[QuantumCircuit, float]], path: Path) -> None:
     table = {}
     maxlen = int(np.log10(len(circuits) - 1) + 1)
     for i, (circuit, p) in enumerate(circuits):
@@ -299,18 +278,26 @@ def sample_circuits(
     p_cnot_flip: float = typer.Option(..., help="Probability of flipping a CNOT gate"),
     p_rx: float = typer.Option(..., help="Probability of applying an RX gate"),
     seed: int = typer.Option(..., help="Random seed"),
-    threshold: float = typer.Option(..., help="Threshold value"),
     target: Path = typer.Option(..., help="Target directory"),
 ) -> None:
     params = locals()
-    rng = np.random.default_rng(seed=seed)
+    sequence = np.random.SeedSequence(entropy=seed)
     target.mkdir()
-    circuits = generate_circuits(
-        ncircuits, nqubits, depth, p_gate, p_cnot, p_cnot_flip, p_rx, rng
-    )
+    circuits = [
+        sample_circuit(
+            nqubits,
+            depth,
+            p_gate,
+            p_cnot,
+            p_cnot_flip,
+            p_rx,
+            np.random.default_rng(seed),
+        )
+        for seed in sequence.spawn(ncircuits)
+    ]
     qiskit_circuits = map(circuit_to_qiskit, circuits)
     estimated_circuits = estimate_circuits(qiskit_circuits)
-    save_circuits(estimated_circuits, threshold, target)
+    save_circuits(estimated_circuits, target)
     plot_distribution(estimated_circuits, target / "distribution.svg")
     arg_str = " ".join(
         f"--{key.replace('_', '-')} {value}" for key, value in params.items()
