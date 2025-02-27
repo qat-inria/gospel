@@ -1,5 +1,8 @@
+from __future__ import annotations
+
+import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never
 
 import networkx as nx
 import stim
@@ -8,7 +11,16 @@ from graphix.clifford import Clifford
 from graphix.command import CommandKind
 from graphix.fundamentals import Axis, Sign
 from graphix.measurements import PauliMeasurement
+from graphix.noise_models.depolarising_noise_model import (
+    DepolarisingNoiseElement,
+    TwoQubitDepolarisingNoiseElement,
+)
+from graphix.noise_models.noiseless_noise_model import NoiselessNoiseModel
 from graphix.pattern import pauli_nodes
+
+if TYPE_CHECKING:
+    from graphix.noise_models.noise_model import Noise, NoiseModel
+    from graphix.simulator import MeasureMethod
 
 if TYPE_CHECKING:
     GraphType = nx.Graph[int]
@@ -46,7 +58,16 @@ def apply_clifford(sim: stim.TableauSimulator, node: int, clifford: Clifford) ->
         case clifford.X:
             sim.x(node)
         case _:
-            raise ValueError(clifford)
+            for h_s_z in clifford.hsz:
+                match h_s_z:
+                    case Clifford.H:
+                        sim.h(node)
+                    case Clifford.S:
+                        sim.s(node)
+                    case Clifford.Z:
+                        sim.z(node)
+                    case _:
+                        raise ValueError("Unreachable")
 
 
 def apply_pauli_measurement(
@@ -127,6 +148,61 @@ def graph_state_to_edges_and_vops(
             case _:
                 raise ValueError(instruction.name)
     return edges, vops
+
+
+def apply_pauli_noise(sim: stim.TableauSimulator, noise: Noise) -> None:
+    for element, qubits in noise:
+        match element:
+            case DepolarisingNoiseElement(prob=prob):
+                (q,) = qubits
+                sim.depolarize1(q, p=prob)
+            case TwoQubitDepolarisingNoiseElement(prob=prob):
+                (q0, q1) = qubits
+                sim.depolarize2(q0, q1, p=prob)
+            case _:
+                raise ValueError(f"Unsupported noise element: {element}")
+
+
+def simulate_pauli(
+    sim: stim.TableauSimulator,
+    measure_method: MeasureMethod,
+    pattern: Pattern,
+    noise_model: NoiseModel | None = None,
+) -> None:
+    if noise_model is None:
+        noise_model = NoiselessNoiseModel()
+    for cmd in pattern:
+        # Use of `if` instead of `match` here for mypy
+        if cmd.kind == CommandKind.N:
+            pass
+        elif cmd.kind == CommandKind.E:
+            sim.cz(*cmd.nodes)
+        elif cmd.kind == CommandKind.M:
+            measurement = measure_method.get_measurement_description(cmd)
+            pm = PauliMeasurement.try_from(
+                measurement.plane, measurement.angle / math.pi
+            )
+            if pm is None:
+                raise ValueError(f"The measurement {cmd} is not in Pauli basis.")
+            apply_pauli_noise(sim, noise_model.command(cmd))
+            result = apply_pauli_measurement(sim, cmd.node, pm)
+            result = noise_model.confuse_result(result)
+            measure_method.set_measure_result(cmd.node, result)
+        # Use of `==` here for mypy
+        elif cmd.kind == CommandKind.X or cmd.kind == CommandKind.Z:  # noqa: PLR1714
+            if sum(measure_method.get_measure_result(j) for j in cmd.domain) % 2:
+                if cmd.kind == CommandKind.X:
+                    sim.x(cmd.node)
+                else:
+                    sim.z(cmd.node)
+        elif cmd.kind == CommandKind.C:
+            apply_clifford(sim, cmd.node, cmd.clifford)
+        elif cmd.kind == CommandKind.T:
+            pass
+        else:
+            assert_never(cmd.kind)
+        if cmd.kind != CommandKind.M:
+            apply_pauli_noise(sim, noise_model.command(cmd))
 
 
 def preprocess_pauli(pattern: Pattern, leave_input: bool) -> Pattern:
