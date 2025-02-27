@@ -21,8 +21,13 @@ class Brick(ABC):
     def measures(self) -> list[list[float]]: ...
 
 
+@dataclass
 class CNOT(Brick):
+    target_above: bool
+
     def measures(self) -> list[list[float]]:
+        if self.target_above:
+            return [[0, math.pi / 2, 0, -math.pi / 2], [0, 0, math.pi / 2, 0]]
         return [[0, 0, math.pi / 2, 0], [0, math.pi / 2, 0, -math.pi / 2]]
 
 
@@ -97,9 +102,6 @@ class Layer:
         return (self.bricks[index], bool(qubit % 2) != self.odd)
 
 
-CNot = CNOT()
-
-
 def __get_layer(width: int, layers: list[Layer], depth: int) -> Layer:
     for i in range(len(layers), depth + 1):
         odd = bool(i % 2)
@@ -132,7 +134,7 @@ def __insert_rotation(
             if gate.add(axis, instr.angle):
                 return
         else:
-            assert brick is CNot
+            assert isinstance(brick, CNOT)
     if target_depth % 2 and (
         instr.target == 0 or (width % 2 == 0 and instr.target == width - 1)
     ):
@@ -162,7 +164,7 @@ def transpile_to_layers(circuit: Circuit) -> list[Layer]:
             target_depth = min_depth if target % 2 == min_depth % 2 else min_depth + 1
             target_layer = __get_layer(circuit.width, layers, target_depth)
             index = target // 2
-            target_layer.bricks[index] = CNot
+            target_layer.bricks[index] = CNOT(target == instr.target)
             depth[target] = target_depth + 1
             depth[target + 1] = target_depth + 1
         # Use of `==` here for mypy

@@ -1,6 +1,6 @@
 from brickwork_state_transpiler.brickwork_state_transpiler import (
+    CNOT,
     XZ,
-    CNot,
     Layer,
     SingleQubit,
     SingleQubitPair,
@@ -10,8 +10,8 @@ from brickwork_state_transpiler.brickwork_state_transpiler import (
 )
 
 __all__ = [
+    "CNOT",
     "XZ",
-    "CNot",
     "Layer",
     "SingleQubit",
     "SingleQubitPair",

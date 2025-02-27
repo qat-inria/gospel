@@ -6,7 +6,7 @@ from graphix import Circuit
 from graphix.sim.statevec import Statevec
 
 from brickwork_state_transpiler import (
-    CNot,
+    CNOT,
     Layer,
     SingleQubit,
     SingleQubitPair,
@@ -54,7 +54,7 @@ def test_transpile_to_layers_cnot_rx_cnot_rx() -> None:
     circuit = Circuit(3)
     circuit.cnot(1, 2)
     circuit.rx(0, math.pi / 4)
-    circuit.cnot(0, 1)
+    circuit.cnot(1, 0)
     circuit.rx(2, math.pi / 4)
     layers = transpile_to_layers(circuit)
     assert layers == [
@@ -65,9 +65,13 @@ def test_transpile_to_layers_cnot_rx_cnot_rx() -> None:
                 SingleQubitPair(SingleQubit(), SingleQubit()),
             ],
         ),
-        Layer(True, [CNot]),
+        Layer(True, [CNOT(target_above=False)]),
         Layer(
-            False, [CNot, SingleQubitPair(SingleQubit(rx=math.pi / 4), SingleQubit())]
+            False,
+            [
+                CNOT(target_above=True),
+                SingleQubitPair(SingleQubit(rx=math.pi / 4), SingleQubit()),
+            ],
         ),
     ]
 
@@ -105,9 +109,13 @@ def test_transpile_to_layers_four_cnots() -> None:
     layers = transpile_to_layers(circuit)
     assert layers == [
         Layer(
-            False, [CNot, SingleQubitPair(SingleQubit(), SingleQubit(rx=math.pi / 4))]
+            False,
+            [
+                CNOT(target_above=False),
+                SingleQubitPair(SingleQubit(), SingleQubit(rx=math.pi / 4)),
+            ],
         ),
-        Layer(True, [CNot]),
+        Layer(True, [CNOT(target_above=False)]),
         Layer(
             False,
             [
@@ -118,7 +126,7 @@ def test_transpile_to_layers_four_cnots() -> None:
             ],
         ),
         Layer(True, [SingleQubitPair(SingleQubit(), SingleQubit())]),
-        Layer(False, [CNot, CNot]),
+        Layer(False, [CNOT(target_above=False), CNOT(target_above=False)]),
     ]
 
 
