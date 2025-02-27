@@ -12,6 +12,7 @@ from graphix import Circuit
 from graphix.instruction import Instruction, InstructionKind
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.quantum_info import Pauli, Statevector  # type: ignore[attr-defined]
+from qiskit_aer.primitives import SamplerV2  # type: ignore[attr-defined]
 from tqdm import tqdm
 
 if TYPE_CHECKING:
@@ -28,31 +29,49 @@ def sample_circuit(
     p_rx: float,
     rng: np.random.Generator,
 ) -> Circuit:
-    """
-    Generates a quantum circuit with the given number of qubits and depth.
+    """Generates a quantum circuit with the given number of qubits and depth.
 
-    At each layer (depth), the circuit iterates through the qubits. With probability
-    `p_gate`, a gate is applied. If there is room (i.e. not on the last qubit) and
-    with probability `p_cnot`, a controlled-NOT (CX) gate is applied between the current
-    qubit and the next one (skipping the next qubit): with probability `p_cnot_flip`,
-    the target is the current qubit and the control the next one, otherwise the converse.
-    Otherwise, a rotation gate with a random angle is applied to the current qubit:
-    with probability `p_rx`, the rotation is RX, otherwise RZ.
+    At each layer (depth), the circuit iterates through the
+    qubits. For each qubit,
 
-    The circuit is then stripped so that gates are kept only if they can affect qubit 0.
-    Rotations on other qubits that are not followed with a CNOT connecting them to
-    qubit 0 are removed.
+    - a gate is applied with probability `p_gate` (otherwise, the
+      qubit is skipped);
+
+    - in the case a gate is applied, if there is room (i.e. not on the
+      last qubit) and with probability `p_cnot`, a controlled-NOT (CX)
+      gate is applied between the current qubit and the next one
+      (there will be no other gate applied to the next qubit for this
+      layer);
+
+    - in the CNOT case: if the previous instruction applied on this
+      qubit pair was a CNOT, the reversed CNOT where control and
+      target are flipped is applied; otherwise, with probability
+      `p_cnot_flip`, the target is the current qubit and the control
+      the next one; otherwise the control is the current qubit and the
+      target the next one;
+
+    - in the case a gate is applied but not a CNOT, a rotation gate
+      with a random angle is applied to the current qubit: if the
+      previous instruction applied on this qubit was a rotation (RX or
+      RZ), then a rotation on the other axis is applied (RZ or RX);
+      otherwise with probability `p_rx`, the rotation is RX, otherwise
+      RZ.
+
+    The circuit is then completed by `complete_circuit` to ensure that
+    each gate can affect the measured qubit 0 by introducing
+    additional CNOTs.
     """
     circuit = Circuit(nqubits)
-    last_operation: dict[int, str] = {}
+    # Last gate for each qubit ("rx", "rz", "control", or "target")
+    last_gate_by_qubit: dict[int, str] = {}
     for _ in range(depth):
         qubit = 0
         while qubit < nqubits:
             if rng.random() < p_gate:
-                last = last_operation.get(qubit)
+                last = last_gate_by_qubit.get(qubit)
                 # Check if there's room for a CX gate and with probability p_cnot, apply CX.
                 if qubit < nqubits - 1 and rng.random() < p_cnot:
-                    last_next = last_operation.get(qubit + 1, None)
+                    last_next = last_gate_by_qubit.get(qubit + 1, None)
                     if (last, last_next) == ("control", "target") or (
                         (last, last_next) != ("target", "control")
                         and rng.random() < p_cnot_flip
@@ -63,22 +82,66 @@ def sample_circuit(
                         control = qubit
                         target = qubit + 1
                     circuit.cnot(control, target)
-                    last_operation[control] = "control"
-                    last_operation[target] = "target"
+                    last_gate_by_qubit[control] = "control"
+                    last_gate_by_qubit[target] = "target"
                     qubit += 2  # Skip the next qubit since it's already involved in CX
                 else:
                     angle = rng.random() * 2 * np.pi
                     # With probability p_rx, apply RX; otherwise, apply RZ.
                     if last == "rz" or (last != "rx" and rng.random() < p_rx):
                         circuit.rx(qubit, angle)
-                        last_operation[qubit] = "rx"
+                        last_gate_by_qubit[qubit] = "rx"
                     else:
                         circuit.rz(qubit, angle)
-                        last_operation[qubit] = "rz"
+                        last_gate_by_qubit[qubit] = "rz"
                     qubit += 1
             else:
                 # No gate applied; move to the next qubit.
                 qubit += 1
+    complete_circuit(circuit, p_cnot_flip, rng)
+    return circuit
+
+
+def complete_circuit(
+    circuit: Circuit, p_cnot_flip: float, rng: np.random.Generator
+) -> None:
+    """
+    Complete circuit with CNOTs so that all gates can affect qubit 0.
+    """
+    reachable = 0  # tracks the highest qubit index that can affect qubit 0
+
+    def add_cnots(target: int) -> None:
+        for i in range(target, reachable, -1):
+            if rng.random() < p_cnot_flip:
+                circuit.cnot(i, i - 1)
+            else:
+                circuit.cnot(i - 1, i)
+
+    for instr in reversed(circuit.instruction):
+        # Use of `if` instead of `match` here for mypy
+        if instr.kind == InstructionKind.CNOT:
+            min_qubit = min(instr.control, instr.target)
+            if min_qubit < reachable:
+                continue
+            add_cnots(min_qubit)
+            reachable = min_qubit + 1
+        # Use of `==` here for mypy
+        elif instr.kind == InstructionKind.RX or instr.kind == InstructionKind.RZ:  # noqa: PLR1714
+            if instr.target <= reachable:
+                continue
+            add_cnots(instr.target)
+            reachable = instr.target
+
+
+def strip_circuit(circuit: Circuit) -> None:
+    """
+    Strip circuit so that gates are kept only if they can affect qubit 0.
+
+    Rotations or CNOT on other qubits that are not followed with a CNOT
+    connecting them to qubit 0 are removed.
+
+    This method is deprecated in favor of `complete_circuit`.
+    """
     # Initialize an empty list for the instructions that remain after stripping.
     new_instructions: list[Instruction] = []
     # 'reachable' tracks the index of the last qubit that can affect qubit 0.
@@ -86,14 +149,14 @@ def sample_circuit(
     for instr in reversed(circuit.instruction):
         # Use of `if` instead of `match` here for mypy
         if instr.kind == InstructionKind.CNOT:
-            # By construction, instr.target == instr.control + 1.
+            min_qubit = min(instr.control, instr.target)
             # If the control qubit is beyond the current reachable range,
             # the gate cannot affect qubit 0 and is removed.
-            if instr.control > reachable:
+            if min_qubit > reachable:
                 continue
             # If the control qubit is exactly at the reachable boundary,
             # this CX gate extends the influence to the next qubit.
-            if instr.control == reachable:
+            if min_qubit == reachable:
                 reachable += 1
             # Keep the instruction.
             new_instructions.append(instr)
@@ -106,7 +169,6 @@ def sample_circuit(
     new_instructions.reverse()
     # Replace the original instruction list with the new, stripped list.
     circuit.instruction = new_instructions
-    return circuit
 
 
 def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
@@ -137,20 +199,25 @@ def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
     return qc
 
 
-## Alternative method for estimating probability by sampling
-# def estimate_circuit(qc: QuantumCircuit, seed: int | None = None) -> float:
-#    """
-#    Estimate the probability of measuring the '1' outcome on the first qubit.
-#    """
-#    qc.measure(0, 0)
-#    nb_shots = 2 << 8
-#    sampler = SamplerV2(seed=seed)
-#    job = sampler.run([qc], shots=nb_shots)
-#    job_result = job.result()
-#    return sum(next(iter(job_result[0].data.values())).bitcount()) / nb_shots
+def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) -> float:
+    """
+    Estimate the probability of measuring the '1' outcome on the first qubit.
+
+    This is an alternative method for estimating probability by sampling.
+    This method is deprecated in favor of `estimate_circuit_expectation_value`,
+    which is more accurate, deterministic and faster.
+    """
+    qc.measure(0, 0)
+    nb_shots = 2 << 8
+    sampler = SamplerV2(seed=seed)
+    job = sampler.run([qc], shots=nb_shots)
+    job_result = job.result()
+    nb_one_outcomes = sum(next(iter(job_result[0].data.values())).bitcount())
+    assert isinstance(nb_one_outcomes, int)
+    return nb_one_outcomes / nb_shots
 
 
-def estimate_circuit_expectation_value(qc: QuantumCircuit) -> float:
+def estimate_circuit_by_expectation_value(qc: QuantumCircuit) -> float:
     """
     Estimate the probability of measuring the '1' outcome on the first qubit.
 
@@ -193,7 +260,7 @@ def estimate_circuits(
     circuits: Iterable[QuantumCircuit],
 ) -> list[tuple[QuantumCircuit, float]]:
     return [
-        (circuit, estimate_circuit_expectation_value(circuit))
+        (circuit, estimate_circuit_by_expectation_value(circuit))
         for circuit in tqdm(circuits)
     ]
 
