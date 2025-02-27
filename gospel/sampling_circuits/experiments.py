@@ -30,7 +30,7 @@ def get_circuit(n: int) -> Circuit:
     )
 
 
-if __name__ == "__main__":
+def run_sample_circuits(target: Path) -> None:
     sample_circuits(
         ncircuits=ncircuits,
         nqubits=nqubits,
@@ -40,5 +40,9 @@ if __name__ == "__main__":
         p_cnot_flip=p_cnot_flip,
         p_rx=p_rx,
         seed=seed,
-        target=Path("circuits/"),
+        target=target,
     )
+
+
+if __name__ == "__main__":
+    run_sample_circuits(Path("circuits/"))

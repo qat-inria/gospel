@@ -1,3 +1,4 @@
+gitpython==3.1.44
 graphix @ git+https://github.com/thierry-martinez/graphix@gospel
 matplotlib==3.10.0
 mypy==1.15.0

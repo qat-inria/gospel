@@ -17,3 +17,16 @@ figcaption {
 .name {
   cursor: pointer;
 }
+dl {
+  display: grid;
+  grid-template-columns: max-content auto;
+  align-items: center;
+}
+dt {
+  grid-column-start: 1;
+  font-weight: bold;
+}
+dd {
+  grid-column-start: 2;
+  margin-left: 1em;
+}

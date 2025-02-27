@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+import git
 import matplotlib.pyplot as plt
 import numpy as np
 import qiskit
@@ -242,7 +243,7 @@ def estimate_circuits(
 ) -> list[tuple[QuantumCircuit, float]]:
     return [
         (circuit, estimate_circuit_by_expectation_value(circuit))
-        for circuit in tqdm(circuits)
+        for circuit in tqdm(list(circuits))
     ]
 
 
@@ -302,13 +303,21 @@ def sample_circuits(
     arg_str = " ".join(
         f"--{key.replace('_', '-')} {value}" for key, value in params.items()
     )
-    command_line = f"python sample_circuits.py {arg_str}"
+    command_line = f"python -m gospel.sampling_circuits.sampling_circuits {arg_str}"
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
     with (target / "README.md").open("w") as f:
-        f.write(f"""To reproduce these samples, you may run the following command:
+        f.write(
+            f"""These circuits have been generated with the following gospel commit hash: {sha}
+
+To reproduce these samples, you may run the following command:
 ```
+git clone https://github.com/qat-inria/gospel.git
+git checkout {sha}
 {command_line}
 ```
-""")
+"""
+        )
 
 
 if __name__ == "__main__":

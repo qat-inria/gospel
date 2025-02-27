@@ -8,12 +8,36 @@
   </head>
   <body>
     <h1>Gospel</h1>
+    <dl>
+      <dt>Repository:</dt>
+      <dd><a href="https://github.com/qat-inria/gospel">https://github.com/qat-inria/gospel</a></dd>
+      <dt>Commit:</dt>
+      <dd>
+        <input id="sha" type="text" value="$sha" size="36">
+        <button id="copy-sha">Copy</button>
+        <a href="https://github.com/qat-inria/gospel/commit/$sha">browse</a>
+      </dd>
+      <script>
+        const copy_sha_button = document.getElementById("copy-sha");
+        copy_sha_button.addEventListener("click", function() {
+            const input_sha = document.getElementById("sha")
+            navigator.clipboard.writeText(input_sha.value)
+                .then(() => {
+                    const copy_sha_button = document.getElementById("copy-sha");
+                    copy_sha_button.innerHTML = "Copied!";
+                })
+                .catch(err => {
+                    alert("Cannot copy");
+                });
+        });
+      </script>
+    </dl>
     <figure>
-      <img src="circuits/distribution.svg" />
+      <img src="$circuits_dirname/distribution.svg" />
       <figcaption>Distribution of outcomes for qubit 0 in sampled circuits</figcaption>
     </figure>
     <p>
-      Download the archive of QASM files: <a href="circuits.tar.gz">circuits.tar.gz</a>.
+      Download the archive of QASM files: <a href="$circuits_tarball">$circuits_tarball</a>.
     </p>
     <table id="data-table">
       <thead>
@@ -65,11 +89,11 @@
                 download_div.appendChild(document.createTextNode("Download QASM file: "));
                 const download_a = document.createElement("a");
                 download_div.appendChild(download_a);
-                download_a.setAttribute("href", `circuits/${circuit}`)
+                download_a.setAttribute("href", `$circuits_dirname/$${circuit}`)
                 download_a.appendChild(document.createTextNode(circuit));
-                const svg_filename = circuit.replace(/\.\w+$/, ".svg");
-                contents.appendChild(createFigure(`circuits_svg/${svg_filename}`, "Circuit"));
-                contents.appendChild(createFigure(`brickwork_state_svg/${svg_filename}`, "Brickwork state"));
+                const svg_filename = circuit.replace(/\.\w+$$/, ".svg");
+                contents.appendChild(createFigure(`$circuits_svg_dirname/$${svg_filename}`, "Circuit"));
+                contents.appendChild(createFigure(`$brickwork_state_svg_dirname/$${svg_filename}`, "Brickwork state"));
             }
             else {
                 keyCell.removeChild(contents);
@@ -116,7 +140,7 @@
     // Use XMLHttpRequest to download the table.json file.
     function loadJSON() {
       const xhr = new XMLHttpRequest();
-      xhr.open("GET", "circuits/table.json", true);
+      xhr.open("GET", "$circuits_dirname/table.json", true);
       xhr.onreadystatechange = function() {
         if (xhr.readyState === XMLHttpRequest.DONE) {
           if (xhr.status === 200) {

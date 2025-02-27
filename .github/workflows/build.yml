@@ -22,20 +22,8 @@ jobs:
       - name: Setup requirements
         run: pip install -r requirements.txt
 
-      - name: Run sampling circuits experiment
-        run: python -m gospel.sampling_circuits.experiments
-
-      - name: Copy experiment results in pages
-        run: cp -r circuits pages/
-
-      - name: Make circuits.tar.gz
-        run: cd pages && tar -czf circuits.tar.gz circuits
-
-      - name: Create SVG for circuits
-        run: cd pages && python ../gospel/scripts/qasm2img.py
-
-      - name: Create SVG for brickwork states
-        run: python -m gospel.scripts.qasm2brickwork_state
+      - name: Generate page
+        run: python -m gospel.scripts.generate_page
 
       - name: Publish pages
-        run: rsync -avz --delete pages/ /www/
+        run: rsync -avz pages/ /www/

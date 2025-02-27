@@ -9,7 +9,7 @@ from graphix import Circuit
 from graphix.opengraph import OpenGraph
 from tqdm import tqdm
 
-import brickwork_state_transpiler
+import gospel.brickwork_state_transpiler
 
 command_re = re.compile(r"([a-z]+)(?:\(([^)]*)\))?")
 reg_re = re.compile(r"[a-z0-9]+\[([^]]*)\]")
@@ -96,9 +96,9 @@ def format_angle(angle: float) -> str:
 
 
 def draw_brickwork_state(circuit: Circuit, target: Path) -> None:
-    pattern = brickwork_state_transpiler.transpile(circuit)
+    pattern = gospel.brickwork_state_transpiler.transpile(circuit)
     graph = OpenGraph.from_pattern(pattern)
-    pos = brickwork_state_transpiler.get_node_positions(
+    pos = gospel.brickwork_state_transpiler.get_node_positions(
         pattern, reverse_qubit_order=True
     )
     labels = {
@@ -121,16 +121,18 @@ def draw_brickwork_state(circuit: Circuit, target: Path) -> None:
     plt.close()
 
 
-def convert_circuit_directory() -> None:
-    circuits_path = Path("pages/circuits")
-    circuits_svg_path = Path("pages/brickwork_state_svg")
-    circuits_svg_path.mkdir()
-    for circuit_path in tqdm(list(circuits_path.glob("*.qasm"))):
-        with Path(circuit_path).open() as f:
+def convert_circuit_directory_to_brickwork_state(
+    path_circuits: Path, path_brickwork_state_svg: Path
+) -> None:
+    path_brickwork_state_svg.mkdir()
+    for path_circuit in tqdm(list(path_circuits.glob("*.qasm"))):
+        with Path(path_circuit).open() as f:
             circuit = read_qasm(f)
-            target = (circuits_svg_path / circuit_path.name).with_suffix(".svg")
+            target = (path_brickwork_state_svg / path_circuit.name).with_suffix(".svg")
             draw_brickwork_state(circuit, target)
 
 
 if __name__ == "__main__":
-    convert_circuit_directory()
+    convert_circuit_directory_to_brickwork_state(
+        Path("pages/circuits"), Path("pages/brickwork_state_svg")
+    )
