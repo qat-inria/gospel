@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from graphix import Circuit
 from graphix.opengraph import OpenGraph
+from tqdm import tqdm
 
 import brickwork_state_transpiler
 
@@ -122,7 +123,7 @@ def convert_circuit_directory() -> None:
     circuits_path = Path("pages/circuits")
     circuits_svg_path = Path("pages/brickwork_state_svg")
     circuits_svg_path.mkdir()
-    for circuit_path in list(circuits_path.glob("*.qasm")):
+    for circuit_path in tqdm(list(circuits_path.glob("*.qasm"))):
         with Path(circuit_path).open() as f:
             circuit = read_qasm(f)
             target = (circuits_svg_path / circuit_path.name).with_suffix(".svg")
