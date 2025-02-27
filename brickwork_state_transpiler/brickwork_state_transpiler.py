@@ -237,14 +237,37 @@ def transpile(circuit: Circuit) -> Pattern:
     return layers_to_pattern(circuit.width, layers)
 
 
-def get_node_positions(pattern: Pattern, scale: float = 1) -> dict[int, array[int]]:
+def get_node_positions(
+    pattern: Pattern, scale: float = 1, reverse_qubit_order: bool = False
+) -> dict[int, array[int]]:
+    """Return node positions in a grid layout."""
     width = len(pattern.input_nodes)
     if width % 2:
         width = width + 1
     assert pattern.n_node % width == 0
     return {
         node: array(
-            "i", [int((node // width) * scale), int((width - node % width) * scale)]
+            "i",
+            [
+                int((node // width) * scale),
+                int(
+                    (width - node % width if reverse_qubit_order else node % width)
+                    * scale
+                ),
+            ],
         )
         for node in range(pattern.n_node)
     }
+
+
+def get_bipartite_coloring(pattern: Pattern) -> tuple[set[int], set[int]]:
+    """Return a bipartite coloring for the given pattern."""
+    positions = get_node_positions(pattern)
+    red = set()
+    blue = set()
+    for node, position in positions.items():
+        if (position[0] + position[1]) % 2:
+            red.add(node)
+        else:
+            blue.add(node)
+    return (red, blue)

@@ -4,12 +4,14 @@ import numpy as np
 import pytest
 from graphix import Circuit
 from graphix.sim.statevec import Statevec
+from numpy.random import PCG64, Generator
 
 from brickwork_state_transpiler import (
     CNOT,
     Layer,
     SingleQubit,
     SingleQubitPair,
+    get_bipartite_coloring,
     transpile,
     transpile_to_layers,
 )
@@ -178,9 +180,27 @@ def test_transpile_multiple_cnot() -> None:
     check_circuit(circuit)
 
 
-def test_sampled_circuit() -> None:
-    rng = np.random.default_rng(seed=1729)
+@pytest.mark.parametrize("jumps", range(1, 11))
+def test_sampled_circuit(fx_bg: PCG64, jumps: int) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
     circuit = sample_circuit(
         nqubits=5, depth=10, p_gate=0.5, p_cnot=0.5, p_cnot_flip=0.5, p_rx=0.5, rng=rng
     )
     check_circuit(circuit)
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
+def test_get_bipartite_coloring(fx_bg: PCG64, jumps: int) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+    circuit = sample_circuit(
+        nqubits=5, depth=10, p_gate=0.5, p_cnot=0.5, p_cnot_flip=0.5, p_rx=0.5, rng=rng
+    )
+    pattern = transpile(circuit)
+    red, blue = get_bipartite_coloring(pattern)
+    nodes, edges = pattern.get_graph()
+    assert red | blue == set(nodes)
+    assert red & blue == set()
+    for edge in edges:
+        assert (edge[0] in red and edge[1] in blue) or (
+            edge[0] in blue and edge[1] in red
+        )

@@ -98,7 +98,9 @@ def format_angle(angle: float) -> str:
 def draw_brickwork_state(circuit: Circuit, target: Path) -> None:
     pattern = brickwork_state_transpiler.transpile(circuit)
     graph = OpenGraph.from_pattern(pattern)
-    pos = brickwork_state_transpiler.get_node_positions(pattern)
+    pos = brickwork_state_transpiler.get_node_positions(
+        pattern, reverse_qubit_order=True
+    )
     labels = {
         node: format_angle(measurement.angle)
         for node, measurement in graph.measurements.items()
