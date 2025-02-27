@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from graphix import Circuit
 
-from sampling_circuits.sampling_circuits import sample_circuit, sample_circuits
+from gospel.sampling_circuits.sampling_circuits import sample_circuit, sample_circuits
 
 ncircuits = 10000
 nqubits = 5

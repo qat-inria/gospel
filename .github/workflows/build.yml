@@ -23,7 +23,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run sampling circuits experiment
-        run: python -m sampling_circuits.experiments
+        run: python -m gospel.sampling_circuits.experiments
 
       - name: Copy experiment results in pages
         run: cp -r circuits pages/
@@ -32,10 +32,10 @@ jobs:
         run: cd pages && tar -czf circuits.tar.gz circuits
 
       - name: Create SVG for circuits
-        run: cd pages && python ../scripts/qasm2img.py
+        run: cd pages && python ../gospel/scripts/qasm2img.py
 
       - name: Create SVG for brickwork states
-        run: python -m scripts.qasm2brickwork_state
+        run: python -m gospel.scripts.qasm2brickwork_state
 
       - name: Publish pages
         run: rsync -avz --delete pages/ /www/

@@ -1,3 +1,10 @@
+[project]
+name = "gospel"
+version = "1"
+
+[tool.setuptools]
+packages = ["gospel"]
+
 [tool.ruff]
 exclude = ["examples", "*.ipynb"]
 

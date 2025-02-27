@@ -15,7 +15,7 @@ from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod
 from numpy.random import PCG64, Generator
 
-from stim_prepauli_preprocessing import preprocess_pauli
+from gospel.stim_prepauli_preprocessing import preprocess_pauli
 
 
 def fidelity(u: npt.NDArray[np.complex128], v: npt.NDArray[np.complex128]) -> float:

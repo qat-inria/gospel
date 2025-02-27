@@ -1,4 +1,4 @@
-from brickwork_state_transpiler.brickwork_state_transpiler import (
+from gospel.brickwork_state_transpiler.brickwork_state_transpiler import (
     CNOT,
     XZ,
     Layer,

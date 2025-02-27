@@ -6,7 +6,7 @@ from graphix import Circuit
 from graphix.sim.statevec import Statevec
 from numpy.random import PCG64, Generator
 
-from brickwork_state_transpiler import (
+from gospel.brickwork_state_transpiler import (
     CNOT,
     Layer,
     SingleQubit,
@@ -15,7 +15,7 @@ from brickwork_state_transpiler import (
     transpile,
     transpile_to_layers,
 )
-from sampling_circuits import get_circuit, ncircuits
+from gospel.sampling_circuits import get_circuit, ncircuits
 
 
 def test_transpile_to_layers_rx_rz_on_two_qubits() -> None:

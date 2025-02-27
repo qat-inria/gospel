@@ -1,5 +1,5 @@
-from sampling_circuits.experiments import get_circuit, ncircuits
-from sampling_circuits.sampling_circuits import (
+from gospel.sampling_circuits.experiments import get_circuit, ncircuits
+from gospel.sampling_circuits.sampling_circuits import (
     estimate_circuits,
     sample_circuit,
     sample_circuits,
