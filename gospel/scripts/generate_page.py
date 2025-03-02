@@ -1,5 +1,6 @@
 import string
 import tarfile
+from datetime import datetime
 from pathlib import Path
 
 import git
@@ -18,6 +19,7 @@ def generate_page() -> None:
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
     shortsha = sha[0:7]
+    committed_date = datetime.fromtimestamp(repo.head.object.committed_date)
 
     circuits_dirname = f"circuits-{shortsha}"
     path_circuits = path_pages / circuits_dirname
@@ -44,6 +46,9 @@ def generate_page() -> None:
     result = template.substitute(
         {
             "sha": sha,
+            "committed_date": committed_date.astimezone()
+            .replace(microsecond=0)
+            .isoformat(),
             "circuits_dirname": circuits_dirname,
             "circuits_tarball": circuits_tarball,
             "circuits_svg_dirname": circuits_svg_dirname,

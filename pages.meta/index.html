@@ -13,10 +13,12 @@
       <dd><a href="https://github.com/qat-inria/gospel">https://github.com/qat-inria/gospel</a></dd>
       <dt>Commit:</dt>
       <dd>
-        <input id="sha" type="text" value="$sha" size="36">
+        <input id="sha" type="text" value="$sha" size="38">
         <button id="copy-sha">Copy</button>
         <a href="https://github.com/qat-inria/gospel/commit/$sha">browse</a>
       </dd>
+      <dt>Committed date:</dt>
+      <dd>$committed_date</dd>
       <script>
         const copy_sha_button = document.getElementById("copy-sha");
         copy_sha_button.addEventListener("click", function() {

@@ -1,5 +1,3 @@
-from typing import Callable
-
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -9,8 +7,6 @@ from graphix.command import CommandKind
 from graphix.fundamentals import Plane
 from graphix.measurements import PauliMeasurement
 from graphix.noise_models.depolarising_noise_model import DepolarisingNoiseModel
-from graphix.noise_models.noise_model import NoiseModel
-from graphix.noise_models.noiseless_noise_model import NoiselessNoiseModel
 from graphix.random_objects import rand_circuit
 from graphix.sim.base_backend import (
     FixedBranchSelector,
@@ -22,7 +18,12 @@ from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod
 from numpy.random import PCG64, Generator
 
-from gospel.stim_prepauli_preprocessing import preprocess_pauli, simulate_pauli
+from gospel.stim_prepauli_preprocessing import (
+    cut_pattern,
+    graph_state_to_pattern,
+    preprocess_pauli,
+    simulate_pauli,
+)
 
 
 def fidelity(u: npt.NDArray[np.complex128], v: npt.NDArray[np.complex128]) -> float:
@@ -75,7 +76,6 @@ def test_simple() -> None:
 
 @pytest.mark.parametrize("jumps", range(1, 11))
 @pytest.mark.parametrize("backend", ["statevector", "densitymatrix"])
-# TODO: tensor network backend is excluded because "parallel preparation strategy does not support not-standardized pattern".
 def test_pauli_measurement_random_circuit(
     fx_bg: PCG64, jumps: int, backend: str
 ) -> None:
@@ -84,29 +84,71 @@ def test_pauli_measurement_random_circuit(
     depth = 4
     circuit = rand_circuit(nqubits, depth, rng)
     pattern = circuit.transpile().pattern
-    pattern.standardize(method="mc")
-    pattern.shift_signals(method="mc")
+    pattern.standardize()
+    pattern.shift_signals()
     pattern2 = preprocess_pauli(pattern, leave_input=False)
     pattern.minimize_space()
     pattern2.minimize_space()
     # Since the patterns are deterministic, we do not need to select a particular branch
     state = pattern.simulate_pattern(backend)
     state2 = pattern2.simulate_pattern(backend)
-    assert compare_backend_results(state2, state) == pytest.approx(1)
+    assert compare_backend_results(state, state2) == pytest.approx(1)
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
-@pytest.mark.parametrize("noise", [NoiselessNoiseModel, DepolarisingNoiseModel])
-def test_simulate_pauli(
-    fx_bg: PCG64, jumps: int, noise: Callable[[], NoiseModel]
-) -> None:
+def test_branch_selection(fx_bg: PCG64, jumps: int) -> None:
     rng = Generator(fx_bg.jumped(jumps))
     nqubits = 4
     depth = 4
     circuit = rand_circuit(nqubits, depth, rng)
     pattern = circuit.transpile().pattern
-    pattern.standardize(method="mc")
-    pattern.shift_signals(method="mc")
+    pattern.standardize()
+    pattern.shift_signals()
+    pattern_a = preprocess_pauli(pattern, leave_input=False)
+    pattern_b = preprocess_pauli(pattern, leave_input=False, branch=pattern_a.results)
+    assert list(pattern_a) == list(pattern_b)
+
+
+@pytest.mark.parametrize("jumps", range(1, 2))
+def test_simulate_pauli(fx_bg: PCG64, jumps: int) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+    nqubits = 4
+    depth = 4
+    circuit = rand_circuit(nqubits, depth, rng)
+    pattern = circuit.transpile().pattern
+    pattern.standardize()
+    pattern.shift_signals()
+    pattern.move_pauli_measurements_to_the_front()
+    pattern2 = preprocess_pauli(pattern, leave_input=False)
+    sim = stim.TableauSimulator()
+    pauli_pattern, non_pauli_pattern = cut_pattern(pattern)
+    results = simulate_pauli(sim, pauli_pattern, branch=pattern2.results)
+    tableau = sim.current_inverse_tableau().inverse()
+    graph_state = tableau.to_circuit("graph_state")
+    output_node_set = set(pauli_pattern.output_nodes)
+    input_nodes = [node for node in pattern.input_nodes if node in output_node_set]
+    second_pattern = graph_state_to_pattern(
+        graph_state, input_nodes, non_pauli_pattern.input_nodes
+    )
+    second_pattern.extend(non_pauli_pattern)
+    pattern.minimize_space()
+    second_pattern.standardize()
+    second_pattern.results = results
+    second_pattern.minimize_space()
+    state = pattern.simulate_pattern()
+    state2 = second_pattern.simulate_pattern()
+    assert compare_backend_results(state, state2) == pytest.approx(1)
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
+def test_simulate_pauli_depolarising_noise(fx_bg: PCG64, jumps: int) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+    nqubits = 4
+    depth = 4
+    circuit = rand_circuit(nqubits, depth, rng)
+    pattern = circuit.transpile().pattern
+    pattern.standardize()
+    pattern.shift_signals()
     pattern.move_pauli_measurements_to_the_front()
     pauli_pattern = Pattern(input_nodes=pattern.input_nodes)
     for cmd in pattern:
@@ -117,6 +159,5 @@ def test_simulate_pauli(
             break
         pauli_pattern.add(cmd)
     sim = stim.TableauSimulator()
-    measure_method = DefaultMeasureMethod()
-    noise_model = noise()
-    simulate_pauli(sim, measure_method, pauli_pattern, noise_model)
+    noise_model = DepolarisingNoiseModel()
+    simulate_pauli(sim, pauli_pattern, noise_model)
