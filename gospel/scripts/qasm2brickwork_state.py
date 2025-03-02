@@ -171,7 +171,7 @@ def convert_circuit_directory_to_brickwork_state(
 ) -> None:
     path_brickwork_state_svg.mkdir()
     for path_circuit in tqdm(list(path_circuits.glob("*.qasm"))):
-        with Path(path_circuits).open() as f:
+        with Path(path_circuit).open() as f:
             circuit = read_qasm(f)
             target = (path_brickwork_state_svg / path_circuit.name).with_suffix(".svg")
             draw_brickwork_state(circuit, target)
