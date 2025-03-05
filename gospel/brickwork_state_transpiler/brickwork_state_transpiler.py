@@ -179,72 +179,127 @@ def transpile_to_layers(circuit: Circuit) -> list[Layer]:
 
 @dataclass
 class NodeGenerator:
-    pattern: Pattern
     from_index: int
 
-    def fresh(self) -> int:
+    def fresh_command(self) -> tuple[int, command.Command]:
         index = self.from_index
         self.from_index += 1
-        self.pattern.add(command.N(node=index))
+        return index, command.N(node=index)
+
+    def fresh(self, pattern: Pattern) -> int:
+        index, command = self.fresh_command()
+        pattern.add(command)
         return index
 
 
-def add_j(
-    pattern: Pattern, node_generator: NodeGenerator, node: int, angle: float
-) -> int:
-    next_node = node_generator.fresh()
-    pattern.add(command.E(nodes=(node, next_node)))
-    pattern.add(command.M(node=node, angle=angle / math.pi))
-    pattern.add(command.X(node=next_node, domain={node}))
-    return next_node
+def j_commands(
+    node_generator: NodeGenerator, node: int, angle: float
+) -> tuple[int, list[command.Command]]:
+    next_node, command_n = node_generator.fresh_command()
+    commands = [
+        command_n,
+        command.E(nodes=(node, next_node)),
+        command.M(node=node, angle=angle / math.pi),
+        command.X(node=next_node, domain={node}),
+    ]
+    return next_node, commands
 
 
-def layers_to_pattern(width: int, layers: list[Layer]) -> Pattern:
+class ConstructionOrder(Enum):
+    Canonical = enum.auto()
+    Deviant = enum.auto()
+
+
+def layers_to_measurement_table(layers: list[Layer]) -> list[list[float]]:
+    table = []
+    for layer in layers:
+        all_brick_measures = [brick.measures() for brick in layer.bricks]
+        for column_index in range(4):
+            column: list[float] = []
+            if layer.odd:
+                column.append(0)
+            column.extend(
+                measures[i][column_index]
+                for measures in all_brick_measures
+                for i in (0, 1)
+            )
+            if layer.odd:
+                column.append(0)
+            table.append(column)
+    return table
+
+
+def measurement_table_to_pattern(
+    width: int, table: list[list[float]], order: ConstructionOrder
+) -> Pattern:
     input_nodes = list(range(width))
     pattern = Pattern(input_nodes)
     nodes = input_nodes
-    node_generator = NodeGenerator(pattern, width)
+    node_generator = NodeGenerator(width)
     if width % 2:
-        nodes.append(node_generator.fresh())
+        nodes.append(node_generator.fresh(pattern))
         last_qubit = width
     else:
         last_qubit = width - 1
-    for layer in layers:
-        all_brick_measures = [brick.measures() for brick in layer.bricks]
-        for col in range(4):
-            if layer.odd:
-                nodes[0] = add_j(pattern, node_generator, nodes[0], 0)
-            qubit = int(layer.odd)
-            for measures in all_brick_measures:
-                nodes[qubit] = add_j(
-                    pattern, node_generator, nodes[qubit], measures[0][col]
-                )
-                nodes[qubit + 1] = add_j(
-                    pattern, node_generator, nodes[qubit + 1], measures[1][col]
-                )
-                if col in {1, 3}:
-                    pattern.add(command.E(nodes=(nodes[qubit], nodes[qubit + 1])))
-                qubit += 2
-            if layer.odd:
-                nodes[last_qubit] = add_j(pattern, node_generator, nodes[last_qubit], 0)
+    for time, column in enumerate(table):
+        postponed = None  # for deviant order
+        for qubit, angle in enumerate(column):
+            next_node, commands = j_commands(node_generator, nodes[qubit], angle)
+            if time % 4 in {2, 0} and time > 0:
+                brick_layer = (time - 1) // 4
+                match order:
+                    case ConstructionOrder.Canonical:
+                        if qubit % 2 == brick_layer % 2 and qubit != last_qubit:
+                            pattern.add(
+                                command.E(nodes=(nodes[qubit], nodes[qubit + 1]))
+                            )
+                        pattern.extend(commands)
+                    case ConstructionOrder.Deviant:
+                        if qubit % 2 == brick_layer % 2 and qubit != last_qubit:
+                            pattern.extend(commands[:2])
+                            postponed = (nodes[qubit], commands[2:])
+                        elif postponed is None:
+                            pattern.extend(commands)
+                        else:
+                            pattern.extend(commands[:2])
+                            previous_qubit, previous_commands = postponed
+                            postponed = None
+                            pattern.add(command.E(nodes=(previous_qubit, nodes[qubit])))
+                            pattern.extend(previous_commands)
+                            pattern.extend(commands[2:])
+            else:
+                pattern.extend(commands)
+            nodes[qubit] = next_node
+    last_brick_layer = (len(table) - 1) // 4
+    for qubit in range(last_brick_layer % 2, last_qubit, 2):
+        pattern.add(command.E(nodes=(nodes[qubit], nodes[qubit + 1])))
     if width % 2:
         pattern.add(command.M(node=nodes[last_qubit], angle=0))
     return pattern
 
 
-def transpile(circuit: Circuit) -> Pattern:
+def transpile(
+    circuit: Circuit, order: ConstructionOrder = ConstructionOrder.Canonical
+) -> Pattern:
     layers = transpile_to_layers(circuit)
-    return layers_to_pattern(circuit.width, layers)
+    table = layers_to_measurement_table(layers)
+    return measurement_table_to_pattern(circuit.width, table, order)
+
+
+def get_brickwork_state_pattern_width(pattern: Pattern) -> int:
+    width = len(pattern.input_nodes)
+    if width % 2:
+        width = width + 1
+    if pattern.n_node % width != 0:
+        raise ValueError("Unexpected node count in a brickwork state pattern")
+    return width
 
 
 def get_node_positions(
     pattern: Pattern, scale: float = 1, reverse_qubit_order: bool = False
 ) -> dict[int, array[int]]:
     """Return node positions in a grid layout."""
-    width = len(pattern.input_nodes)
-    if width % 2:
-        width = width + 1
-    assert pattern.n_node % width == 0
+    width = get_brickwork_state_pattern_width(pattern)
     return {
         node: array(
             "i",

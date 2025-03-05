@@ -5,7 +5,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import networkx as nx
-from graphix import Circuit
+from graphix import Circuit, Pattern
 from graphix.opengraph import OpenGraph
 from tqdm import tqdm
 
@@ -95,8 +95,7 @@ def format_angle(angle: float) -> str:
     return f"{angle * math.pi:.3f}"
 
 
-def draw_brickwork_state(circuit: Circuit, target: Path) -> None:
-    pattern = gospel.brickwork_state_transpiler.transpile(circuit)
+def draw_brickwork_state_pattern(pattern: Pattern, target: Path) -> None:
     graph = OpenGraph.from_pattern(pattern)
     pos = gospel.brickwork_state_transpiler.get_node_positions(
         pattern, reverse_qubit_order=True
@@ -149,14 +148,16 @@ def draw_brickwork_state_colormap(
         figsize=(max(x for x, y in pos.values()), max(y for x, y in pos.values()))
     )
     nx.draw_networkx_edges(graph.inside, pos, edge_color="black")
+    # false error: Argument "node_color" to "draw_networkx_nodes" has incompatible type "list[float]"; expected "str"  [arg-type]
+    # false error: Module has no attribute "jet"  [attr-defined]
     nc = nx.draw_networkx_nodes(
         graph.inside,
         pos,
         nodelist=graph.inside.nodes,
         label=labels,
-        node_color=colors,
+        node_color=colors,  # type: ignore[arg-type]
         node_size=1000,
-        cmap=plt.cm.jet,
+        cmap=plt.cm.jet,  # type: ignore[attr-defined]
         vmin=0,
         vmax=1,
     )
@@ -173,8 +174,9 @@ def convert_circuit_directory_to_brickwork_state(
     for path_circuit in tqdm(list(path_circuits.glob("*.qasm"))):
         with Path(path_circuit).open() as f:
             circuit = read_qasm(f)
+            pattern = gospel.brickwork_state_transpiler.transpile(circuit)
             target = (path_brickwork_state_svg / path_circuit.name).with_suffix(".svg")
-            draw_brickwork_state(circuit, target)
+            draw_brickwork_state_pattern(pattern, target)
 
 
 if __name__ == "__main__":
