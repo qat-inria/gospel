@@ -13,4 +13,4 @@ stim==1.14.0
 tqdm==4.67.1
 typer==0.15.1
 types-networkx==3.4.2.20241227
-veriphix @ git+https://github.com/jemappellesami/veriphix@prepare-method
+veriphix @ git+https://github.com/qat-inria/veriphix@gospel
