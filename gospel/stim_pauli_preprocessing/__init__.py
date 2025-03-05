@@ -1,4 +1,4 @@
-from gospel.stim_prepauli_preprocessing.stim_prepauli_preprocessing import (
+from gospel.stim_pauli_preprocessing.stim_pauli_preprocessing import (
     cut_pattern,
     graph_state_to_pattern,
     preprocess_pauli,

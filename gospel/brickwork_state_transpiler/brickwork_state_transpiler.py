@@ -11,9 +11,11 @@ from typing import TYPE_CHECKING
 
 from graphix import Pattern, command
 from graphix.instruction import InstructionKind
+from graphix.rng import ensure_rng
 
 if TYPE_CHECKING:
     from graphix import Circuit, instruction
+    from np.random import Generator
 
 
 class Brick(ABC):
@@ -326,3 +328,32 @@ def get_bipartite_coloring(pattern: Pattern) -> tuple[set[int], set[int]]:
         else:
             blue.add(node)
     return (red, blue)
+
+
+PAULI_ANGLES: list[float] = [0, math.pi, math.pi / 2, -math.pi / 2]
+
+
+def random_pauli_measurement_angle(rng: Generator) -> float:
+    index: int = rng.integers(len(PAULI_ANGLES))
+    return PAULI_ANGLES[index]
+
+
+def generate_random_pauli_measurement_table(
+    nqubits: int, nlayers: int, rng: Generator
+) -> list[list[float]]:
+    assert nqubits % 2 == 0
+    return [
+        [random_pauli_measurement_angle(rng) for _ in range(nqubits)]
+        for _ in range(nlayers * 4)
+    ]
+
+
+def generate_random_pauli_pattern(
+    nqubits: int,
+    nlayers: int,
+    rng: Generator | None = None,
+    order: ConstructionOrder = ConstructionOrder.Canonical,
+) -> Pattern:
+    rng = ensure_rng(rng)
+    table = generate_random_pauli_measurement_table(nqubits, nlayers, rng)
+    return measurement_table_to_pattern(nqubits, table, order)

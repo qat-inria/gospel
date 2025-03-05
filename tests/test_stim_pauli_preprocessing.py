@@ -18,7 +18,7 @@ from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod
 from numpy.random import PCG64, Generator
 
-from gospel.stim_prepauli_preprocessing import (
+from gospel.stim_pauli_preprocessing import (
     cut_pattern,
     graph_state_to_pattern,
     preprocess_pauli,

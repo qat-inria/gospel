@@ -2,6 +2,7 @@ import math
 
 import numpy as np
 import pytest
+import stim
 from graphix import Circuit, Pattern
 from graphix.command import CommandKind
 from graphix.sim.statevec import Statevec
@@ -13,6 +14,7 @@ from gospel.brickwork_state_transpiler import (
     Layer,
     SingleQubit,
     SingleQubitPair,
+    generate_random_pauli_pattern,
     get_bipartite_coloring,
     get_brickwork_state_pattern_width,
     get_node_positions,
@@ -20,6 +22,7 @@ from gospel.brickwork_state_transpiler import (
     transpile_to_layers,
 )
 from gospel.sampling_circuits import get_circuit, ncircuits
+from gospel.stim_pauli_preprocessing import simulate_pauli
 
 
 def test_transpile_to_layers_rx_rz_on_two_qubits() -> None:
@@ -246,3 +249,16 @@ def test_get_bipartite_coloring(fx_bg: PCG64, jumps: int) -> None:
         assert (edge[0] in red and edge[1] in blue) or (
             edge[0] in blue and edge[1] in red
         )
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
+@pytest.mark.parametrize(
+    "order", [ConstructionOrder.Canonical, ConstructionOrder.Deviant]
+)
+def test_generate_random_pauli_pattern(
+    fx_bg: PCG64, jumps: int, order: ConstructionOrder
+) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+    pattern = generate_random_pauli_pattern(nqubits=8, nlayers=10, rng=rng, order=order)
+    sim = stim.TableauSimulator()
+    simulate_pauli(sim, pattern)
