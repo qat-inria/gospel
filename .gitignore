@@ -3,3 +3,4 @@ __pycache__/
 .vscode/settings.json
 /circuits
 simulation/pic.svg
+simulation/pic2.svg
