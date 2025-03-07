@@ -9,18 +9,21 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from graphix import Pattern, command
+from graphix import Circuit, Pattern, command
 from graphix.instruction import InstructionKind
 from graphix.rng import ensure_rng
 
 if TYPE_CHECKING:
-    from graphix import Circuit, instruction
+    from graphix import instruction
     from np.random import Generator
 
 
 class Brick(ABC):
     @abstractmethod
     def measures(self) -> list[list[float]]: ...
+
+    @abstractmethod
+    def to_circuit(self, target: Circuit, nqubit_top: int) -> None: ...
 
 
 @dataclass
@@ -31,6 +34,15 @@ class CNOT(Brick):
         if self.target_above:
             return [[0, math.pi / 2, 0, -math.pi / 2], [0, 0, math.pi / 2, 0]]
         return [[0, 0, math.pi / 2, 0], [0, math.pi / 2, 0, -math.pi / 2]]
+
+    def to_circuit(self, circuit: Circuit, nqubit_top: int) -> None:
+        if self.target_above:
+            control = nqubit_top + 1
+            target = nqubit_top
+        else:
+            control = nqubit_top
+            target = nqubit_top + 1
+        circuit.cnot(control, target)
 
 
 class XZ(Enum):
@@ -57,6 +69,14 @@ class SingleQubit:
             -value_or_zero(self.rz1),
             0,
         ]
+
+    def to_circuit(self, circuit: Circuit, nqubit: int) -> None:
+        if self.rz0 is not None:
+            circuit.rz(nqubit, self.rz0)
+        if self.rx is not None:
+            circuit.rx(nqubit, self.rx)
+        if self.rz1 is not None:
+            circuit.rz(nqubit, self.rz1)
 
     def is_identity(self) -> bool:
         return self.rz0 is None and self.rx is None and self.rz1 is None
@@ -93,6 +113,14 @@ class SingleQubitPair(Brick):
     def measures(self) -> list[list[float]]:
         return [self.top.measures(), self.bottom.measures()]
 
+    def to_circuit(self, circuit: Circuit, nqubit_top: int) -> None:
+        self.top.to_circuit(circuit, nqubit_top)
+        self.bottom.to_circuit(circuit, nqubit_top + 1)
+
+
+def identity() -> SingleQubitPair:
+    return SingleQubitPair(SingleQubit(), SingleQubit())
+
 
 @dataclass
 class Layer:
@@ -111,10 +139,7 @@ def __get_layer(width: int, layers: list[Layer], depth: int) -> Layer:
         layers.append(
             Layer(
                 odd,
-                [
-                    SingleQubitPair(SingleQubit(), SingleQubit())
-                    for _ in range(layer_size)
-                ],
+                [identity() for _ in range(layer_size)],
             )
         )
     return layers[depth]
@@ -280,12 +305,20 @@ def measurement_table_to_pattern(
     return pattern
 
 
+def layers_to_pattern(
+    width: int,
+    layers: list[Layer],
+    order: ConstructionOrder = ConstructionOrder.Canonical,
+) -> Pattern:
+    table = layers_to_measurement_table(layers)
+    return measurement_table_to_pattern(width, table, order)
+
+
 def transpile(
     circuit: Circuit, order: ConstructionOrder = ConstructionOrder.Canonical
 ) -> Pattern:
     layers = transpile_to_layers(circuit)
-    table = layers_to_measurement_table(layers)
-    return measurement_table_to_pattern(circuit.width, table, order)
+    return layers_to_pattern(circuit.width, layers, order)
 
 
 def get_brickwork_state_pattern_width(pattern: Pattern) -> int:
@@ -357,3 +390,14 @@ def generate_random_pauli_pattern(
     rng = ensure_rng(rng)
     table = generate_random_pauli_measurement_table(nqubits, nlayers, rng)
     return measurement_table_to_pattern(nqubits, table, order)
+
+
+def layers_to_circuit(layers: list[Layer]) -> Circuit:
+    width = 2 * len(layers[0].bricks)
+    circuit = Circuit(width)
+    for layer in layers:
+        nqubit = int(layer.odd)
+        for brick in layer.bricks:
+            brick.to_circuit(circuit, nqubit)
+            nqubit += 2
+    return circuit

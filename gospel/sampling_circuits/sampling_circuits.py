@@ -16,19 +16,31 @@ from qiskit.quantum_info import Pauli, Statevector  # type: ignore[attr-defined]
 from qiskit_aer.primitives import SamplerV2  # type: ignore[attr-defined]
 from tqdm import tqdm
 
+from gospel.brickwork_state_transpiler import (
+    CNOT,
+    Layer,
+    identity,
+    layers_to_circuit,
+    transpile_to_layers,
+)
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 
 
+def sample_angle(rng: np.random.Generator) -> float:
+    return rng.integers(8) * np.pi / 4
+
+
 def sample_circuit(
     nqubits: int,
     depth: int,
-    p_gate: float,
-    p_cnot: float,
-    p_cnot_flip: float,
-    p_rx: float,
     rng: np.random.Generator,
+    p_gate: float = 0.5,
+    p_cnot: float = 0.5,
+    p_cnot_flip: float = 0.5,
+    p_rx: float = 0.5,
 ) -> Circuit:
     """Generates a quantum circuit with the given number of qubits and depth.
 
@@ -87,7 +99,7 @@ def sample_circuit(
                     last_gate_by_qubit[target] = "target"
                     qubit += 2  # Skip the next qubit since it's already involved in CX
                 else:
-                    angle = rng.random() * 2 * np.pi
+                    angle = sample_angle(rng)
                     # With probability p_rx, apply RX; otherwise, apply RZ.
                     if last == "rz" or (last != "rx" and rng.random() < p_rx):
                         circuit.rx(qubit, angle)
@@ -100,6 +112,44 @@ def sample_circuit(
                 # No gate applied; move to the next qubit.
                 qubit += 1
     complete_circuit(circuit, p_cnot_flip, rng)
+    return circuit
+
+
+def sample_truncated_circuit(
+    nqubits: int,
+    depth: int,
+    rng: np.random.Generator,
+    p_gate: float = 0.5,
+    p_cnot: float = 0.5,
+    p_cnot_flip: float = 0.5,
+    p_rx: float = 0.5,
+) -> Circuit:
+    while True:
+        while True:
+            circuit = sample_circuit(
+                nqubits, 2 * depth, rng, p_gate, p_cnot, p_cnot_flip, p_rx
+            )
+            layers = transpile_to_layers(circuit)
+            if len(layers) >= depth:
+                break
+        if layers[-1].odd == bool(depth % 2):
+            truncated_layers = layers[-depth + 1 :]
+            target_above = rng.random() < p_cnot_flip
+            last_layer_odd = not bool(depth % 2)
+            last_layer_len = nqubits // 2 - 1 if last_layer_odd else nqubits // 2
+            truncated_layers.append(
+                Layer(
+                    odd=last_layer_odd,
+                    bricks=[CNOT(target_above)]
+                    + [identity() for _ in range(last_layer_len - 1)],
+                )
+            )
+        else:
+            truncated_layers = layers[-depth:]
+        assert not truncated_layers[0].odd
+        circuit = layers_to_circuit(truncated_layers)
+        if len(transpile_to_layers(circuit)) == depth:
+            break
     return circuit
 
 
@@ -285,14 +335,14 @@ def sample_circuits(
     sequence = np.random.SeedSequence(entropy=seed)
     target.mkdir()
     circuits = [
-        sample_circuit(
-            nqubits,
-            depth,
-            p_gate,
-            p_cnot,
-            p_cnot_flip,
-            p_rx,
-            np.random.default_rng(seed),
+        sample_truncated_circuit(
+            nqubits=nqubits,
+            depth=depth,
+            rng=np.random.default_rng(seed),
+            p_gate=p_gate,
+            p_cnot=p_cnot,
+            p_cnot_flip=p_cnot_flip,
+            p_rx=p_rx,
         )
         for seed in sequence.spawn(ncircuits)
     ]

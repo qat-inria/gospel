@@ -1,11 +1,9 @@
 import math
 
-import numpy as np
 import pytest
 import stim
 from graphix import Circuit, Pattern
 from graphix.command import CommandKind
-from graphix.sim.statevec import Statevec
 from numpy.random import PCG64, Generator
 
 from gospel.brickwork_state_transpiler import (
@@ -18,10 +16,12 @@ from gospel.brickwork_state_transpiler import (
     get_bipartite_coloring,
     get_brickwork_state_pattern_width,
     get_node_positions,
+    layers_to_circuit,
     transpile,
     transpile_to_layers,
 )
-from gospel.sampling_circuits import get_circuit, ncircuits
+from gospel.sampling_circuits import get_circuit, ncircuits, sample_circuit
+from gospel.scripts import compare_backend_results
 from gospel.stim_pauli_preprocessing import simulate_pauli
 
 
@@ -167,8 +167,7 @@ def check_circuit(circuit: Circuit, order: ConstructionOrder) -> None:
     check_order(pattern, order)
     sv1 = circuit.simulate_statevector().statevec
     sv2 = pattern.simulate_pattern()
-    assert isinstance(sv2, Statevec)
-    assert np.abs(np.dot(sv1.flatten().conjugate(), sv2.flatten())) == pytest.approx(1)
+    assert compare_backend_results(sv1, sv2) == pytest.approx(1)
 
 
 @pytest.mark.parametrize(
@@ -262,3 +261,14 @@ def test_generate_random_pauli_pattern(
     pattern = generate_random_pauli_pattern(nqubits=8, nlayers=10, rng=rng, order=order)
     sim = stim.TableauSimulator()
     simulate_pauli(sim, pattern)
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
+def test_layers_to_circuit(fx_bg: PCG64, jumps: int) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+    circuit = sample_circuit(nqubits=8, depth=10, rng=rng)
+    layers = transpile_to_layers(circuit)
+    circuit2 = layers_to_circuit(layers)
+    sv1 = circuit.simulate_statevector().statevec
+    sv2 = circuit2.simulate_statevector().statevec
+    assert compare_backend_results(sv1, sv2) == pytest.approx(1)

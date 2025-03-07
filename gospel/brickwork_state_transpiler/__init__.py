@@ -9,6 +9,9 @@ from gospel.brickwork_state_transpiler.brickwork_state_transpiler import (
     get_bipartite_coloring,
     get_brickwork_state_pattern_width,
     get_node_positions,
+    identity,
+    layers_to_circuit,
+    layers_to_pattern,
     transpile,
     transpile_to_layers,
 )
@@ -24,6 +27,9 @@ __all__ = [
     "get_bipartite_coloring",
     "get_brickwork_state_pattern_width",
     "get_node_positions",
+    "identity",
+    "layers_to_circuit",
+    "layers_to_pattern",
     "transpile",
     "transpile_to_layers",
 ]

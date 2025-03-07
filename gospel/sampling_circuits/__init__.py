@@ -3,6 +3,7 @@ from gospel.sampling_circuits.sampling_circuits import (
     estimate_circuits,
     sample_circuit,
     sample_circuits,
+    sample_truncated_circuit,
 )
 
 __all__ = [
@@ -11,4 +12,5 @@ __all__ = [
     "ncircuits",
     "sample_circuit",
     "sample_circuits",
+    "sample_truncated_circuit",
 ]
