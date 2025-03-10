@@ -1,23 +1,29 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, assert_never
+from typing import TYPE_CHECKING
 
 import networkx as nx
 import stim
 from graphix import Pattern, command
 from graphix.clifford import Clifford
 from graphix.command import CommandKind
-from graphix.fundamentals import Axis, Sign
-from graphix.measurements import PauliMeasurement
+from graphix.fundamentals import Axis, Plane, Sign
+from graphix.measurements import Measurement, PauliMeasurement
 from graphix.noise_models.depolarising_noise_model import (
-    DepolarisingNoiseElement,
-    TwoQubitDepolarisingNoiseElement,
+    DepolarisingNoise,
+    TwoQubitDepolarisingNoise,
 )
-from graphix.noise_models.noiseless_noise_model import NoiselessNoiseModel
+from graphix.ops import Ops
 from graphix.pattern import pauli_nodes
+from graphix.sim.base_backend import Backend, BackendState
+from graphix.simulator import DefaultMeasureMethod
+from graphix.states import PlanarState, State
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from graphix.noise_models.noise_model import Noise, NoiseModel
 
 if TYPE_CHECKING:
@@ -157,19 +163,6 @@ def graph_state_to_edges_and_vops(
     return edges, vops
 
 
-def apply_pauli_noise(sim: stim.TableauSimulator, noise: Noise) -> None:
-    for element, qubits in noise:
-        match element:
-            case DepolarisingNoiseElement(prob=prob):
-                (q,) = qubits
-                sim.depolarize1(q, p=prob)
-            case TwoQubitDepolarisingNoiseElement(prob=prob):
-                (q0, q1) = qubits
-                sim.depolarize2(q0, q1, p=prob)
-            case _:
-                raise ValueError(f"Unsupported noise element: {element}")
-
-
 def cut_pattern(pattern: Pattern) -> tuple[Pattern, Pattern]:
     pauli_pattern = Pattern(input_nodes=pattern.input_nodes)
     it = iter(pattern)
@@ -186,53 +179,83 @@ def cut_pattern(pattern: Pattern) -> tuple[Pattern, Pattern]:
     return (pauli_pattern, non_pauli_pattern)
 
 
+class StimBackend(Backend):  # type: ignore[misc]
+    def __init__(
+        self,
+        sim: stim.TableauSimulator | None = None,
+        branch: dict[int, bool] | None = None,
+    ) -> None:
+        super().__init__(BackendState())
+        if sim is None:
+            self.__sim = stim.TableauSimulator()
+        else:
+            self.__sim = sim
+        self.__branch = branch
+
+    @property
+    def sim(self) -> stim.TableauSimulator:
+        return self.__sim
+
+    @property
+    def branch(self) -> dict[int, bool] | None:
+        return self.__branch
+
+    def add_nodes(self, nodes: Iterable[int], data: State) -> None:
+        if isinstance(data, PlanarState):
+            if data.plane == Plane.XZ and data.angle == 0:
+                return
+            if data.plane == Plane.XY and data.angle == 0:
+                self.sim.h(*nodes)
+                return
+        raise ValueError("Unsupported input state")
+
+    def entangle_nodes(self, edge: tuple[int, int]) -> None:
+        self.sim.cz(*edge)
+
+    def measure(self, node: int, measurement: Measurement) -> bool:
+        pm = PauliMeasurement.try_from(measurement.plane, measurement.angle / math.pi)
+        if pm is None:
+            raise ValueError(f"The measurement {measurement} is not in Pauli basis.")
+        return apply_pauli_measurement(self.sim, node, pm, False, False, self.branch)
+
+    def apply_single(self, node: int, op: Ops) -> None:
+        if op is Ops.X:
+            self.sim.x(node)
+        elif op is Ops.Z:
+            self.sim.z(node)
+        else:
+            raise ValueError(f"Unsupported operator: {op}")
+
+    def apply_clifford(self, node: int, clifford: Clifford) -> None:
+        apply_clifford(self.sim, node, clifford)
+
+    def apply_noise(self, nodes: list[int], noise: Noise) -> None:
+        match noise:
+            case DepolarisingNoise(prob=prob):
+                (q,) = nodes
+                self.sim.depolarize1(q, p=prob)
+            case TwoQubitDepolarisingNoise(prob=prob):
+                (q0, q1) = nodes
+                self.sim.depolarize2(q0, q1, p=prob)
+            case _:
+                raise ValueError(f"Unsupported noise: {noise}")
+
+    def finalize(self, output_nodes: list[int]) -> None:
+        pass
+
+
 def simulate_pauli(
     sim: stim.TableauSimulator,
     pattern: Pattern,
     noise_model: NoiseModel | None = None,
     branch: dict[int, bool] | None = None,
 ) -> dict[int, bool]:
-    if noise_model is None:
-        noise_model = NoiselessNoiseModel()
-    results: dict[int, bool] = {}
-    for node in pattern.input_nodes:
-        sim.h(node)
-    for cmd in pattern:
-        # Use of `if` instead of `match` here for mypy
-        if cmd.kind == CommandKind.N:
-            sim.h(cmd.node)
-        elif cmd.kind == CommandKind.E:
-            sim.cz(*cmd.nodes)
-        elif cmd.kind == CommandKind.M:
-            pm = PauliMeasurement.try_from(cmd.plane, cmd.angle)
-            if pm is None:
-                raise ValueError(f"The measurement {cmd} is not in Pauli basis.")
-            apply_pauli_noise(sim, noise_model.command(cmd))
-            s_signal = bool(sum(results[node] for node in cmd.s_domain) % 2)
-            t_signal = bool(sum(results[node] for node in cmd.t_domain) % 2)
-            result = apply_pauli_measurement(
-                sim, cmd.node, pm, s_signal, t_signal, branch
-            )
-            result = noise_model.confuse_result(result)
-            results[cmd.node] = result
-        # Use of `==` here for mypy
-        elif cmd.kind == CommandKind.X or cmd.kind == CommandKind.Z:  # noqa: PLR1714
-            if sum(results[node] for node in cmd.domain) % 2:
-                if cmd.kind == CommandKind.X:
-                    sim.x(cmd.node)
-                else:
-                    sim.z(cmd.node)
-        elif cmd.kind == CommandKind.C:
-            apply_clifford(sim, cmd.node, cmd.clifford)
-        elif cmd.kind == CommandKind.T:
-            pass
-        elif cmd.kind == CommandKind.S:
-            raise ValueError("Unexpected S gate")
-        else:
-            assert_never(cmd.kind)
-        if cmd.kind != CommandKind.M:
-            apply_pauli_noise(sim, noise_model.command(cmd))
-    return results
+    backend = StimBackend(sim, branch)
+    measure_method = DefaultMeasureMethod()
+    pattern.simulate_pattern(
+        backend, noise_model=noise_model, measure_method=measure_method
+    )
+    return measure_method.results  # type: ignore[no-any-return]
 
 
 def graph_state_to_pattern(

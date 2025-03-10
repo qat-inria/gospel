@@ -1,6 +1,6 @@
 import numpy as np
 import numpy.typing as npt
-from graphix.sim.base_backend import State
+from graphix.sim.base_backend import BackendState
 from graphix.sim.density_matrix import DensityMatrix
 from graphix.sim.statevec import Statevec
 
@@ -9,7 +9,7 @@ def fidelity(u: npt.NDArray[np.complex128], v: npt.NDArray[np.complex128]) -> fl
     return np.abs(np.dot(u.conjugate(), v))  # type: ignore[no-any-return]
 
 
-def compare_backend_results(state1: State, state2: State) -> float:
+def compare_backend_results(state1: BackendState, state2: BackendState) -> float:
     if isinstance(state1, Statevec) and isinstance(state2, Statevec):
         return fidelity(state1.flatten(), state2.flatten())
     if isinstance(state1, DensityMatrix):
