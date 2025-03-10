@@ -243,6 +243,11 @@ class StimBackend(Backend):
     def finalize(self, output_nodes: list[int]) -> None:
         pass
 
+    def to_pattern(self, input_nodes: list[int], output_nodes: list[int]) -> Pattern:
+        tableau = self.sim.current_inverse_tableau().inverse()
+        circuit = tableau.to_circuit("graph_state")
+        return graph_state_to_pattern(circuit, input_nodes, output_nodes)
+
 
 def simulate_pauli(
     sim: stim.TableauSimulator,

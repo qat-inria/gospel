@@ -1,4 +1,5 @@
 from gospel.stim_pauli_preprocessing.stim_pauli_preprocessing import (
+    StimBackend,
     cut_pattern,
     graph_state_to_pattern,
     preprocess_pauli,
@@ -6,6 +7,7 @@ from gospel.stim_pauli_preprocessing.stim_pauli_preprocessing import (
 )
 
 __all__ = [
+    "StimBackend",
     "cut_pattern",
     "graph_state_to_pattern",
     "preprocess_pauli",

@@ -1,10 +1,11 @@
+import numpy as np
+import numpy.typing as npt
 import pytest
 import stim
-from graphix import Pattern, command
-from graphix.command import CommandKind
+from graphix import Circuit, Pattern, command
 from graphix.fundamentals import Plane
-from graphix.measurements import PauliMeasurement
 from graphix.noise_models.depolarising_noise_model import DepolarisingNoiseModel
+from graphix.noise_models.noise_model import NoiseModel
 from graphix.random_objects import rand_circuit
 from graphix.sim.base_backend import (
     FixedBranchSelector,
@@ -15,8 +16,8 @@ from numpy.random import PCG64, Generator
 
 from gospel.scripts import compare_backend_results
 from gospel.stim_pauli_preprocessing import (
+    StimBackend,
     cut_pattern,
-    graph_state_to_pattern,
     preprocess_pauli,
     simulate_pauli,
 )
@@ -96,18 +97,16 @@ def test_simulate_pauli(fx_bg: PCG64, jumps: int) -> None:
     pattern2 = preprocess_pauli(pattern, leave_input=False)
     sim = stim.TableauSimulator()
     pauli_pattern, non_pauli_pattern = cut_pattern(pattern)
-    results = simulate_pauli(sim, pauli_pattern, branch=pattern2.results)
-    tableau = sim.current_inverse_tableau().inverse()
-    graph_state = tableau.to_circuit("graph_state")
+    backend = StimBackend(sim, branch=pattern2.results)
+    measure_method = DefaultMeasureMethod()
+    pauli_pattern.simulate_pattern(backend, measure_method=measure_method)
     output_node_set = set(pauli_pattern.output_nodes)
     input_nodes = [node for node in pattern.input_nodes if node in output_node_set]
-    second_pattern = graph_state_to_pattern(
-        graph_state, input_nodes, non_pauli_pattern.input_nodes
-    )
+    second_pattern = backend.to_pattern(input_nodes, non_pauli_pattern.input_nodes)
     second_pattern.extend(non_pauli_pattern)
     pattern.minimize_space()
     second_pattern.standardize()
-    second_pattern.results = results
+    second_pattern.results = measure_method.results
     second_pattern.minimize_space()
     state = pattern.simulate_pattern()
     state2 = second_pattern.simulate_pattern()
@@ -124,14 +123,43 @@ def test_simulate_pauli_depolarising_noise(fx_bg: PCG64, jumps: int) -> None:
     pattern.standardize()
     pattern.shift_signals()
     pattern.move_pauli_measurements_to_the_front()
-    pauli_pattern = Pattern(input_nodes=pattern.input_nodes)
-    for cmd in pattern:
-        if (
-            cmd.kind == CommandKind.M
-            and PauliMeasurement.try_from(cmd.plane, cmd.angle) is None
-        ):
-            break
-        pauli_pattern.add(cmd)
+    pauli_pattern, _non_pauli_pattern = cut_pattern(pattern)
     sim = stim.TableauSimulator()
     noise_model = DepolarisingNoiseModel()
     simulate_pauli(sim, pauli_pattern, noise_model)
+
+
+def hpat() -> Pattern:
+    circ = Circuit(1)
+    circ.h(0)
+    return circ.transpile().pattern
+
+
+def simulate_with_noise_model_to_density_matrix(
+    pattern: Pattern, noise_model: NoiseModel
+) -> npt.NDArray[np.complex128]:
+    backend = StimBackend()
+    pattern.simulate_pattern(backend=backend, noise_model=noise_model)
+    second_pattern = backend.to_pattern([], pattern.output_nodes)
+    state = second_pattern.simulate_pattern()
+    return np.outer(state.psi, state.psi.conj())
+
+
+def test_noisy_measure_confuse_hadamard() -> None:
+    hadamard_pattern = hpat()
+    noise_model = DepolarisingNoiseModel(measure_error_prob=1.0)
+    rho = simulate_with_noise_model_to_density_matrix(hadamard_pattern, noise_model)
+    # result should be |1>
+    assert np.allclose(rho, np.array([[0.0, 0.0], [0.0, 1.0]]))
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
+def test_noisy_measure_confuse_hadamard_random(fx_bg: PCG64, jumps: int) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+    hadamard_pattern = hpat()
+    noise_model = DepolarisingNoiseModel(measure_error_prob=rng.random())
+    rho = simulate_with_noise_model_to_density_matrix(hadamard_pattern, noise_model)
+    assert np.allclose(rho, np.array([[1.0, 0.0], [0.0, 0.0]])) or np.allclose(
+        rho,
+        np.array([[0.0, 0.0], [0.0, 1.0]]),
+    )
