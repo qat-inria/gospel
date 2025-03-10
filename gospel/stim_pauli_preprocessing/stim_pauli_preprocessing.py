@@ -19,7 +19,7 @@ from graphix.ops import Ops
 from graphix.pattern import pauli_nodes
 from graphix.sim.base_backend import Backend, BackendState
 from graphix.simulator import DefaultMeasureMethod
-from graphix.states import PlanarState, State
+from graphix.states import BasicStates, PlanarState, State
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -179,7 +179,7 @@ def cut_pattern(pattern: Pattern) -> tuple[Pattern, Pattern]:
     return (pauli_pattern, non_pauli_pattern)
 
 
-class StimBackend(Backend):  # type: ignore[misc]
+class StimBackend(Backend):
     def __init__(
         self,
         sim: stim.TableauSimulator | None = None,
@@ -200,7 +200,7 @@ class StimBackend(Backend):  # type: ignore[misc]
     def branch(self) -> dict[int, bool] | None:
         return self.__branch
 
-    def add_nodes(self, nodes: Iterable[int], data: State) -> None:
+    def add_nodes(self, nodes: Iterable[int], data: State = BasicStates.PLUS) -> None:
         if isinstance(data, PlanarState):
             if data.plane == Plane.XZ and data.angle == 0:
                 return
@@ -255,7 +255,7 @@ def simulate_pauli(
     pattern.simulate_pattern(
         backend, noise_model=noise_model, measure_method=measure_method
     )
-    return measure_method.results  # type: ignore[no-any-return]
+    return measure_method.results
 
 
 def graph_state_to_pattern(
