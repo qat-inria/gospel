@@ -150,16 +150,18 @@ def check_order(pattern: Pattern, order: ConstructionOrder) -> None:
             vx, vy = positions[v]
             if ux == vx:
                 if ux < pattern.n_node // width - 1:
-                    match order:
-                        case ConstructionOrder.Canonical:
-                            assert (ux, uy) not in has_horizontal_bar
-                            assert (vx, vy) not in has_horizontal_bar
-                        case ConstructionOrder.Deviant:
-                            assert (ux, uy) in has_horizontal_bar
-                            assert (vx, vy) in has_horizontal_bar
+                    if order == ConstructionOrder.DeviantRight:
+                        assert (ux, uy) in has_horizontal_bar
+                        assert (vx, vy) in has_horizontal_bar
+                    else:
+                        assert (ux, uy) not in has_horizontal_bar
+                        assert (vx, vy) not in has_horizontal_bar
             else:
                 assert uy == vy
-                has_horizontal_bar.add((min(ux, vx), uy))
+                if order == ConstructionOrder.Deviant:
+                    has_horizontal_bar.add((max(ux, vx), uy))
+                else:
+                    has_horizontal_bar.add((min(ux, vx), uy))
 
 
 def check_circuit(circuit: Circuit, order: ConstructionOrder) -> None:
@@ -170,36 +172,28 @@ def check_circuit(circuit: Circuit, order: ConstructionOrder) -> None:
     assert compare_backend_results(sv1, sv2) == pytest.approx(1)
 
 
-@pytest.mark.parametrize(
-    "order", [ConstructionOrder.Canonical, ConstructionOrder.Deviant]
-)
+@pytest.mark.parametrize("order", list(ConstructionOrder))
 def test_transpile_rz(order: ConstructionOrder) -> None:
     circuit = Circuit(2)
     circuit.rz(0, 0.1)
     check_circuit(circuit, order)
 
 
-@pytest.mark.parametrize(
-    "order", [ConstructionOrder.Canonical, ConstructionOrder.Deviant]
-)
+@pytest.mark.parametrize("order", list(ConstructionOrder))
 def test_transpile_rx(order: ConstructionOrder) -> None:
     circuit = Circuit(2)
     circuit.rx(0, 0.1)
     check_circuit(circuit, order)
 
 
-@pytest.mark.parametrize(
-    "order", [ConstructionOrder.Canonical, ConstructionOrder.Deviant]
-)
+@pytest.mark.parametrize("order", list(ConstructionOrder))
 def test_transpile_cnot(order: ConstructionOrder) -> None:
     circuit = Circuit(2)
     circuit.cnot(0, 1)
     check_circuit(circuit, order)
 
 
-@pytest.mark.parametrize(
-    "order", [ConstructionOrder.Canonical, ConstructionOrder.Deviant]
-)
+@pytest.mark.parametrize("order", list(ConstructionOrder))
 def test_transpile_rz_rx_cnot(order: ConstructionOrder) -> None:
     circuit = Circuit(2)
     circuit.rz(0, 0.1)
@@ -208,9 +202,7 @@ def test_transpile_rz_rx_cnot(order: ConstructionOrder) -> None:
     check_circuit(circuit, order)
 
 
-@pytest.mark.parametrize(
-    "order", [ConstructionOrder.Canonical, ConstructionOrder.Deviant]
-)
+@pytest.mark.parametrize("order", list(ConstructionOrder))
 def test_transpile_multiple_cnot(order: ConstructionOrder) -> None:
     circuit = Circuit(4)
     circuit.rz(0, 0.1)
@@ -226,9 +218,7 @@ def test_transpile_multiple_cnot(order: ConstructionOrder) -> None:
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
-@pytest.mark.parametrize(
-    "order", [ConstructionOrder.Canonical, ConstructionOrder.Deviant]
-)
+@pytest.mark.parametrize("order", list(ConstructionOrder))
 def test_sampled_circuit(fx_bg: PCG64, jumps: int, order: ConstructionOrder) -> None:
     rng = Generator(fx_bg.jumped(jumps))
     circuit = get_circuit(rng.integers(ncircuits))
@@ -251,9 +241,7 @@ def test_get_bipartite_coloring(fx_bg: PCG64, jumps: int) -> None:
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
-@pytest.mark.parametrize(
-    "order", [ConstructionOrder.Canonical, ConstructionOrder.Deviant]
-)
+@pytest.mark.parametrize("order", list(ConstructionOrder))
 def test_generate_random_pauli_pattern(
     fx_bg: PCG64, jumps: int, order: ConstructionOrder
 ) -> None:

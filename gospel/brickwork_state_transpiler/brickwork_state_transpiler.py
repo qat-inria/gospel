@@ -235,6 +235,7 @@ def j_commands(
 class ConstructionOrder(Enum):
     Canonical = enum.auto()
     Deviant = enum.auto()
+    DeviantRight = enum.auto()
 
 
 def layers_to_measurement_table(layers: list[Layer]) -> list[list[float]]:
@@ -272,7 +273,7 @@ def measurement_table_to_pattern(
         postponed = None  # for deviant order
         for qubit, angle in enumerate(column):
             next_node, commands = j_commands(node_generator, nodes[qubit], angle)
-            if time % 4 in {2, 0} and time > 0:
+            if (time % 4 in {2, 0} and time > 0) and order != ConstructionOrder.Deviant:
                 brick_layer = (time - 1) // 4
                 match order:
                     case ConstructionOrder.Canonical:
@@ -281,7 +282,7 @@ def measurement_table_to_pattern(
                                 command.E(nodes=(nodes[qubit], nodes[qubit + 1]))
                             )
                         pattern.extend(commands)
-                    case ConstructionOrder.Deviant:
+                    case ConstructionOrder.DeviantRight:
                         if qubit % 2 == brick_layer % 2 and qubit != last_qubit:
                             pattern.extend(commands[:2])
                             postponed = (nodes[qubit], commands[2:])
@@ -294,12 +295,33 @@ def measurement_table_to_pattern(
                             pattern.add(command.E(nodes=(previous_qubit, nodes[qubit])))
                             pattern.extend(previous_commands)
                             pattern.extend(commands[2:])
+            elif time % 4 in {1, 3} and order == ConstructionOrder.Deviant:
+                brick_layer = time // 4
+                if qubit % 2 == brick_layer % 2 and qubit != last_qubit:
+                    pattern.add(commands[0])
+                    postponed = (nodes[qubit], commands[1:])
+                elif postponed is None:
+                    pattern.extend(commands)
+                else:
+                    pattern.add(commands[0])
+                    previous_qubit, previous_commands = postponed
+                    postponed = None
+                    pattern.add(command.E(nodes=(nodes[qubit - 1], next_node)))
+                    pattern.extend(previous_commands)
+                    pattern.extend(commands[1:])
+                    pattern.extend(
+                        [
+                            command.Z(node=nodes[qubit - 1], domain={nodes[qubit]}),
+                            command.Z(node=next_node, domain={previous_qubit}),
+                        ]
+                    )
             else:
                 pattern.extend(commands)
             nodes[qubit] = next_node
-    last_brick_layer = (len(table) - 1) // 4
-    for qubit in range(last_brick_layer % 2, last_qubit, 2):
-        pattern.add(command.E(nodes=(nodes[qubit], nodes[qubit + 1])))
+    if order != ConstructionOrder.Deviant:
+        last_brick_layer = (len(table) - 1) // 4
+        for qubit in range(last_brick_layer % 2, last_qubit, 2):
+            pattern.add(command.E(nodes=(nodes[qubit], nodes[qubit + 1])))
     if width % 2:
         pattern.add(command.M(node=nodes[last_qubit], angle=0))
     return pattern
