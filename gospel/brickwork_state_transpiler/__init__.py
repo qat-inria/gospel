@@ -1,6 +1,7 @@
 from gospel.brickwork_state_transpiler.brickwork_state_transpiler import (
     CNOT,
     XZ,
+    Brick,
     ConstructionOrder,
     Layer,
     SingleQubit,
@@ -11,6 +12,7 @@ from gospel.brickwork_state_transpiler.brickwork_state_transpiler import (
     get_node_positions,
     identity,
     layers_to_circuit,
+    layers_to_measurement_table,
     layers_to_pattern,
     transpile,
     transpile_to_layers,
@@ -19,6 +21,7 @@ from gospel.brickwork_state_transpiler.brickwork_state_transpiler import (
 __all__ = [
     "CNOT",
     "XZ",
+    "Brick",
     "ConstructionOrder",
     "Layer",
     "SingleQubit",
@@ -29,6 +32,7 @@ __all__ = [
     "get_node_positions",
     "identity",
     "layers_to_circuit",
+    "layers_to_measurement_table",
     "layers_to_pattern",
     "transpile",
     "transpile_to_layers",

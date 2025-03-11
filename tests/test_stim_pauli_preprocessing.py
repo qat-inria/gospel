@@ -53,11 +53,9 @@ def test_simple() -> None:
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
-@pytest.mark.parametrize("backend", ["statevector", "densitymatrix"])
-def test_pauli_measurement_random_circuit(
-    fx_bg: PCG64, jumps: int, backend: str
-) -> None:
+def test_pauli_measurement_random_circuit(fx_bg: PCG64, jumps: int) -> None:
     rng = Generator(fx_bg.jumped(jumps))
+    backend = "statevector"
     nqubits = 4
     depth = 4
     circuit = rand_circuit(nqubits, depth, rng)

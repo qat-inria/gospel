@@ -42,11 +42,11 @@ def parse_angle(s: str) -> float:
 
 
 def _eval(node: ast.expr) -> float:
-    if isinstance(node, ast.Num):  # e.g., 3 or 4.5
-        if isinstance(node.n, int):
-            return float(node.n)
-        if isinstance(node.n, float):
-            return node.n
+    if isinstance(node, ast.Constant):  # e.g., 3 or 4.5
+        if isinstance(node.value, int):
+            return float(node.value)
+        if isinstance(node.value, float):
+            return node.value
         raise TypeError(f"Unsupported numeric value: {node.n}")
     if isinstance(node, ast.BinOp):  # e.g., 7*pi or 3+4
         left = _eval(node.left)

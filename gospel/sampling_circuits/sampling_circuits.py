@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import TYPE_CHECKING
 
 import git
@@ -17,7 +18,8 @@ from qiskit_aer.primitives import SamplerV2  # type: ignore[attr-defined]
 from tqdm import tqdm
 
 from gospel.brickwork_state_transpiler import (
-    CNOT,
+    XZ,
+    Brick,
     Layer,
     identity,
     layers_to_circuit,
@@ -30,7 +32,8 @@ if TYPE_CHECKING:
 
 
 def sample_angle(rng: np.random.Generator) -> float:
-    return rng.integers(8) * np.pi / 4
+    # return rng.random() * math.pi * 2
+    return (1 + rng.integers(7)) * np.pi / 4
 
 
 def sample_circuit(
@@ -124,6 +127,7 @@ def sample_truncated_circuit(
     p_cnot_flip: float = 0.5,
     p_rx: float = 0.5,
 ) -> Circuit:
+    # return sample_circuit(nqubits, depth, rng, p_gate, p_cnot, p_cnot_flip, p_rx)
     while True:
         while True:
             circuit = sample_circuit(
@@ -134,14 +138,16 @@ def sample_truncated_circuit(
                 break
         if layers[-1].odd == bool(depth % 2):
             truncated_layers = layers[-depth + 1 :]
-            target_above = rng.random() < p_cnot_flip
             last_layer_odd = not bool(depth % 2)
             last_layer_len = nqubits // 2 - 1 if last_layer_odd else nqubits // 2
+            first_brick = identity()
+            first_brick.top.add(XZ.X, math.pi / 4)
+            bricks: list[Brick] = [first_brick]
+            bricks.extend(identity() for _ in range(last_layer_len - 1))
             truncated_layers.append(
                 Layer(
                     odd=last_layer_odd,
-                    bricks=[CNOT(target_above)]
-                    + [identity() for _ in range(last_layer_len - 1)],
+                    bricks=bricks,
                 )
             )
         else:

@@ -7,9 +7,8 @@ import git
 
 from gospel.sampling_circuits.experiments import run_sample_circuits
 from gospel.scripts.qasm2brickwork_state import (
-    convert_circuit_directory_to_brickwork_state,
+    convert_circuit_directory_to_brickwork_state_table,
 )
-from gospel.scripts.qasm2img import convert_circuit_directory_to_svg
 
 
 def generate_page() -> None:
@@ -30,14 +29,14 @@ def generate_page() -> None:
     with tarfile.open(path_pages / circuits_tarball, "w:gz") as tar:
         tar.add(path_circuits, arcname=circuits_dirname)
 
-    circuits_svg_dirname = f"circuits-svg-{shortsha}"
-    path_circuits_svg = path_pages / circuits_svg_dirname
-    convert_circuit_directory_to_svg(path_circuits, path_circuits_svg)
+    # circuits_svg_dirname = f"circuits-svg-{shortsha}"
+    # path_circuits_svg = path_pages / circuits_svg_dirname
+    # convert_circuit_directory_to_svg(path_circuits, path_circuits_svg)
 
-    brickwork_state_svg_dirname = f"brickwork-state-svg-{shortsha}"
-    path_brickwork_state_svg = path_pages / brickwork_state_svg_dirname
-    convert_circuit_directory_to_brickwork_state(
-        path_circuits, path_brickwork_state_svg
+    brickwork_state_table_dirname = f"brickwork-state-table-{shortsha}"
+    path_brickwork_state_table = path_pages / brickwork_state_table_dirname
+    convert_circuit_directory_to_brickwork_state_table(
+        path_circuits, path_brickwork_state_table
     )
 
     with (path_pages_meta / "index.html").open("r") as f:
@@ -51,8 +50,7 @@ def generate_page() -> None:
             .isoformat(),
             "circuits_dirname": circuits_dirname,
             "circuits_tarball": circuits_tarball,
-            "circuits_svg_dirname": circuits_svg_dirname,
-            "brickwork_state_svg_dirname": brickwork_state_svg_dirname,
+            "brickwork_state_table_dirname": brickwork_state_table_dirname,
         }
     )
 

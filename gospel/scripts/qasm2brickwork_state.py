@@ -1,4 +1,6 @@
+import json
 import math
+from fractions import Fraction
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -7,33 +9,44 @@ from graphix import Circuit, Pattern
 from graphix.opengraph import OpenGraph
 from tqdm import tqdm
 
-import gospel.brickwork_state_transpiler
+from gospel.brickwork_state_transpiler import (
+    get_node_positions,
+    layers_to_measurement_table,
+    transpile,
+    transpile_to_layers,
+)
 from gospel.scripts.qasm_parser import read_qasm
 
 
 def format_angle(angle: float) -> str:
-    if angle == 0:
+    """
+    Converts an angle in radians to a string representation as a multiple of π.
+    """
+    # If the angle is effectively zero, return "0"
+    if abs(angle) < 1e-12:
         return "0"
-    if angle == 1:
-        return "π"
-    if angle == -1:
-        return "-π"
-    if angle == 0.5:
-        return "π/2"
-    if angle == -0.5:
-        return "-π/2"
-    if angle == 0.25:
-        return "π/4"
-    if angle == -0.25:
-        return "-π/4"
-    return f"{angle * math.pi:.3f}"
+
+    # Convert angle/π to a Fraction, limiting the denominator for a neat representation.
+    frac = Fraction(angle).limit_denominator(1000)
+    num, den = frac.numerator, frac.denominator
+
+    # Determine the sign and work with absolute value for formatting.
+    sign = "-" if num < 0 else ""
+    num = abs(num)
+
+    # When denominator is 1, we don't need to show it.
+    if den == 1:
+        if num == 1:
+            return f"{sign}π"
+        return f"{sign}{num}·π"
+    if num == 1:
+        return f"{sign}π/{den}"
+    return f"{sign}{num}·π/{den}"
 
 
 def draw_brickwork_state_pattern(pattern: Pattern, target: Path) -> None:
     graph = OpenGraph.from_pattern(pattern)
-    pos = gospel.brickwork_state_transpiler.get_node_positions(
-        pattern, reverse_qubit_order=True
-    )
+    pos = get_node_positions(pattern, reverse_qubit_order=True)
     labels = {
         node: format_angle(measurement.angle)
         for node, measurement in graph.measurements.items()
@@ -70,11 +83,9 @@ def draw_brickwork_state_colormap(
         dictionary of failure probability (value) by node (key)
     """
 
-    pattern = gospel.brickwork_state_transpiler.transpile(circuit)
+    pattern = transpile(circuit)
     graph = OpenGraph.from_pattern(pattern)
-    pos = gospel.brickwork_state_transpiler.get_node_positions(
-        pattern, reverse_qubit_order=True
-    )
+    pos = get_node_positions(pattern, reverse_qubit_order=True)
     labels = {node: node for node in graph.inside.nodes()}
     colors = [failure_probas[node] for node in graph.inside.nodes()]
 
@@ -101,19 +112,39 @@ def draw_brickwork_state_colormap(
     plt.close()
 
 
-def convert_circuit_directory_to_brickwork_state(
+def convert_circuit_directory_to_brickwork_state_svg(
     path_circuits: Path, path_brickwork_state_svg: Path
 ) -> None:
     path_brickwork_state_svg.mkdir()
     for path_circuit in tqdm(list(path_circuits.glob("*.qasm"))):
         with Path(path_circuit).open() as f:
             circuit = read_qasm(f)
-            pattern = gospel.brickwork_state_transpiler.transpile(circuit)
+            pattern = transpile(circuit)
             target = (path_brickwork_state_svg / path_circuit.name).with_suffix(".svg")
             draw_brickwork_state_pattern(pattern, target)
 
 
+def convert_circuit_directory_to_brickwork_state_table(
+    path_circuits: Path, path_brickwork_state_table: Path
+) -> None:
+    path_brickwork_state_table.mkdir()
+    for path_circuit in tqdm(list(path_circuits.glob("*.qasm"))):
+        with Path(path_circuit).open() as f:
+            circuit = read_qasm(f)
+            layers = transpile_to_layers(circuit)
+            table_float = layers_to_measurement_table(layers)
+            table_str = [
+                [format_angle(angle / math.pi) for angle in column]
+                for column in table_float
+            ]
+            target = (path_brickwork_state_table / path_circuit.name).with_suffix(
+                ".json"
+            )
+            with target.open("w") as f_target:
+                json.dump(table_str, f_target)
+
+
 if __name__ == "__main__":
-    convert_circuit_directory_to_brickwork_state(
-        Path("pages/circuits"), Path("pages/brickwork_state_svg")
+    convert_circuit_directory_to_brickwork_state_table(
+        Path("pages/circuits"), Path("pages/brickwork_state_table")
     )

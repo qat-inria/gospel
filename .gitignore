@@ -4,3 +4,7 @@ __pycache__/
 /circuits
 simulation/pic.svg
 simulation/pic2.svg
+/pages/index.html
+/pages/circuits-*/
+/pages/circuits-*.tar.gz
+/pages/brickwork-state-table-*/
