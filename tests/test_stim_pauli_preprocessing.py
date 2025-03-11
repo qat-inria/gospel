@@ -199,6 +199,9 @@ def test_simulation_test_round_simple(fx_bg: PCG64, jumps: int) -> None:
     pattern = circuit.transpile().pattern
     pattern.minimize_space()
 
+    for onode in pattern.output_nodes:
+        pattern.add(command.M(node=onode))
+
     secrets = Secrets(r=False, a=False, theta=False)
     client = Client(pattern=pattern, secrets=secrets)
     # colours = gospel.brickwork_state_transpiler.get_bipartite_coloring(pattern)
@@ -212,5 +215,5 @@ def test_simulation_test_round_simple(fx_bg: PCG64, jumps: int) -> None:
 
     trap_outcomes = client.delegate_test_run(backend=backend, run=run)
     # print(sim.canonical_stabilizers())
-    # print(f"trap outcomes {trap_outcomes}")
+    print(f"trap outcomes {trap_outcomes}")
     assert sum(trap_outcomes) == 0
