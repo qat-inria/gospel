@@ -194,8 +194,8 @@ def test_simulation_test_round_simple(fx_bg: PCG64, jumps: int) -> None:
     # run
     rng = Generator(fx_bg.jumped(jumps))
 
-    circuit = Circuit(width=1)
-    circuit.h(0)
+    circuit = rand_circuit(nqubits=3, depth=3)  # Circuit(width=1)
+    # circuit.h(0)
     pattern = circuit.transpile().pattern
     pattern.minimize_space()
 
@@ -211,7 +211,7 @@ def test_simulation_test_round_simple(fx_bg: PCG64, jumps: int) -> None:
 
     backend = StimBackend()
     run = rng.choice(test_runs)
-    print("chosen run", run.traps_list)
+    # print("chosen run", run.traps_list)
 
     trap_outcomes = client.delegate_test_run(backend=backend, run=run)
     # print(sim.canonical_stabilizers())
