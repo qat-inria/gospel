@@ -12,7 +12,9 @@ from graphix.sim.base_backend import (
     RandomBranchSelector,
 )
 from graphix.simulator import DefaultMeasureMethod
+from graphix.states import BasicStates
 from numpy.random import PCG64, Generator
+from veriphix.client import Client, Secrets
 
 from gospel.scripts import compare_backend_results
 from gospel.stim_pauli_preprocessing import (
@@ -163,3 +165,52 @@ def test_noisy_measure_confuse_hadamard_random(fx_bg: PCG64, jumps: int) -> None
         rho,
         np.array([[0.0, 0.0], [0.0, 1.0]]),
     )
+
+
+def test_add_nodes() -> None:
+    states = [
+        BasicStates.ZERO,
+        BasicStates.ONE,
+        BasicStates.PLUS,
+        BasicStates.MINUS,
+        BasicStates.PLUS_I,
+        BasicStates.MINUS_I,
+    ]
+    stabs = [stim.PauliString(s) for s in ["+Z", "-Z", "+X", "-X", "+Y", "-Y"]]
+
+    for i, state in enumerate(states):
+        backend = StimBackend()
+        backend.add_nodes([0], state)
+        [
+            stim_stab,
+        ] = backend.sim.canonical_stabilizers()
+        assert stim_stab == stabs[i]
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
+def test_simulation_test_round_simple(fx_bg: PCG64, jumps: int) -> None:
+    # check all correct trap results when no noise
+    # out of veriphix
+    # run
+    rng = Generator(fx_bg.jumped(jumps))
+
+    circuit = Circuit(width=1)
+    circuit.h(0)
+    pattern = circuit.transpile().pattern
+    pattern.minimize_space()
+
+    secrets = Secrets(r=False, a=False, theta=False)
+    client = Client(pattern=pattern, secrets=secrets)
+    # colours = gospel.brickwork_state_transpiler.get_bipartite_coloring(pattern)
+    test_runs = client.create_test_runs()
+    for j, i in enumerate(test_runs):
+        print(j, i.traps_list)
+
+    backend = StimBackend()
+    run = rng.choice(test_runs)
+    print("chosen run", run.traps_list)
+
+    trap_outcomes = client.delegate_test_run(backend=backend, run=run)
+    # print(sim.canonical_stabilizers())
+    # print(f"trap outcomes {trap_outcomes}")
+    assert sum(trap_outcomes) == 0

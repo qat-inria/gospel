@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never
 
 import networkx as nx
 import stim
 from graphix import Pattern, command
 from graphix.clifford import Clifford
 from graphix.command import CommandKind
-from graphix.fundamentals import Axis, Plane, Sign
+from graphix.fundamentals import Axis, Sign
 from graphix.measurements import Measurement, PauliMeasurement
 from graphix.noise_models.depolarising_noise_model import (
     DepolarisingNoise,
@@ -18,8 +18,9 @@ from graphix.noise_models.depolarising_noise_model import (
 from graphix.ops import Ops
 from graphix.pattern import pauli_nodes
 from graphix.sim.base_backend import Backend, BackendState
+from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod
-from graphix.states import BasicStates, PlanarState, State
+from graphix.states import BasicState, BasicStates, State
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -200,14 +201,35 @@ class StimBackend(Backend):
     def branch(self) -> dict[int, bool] | None:
         return self.__branch
 
-    def add_nodes(self, nodes: Iterable[int], data: State = BasicStates.PLUS) -> None:
-        if isinstance(data, PlanarState):
-            if data.plane == Plane.XZ and data.angle == 0:
-                return
-            if data.plane == Plane.XY and data.angle == 0:
-                self.sim.h(*nodes)
-                return
-        raise ValueError("Unsupported input state")
+    def add_nodes(
+        self, nodes: Iterable[int], data: Statevec | State = BasicStates.PLUS
+    ) -> None:
+        state = BasicState.try_from_statevector(Statevec(data).psi)
+
+        if state is None:
+            raise ValueError(
+                f"Incorrect state value: stim can only prepare stabiliser states {data}."
+            )
+
+        if state == BasicState.ZERO:
+            # required by stim otherwise empty stabiliser
+            self.sim.z(*nodes)
+        elif state == BasicState.ONE:
+            self.sim.x(*nodes)
+        elif state == BasicState.PLUS:
+            self.sim.h(*nodes)
+        elif state == BasicState.MINUS:
+            self.sim.h(*nodes)
+            self.sim.z(*nodes)
+        elif state == BasicState.PLUS_I:
+            self.sim.h(*nodes)
+            self.sim.s(*nodes)
+        elif state == BasicState.MINUS_I:
+            self.sim.h(*nodes)
+            self.sim.s(*nodes)
+            self.sim.z(*nodes)
+        else:
+            assert_never(state)
 
     def entangle_nodes(self, edge: tuple[int, int]) -> None:
         self.sim.cz(*edge)
