@@ -15,6 +15,7 @@ from graphix.simulator import DefaultMeasureMethod
 from graphix.states import BasicStates
 from numpy.random import PCG64, Generator
 from veriphix.client import Client, Secrets
+from veriphix.trappifiedCanvas import TrappifiedCanvas
 
 from gospel.scripts import compare_backend_results
 from gospel.stim_pauli_preprocessing import (
@@ -210,7 +211,7 @@ def test_simulation_test_round_simple(fx_bg: PCG64, jumps: int) -> None:
         print(j, i.traps_list)
 
     backend = StimBackend()
-    run = test_runs[rng.integers(len(test_runs))]
+    run = TrappifiedCanvas(test_runs[rng.integers(len(test_runs))])
     # print("chosen run", run.traps_list)
 
     trap_outcomes = client.delegate_test_run(backend=backend, run=run)
