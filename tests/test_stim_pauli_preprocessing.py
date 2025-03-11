@@ -210,7 +210,7 @@ def test_simulation_test_round_simple(fx_bg: PCG64, jumps: int) -> None:
         print(j, i.traps_list)
 
     backend = StimBackend()
-    run = rng.choice(test_runs)
+    run = test_runs[rng.integers(len(test_runs))]
     # print("chosen run", run.traps_list)
 
     trap_outcomes = client.delegate_test_run(backend=backend, run=run)
