@@ -17,6 +17,11 @@ from numpy.random import PCG64, Generator
 from veriphix.client import Client, Secrets
 from veriphix.trappifiedCanvas import TrappifiedCanvas
 
+from gospel.brickwork_state_transpiler import (
+    ConstructionOrder,
+    generate_random_pauli_pattern,
+    get_bipartite_coloring,
+)
 from gospel.scripts import compare_backend_results
 from gospel.stim_pauli_preprocessing import (
     StimBackend,
@@ -216,3 +221,25 @@ def test_simulation_test_round_simple(fx_bg: PCG64, jumps: int) -> None:
     # print(sim.canonical_stabilizers())
     print(f"trap outcomes {trap_outcomes}")
     assert sum(trap_outcomes) == 0
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
+def test_simulation_test_brickwork_state(fx_bg: PCG64, jumps: int) -> None:
+    for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant):
+        rng = Generator(fx_bg.jumped(jumps))
+        pattern = generate_random_pauli_pattern(
+            nqubits=8, nlayers=10, order=order, rng=rng
+        )
+        for onode in pattern.output_nodes:
+            pattern.add(command.M(node=onode))
+
+        secrets = Secrets(r=False, a=False, theta=False)
+        client = Client(pattern=pattern, secrets=secrets)
+        colours = get_bipartite_coloring(pattern)
+        test_runs = client.create_test_runs(manual_colouring=colours)
+
+        backend = StimBackend()
+        run = TrappifiedCanvas(test_runs[rng.integers(len(test_runs))], rng=rng)
+
+        noise_model = DepolarisingNoiseModel(entanglement_error_prob=0.1)
+        client.delegate_test_run(backend=backend, run=run, noise_model=noise_model)
