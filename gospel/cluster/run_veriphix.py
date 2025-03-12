@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import dask.distributed
 import graphix.command
+from dask_jobqueue import SLURMCluster
 from graphix.noise_models import NoiseModel
 from graphix.rng import ensure_rng
 from graphix.sim.density_matrix import DensityMatrixBackend
@@ -138,6 +141,18 @@ instances = random.sample(circuits, num_instances)
 
 backend = DensityMatrixBackend()
 
+portdash = 10000 + os.getuid()
+cluster = SLURMCluster(
+    account="inria",
+    queue="cpu_devel",
+    cores=1,
+    memory="1GB",
+    walltime="00:01:00",
+    scheduler_options={"dashboard_address": f":{portdash}"},
+)
+cluster.scale(10)
+dask_client = dask.distributed.Client(cluster)
+
 
 def for_each_instance(circuit):
     # Generate a different instance
@@ -175,7 +190,7 @@ def for_each_instance(circuit):
         # A trap round fails if one of the single-qubit traps failed
         return ("test", sum(trap_outcomes) != 0)
 
-    outcome = map(for_each_round, rounds)
+    outcome = dask_client.gather(dask_client.map(for_each_round, rounds))
     outcome_sum = sum(value for kind, value in outcome if kind == "computation")
     n_failed_trap_rounds = sum(value for kind, value in outcome if kind == "test")
 
@@ -190,10 +205,8 @@ def for_each_instance(circuit):
     return int(outcome_sum > d / 2)
 
 
-outcome = map(for_each_instance, instances)
+outcome = dask_client.gather(dask_client.map(for_each_instance, instances))
 
 outcomes_dict = dict(zip(instances, outcome))
 
 print(outcomes_dict)
-
-# expected = p_err/len(test_runs)
