@@ -170,6 +170,7 @@ def run() -> None:
         cluster.scale(10)
     else:
         cluster = dask.distributed.LocalCluster()
+        cluster.scale(5)
 
     # Recording info
     circuit_names = random.sample(circuits, num_instances)
