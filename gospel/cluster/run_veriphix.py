@@ -7,12 +7,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import dask.distributed
-import graphix.command
 from dask_jobqueue import SLURMCluster
+from graphix import command
 from graphix.noise_models import NoiseModel
 from graphix.rng import ensure_rng
 from graphix.sim.density_matrix import DensityMatrixBackend
-from graphix.states import BasicStates
 from veriphix.client import Client, Secrets, TrappifiedCanvas
 
 import gospel.brickwork_state_transpiler
@@ -25,33 +24,6 @@ if TYPE_CHECKING:
         NoiseCommands,
     )
 
-## Load a circuit with success probability p = 0.7839549798834848
-# BQP error
-# context handler open renvoie f et à la fin ferme le fichier
-# valeur à durer de vie, resource libéré.
-
-with Path("circuits/circuit000.qasm").open() as f:
-    circuit = read_qasm(f)
-
-print(circuit.instruction)
-
-pattern = gospel.brickwork_state_transpiler.transpile(circuit)
-
-print(list(pattern))
-
-
-## Measure output nodes, to have classical output
-classical_output = pattern.output_nodes
-for onode in classical_output:
-    pattern.add(graphix.command.M(node=onode))
-
-states = [BasicStates.PLUS] * len(pattern.input_nodes)
-
-# correct since the pattern is transpiled from a circuit and hence has a causal flow
-pattern.minimize_space()
-
-print(f"Number of nodes in the pattern : {pattern.n_node}")
-
 
 def load_pattern_from_circuit(circuit_label: str):
     with Path(f"circuits/{circuit_label}").open() as f:
@@ -61,7 +33,7 @@ def load_pattern_from_circuit(circuit_label: str):
         ## Measure output nodes, to have classical output
         classical_output = pattern.output_nodes
         for onode in classical_output:
-            pattern.add(graphix.command.M(node=onode))
+            pattern.add(command.M(node=onode))
 
         # states = [BasicStates.PLUS] * len(pattern.input_nodes)
 
@@ -69,9 +41,6 @@ def load_pattern_from_circuit(circuit_label: str):
         pattern.minimize_space()
     return pattern, classical_output
 
-
-pattern, onodes = load_pattern_from_circuit("circuit000.qasm")
-print(onodes)
 
 with Path("circuits/table.json").open() as f:
     table = json.load(f)
@@ -139,8 +108,6 @@ num_instances = 10
 instances = random.sample(circuits, num_instances)
 
 
-backend = DensityMatrixBackend()
-
 portdash = 10000 + os.getuid()
 cluster = SLURMCluster(
     account="inria",
@@ -172,9 +139,10 @@ def for_each_instance(circuit):
     n_failed_trap_rounds = 0
     n_tolerated_failures = threshold * t
 
-    noise_model = GlobalNoiseModel(prob=p_err, nodes=range(pattern.n_node))
-
     def for_each_round(i):
+        noise_model = GlobalNoiseModel(prob=p_err, nodes=range(pattern.n_node))
+        backend = DensityMatrixBackend()
+
         if i < d:
             # Computation round
             client.delegate_pattern(backend=backend, noise_model=noise_model)
