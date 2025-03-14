@@ -162,12 +162,12 @@ def run() -> None:
         cluster = SLURMCluster(
             account="inria",
             queue="cpu_devel",
-            cores=8,
+            cores=4,
             memory="1GB",
             walltime="00:30:00",
             scheduler_options={"dashboard_address": f":{portdash}"},
         )
-        cluster.scale(20)
+        cluster.scale(50)
     else:
         cluster = dask.distributed.LocalCluster()
         cluster.scale(5)
