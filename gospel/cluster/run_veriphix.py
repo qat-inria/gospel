@@ -131,19 +131,6 @@ def get_rounds(circuit_name: str) -> Rounds:
     return Rounds(circuit_name, client, onodes, test_runs, rounds)
 
 
-if run_on_cleps:
-    portdash = 10000 + os.getuid()
-    cluster = SLURMCluster(
-        account="inria",
-        queue="cpu_devel",
-        cores=1,
-        memory="1GB",
-        walltime="00:01:00",
-        scheduler_options={"dashboard_address": f":{portdash}"},
-    )
-    cluster.scale(10)
-
-
 def for_each_round(args):
     rounds, i = args
     noise_model = GlobalNoiseModel(
@@ -170,6 +157,20 @@ def for_each_round(args):
 
 
 def run() -> None:
+    if run_on_cleps:
+        portdash = 10000 + os.getuid()
+        cluster = SLURMCluster(
+            account="inria",
+            queue="cpu_devel",
+            cores=1,
+            memory="1GB",
+            walltime="00:01:00",
+            scheduler_options={"dashboard_address": f":{portdash}"},
+        )
+        cluster.scale(10)
+    else:
+        cluster = dask.distributed.LocalCluster()
+
     # Recording info
     circuit_names = random.sample(circuits, num_instances)
 
@@ -178,23 +179,15 @@ def run() -> None:
     n_failed_trap_rounds = 0
     n_tolerated_failures = threshold * t
 
-    if run_on_cleps:
-        dask_client = dask.distributed.Client(cluster)
-        outcome = list(
-            dask_client.gather(
-                dask_client.map(
-                    for_each_round,
-                    [(rounds, i) for rounds in all_rounds for i in rounds.rounds],
-                )
-            )
-        )
-    else:
-        outcome = list(
-            map(
+    dask_client = dask.distributed.Client(cluster)
+    outcome = list(
+        dask_client.gather(
+            dask_client.map(
                 for_each_round,
                 [(rounds, i) for rounds in all_rounds for i in rounds.rounds],
             )
         )
+    )
 
     outcome_circuits = dict(itertools.groupby(outcome, lambda pair: pair[0]))
 
@@ -223,4 +216,5 @@ def run() -> None:
     print(outcomes_dict)
 
 
-run()
+if __name__ == "__main__":
+    run()
