@@ -4,6 +4,7 @@ import itertools
 import json
 import os
 import random
+import socket
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -165,7 +166,7 @@ def for_each_round(args):
         # Record trap failure
         # A trap round fails if one of the single-qubit traps failed
         result = ("test", sum(trap_outcomes) != 0)
-    return (rounds.circuit_name, (i, result))
+    return (rounds.circuit_name, (socket.gethostname(), i, result))
 
 
 def run() -> None:
@@ -203,10 +204,10 @@ def run() -> None:
 
     for circuit_name, results in outcome_circuits.items():
         outcome_sum = sum(
-            value for _i, (kind, value) in results if kind == "computation"
+            value for _h, _i, (kind, value) in results if kind == "computation"
         )
         n_failed_trap_rounds = sum(
-            value for _i, (kind, value) in results if kind == "test"
+            value for _h, _i, (kind, value) in results if kind == "test"
         )
 
         if n_failed_trap_rounds > n_tolerated_failures:
