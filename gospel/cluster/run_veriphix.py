@@ -98,7 +98,7 @@ class GlobalNoiseModel(NoiseModel):
 d = 100  # nr of computation rounds
 t = 100  # nr of test rounds
 N = d + t  # nr of total rounds
-num_instances = 50
+num_instances = 100
 
 
 threshold, p_err = 0.2, 0.6
@@ -164,7 +164,7 @@ def run() -> None:
             queue="cpu_devel",
             cores=1,
             memory="1GB",
-            walltime="00:01:00",
+            walltime="00:30:00",
             scheduler_options={"dashboard_address": f":{portdash}"},
         )
         cluster.scale(10)
