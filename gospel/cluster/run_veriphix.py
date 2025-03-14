@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import random
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -12,7 +14,7 @@ from graphix import command
 from graphix.noise_models import NoiseModel
 from graphix.rng import ensure_rng
 from graphix.sim.density_matrix import DensityMatrixBackend
-from veriphix.client import Client, Secrets, TrappifiedCanvas
+from veriphix.client import Client, Secrets, TrappifiedCanvas, TrapStabilizers
 
 import gospel.brickwork_state_transpiler
 from gospel.scripts.qasm2brickwork_state import read_qasm
@@ -102,80 +104,115 @@ threshold, p_err = 0.1, 0.6
 threshold, p_err = 0.2, 0.6
 threshold, p_err = 0.1, 0.1
 
-portdash = 10000 + os.getuid()
-cluster = SLURMCluster(
-    account="inria",
-    queue="cpu_devel",
-    cores=1,
-    memory="1GB",
-    walltime="00:01:00",
-    scheduler_options={"dashboard_address": f":{portdash}"},
-)
-cluster.scale(10)
+
+@dataclass
+class Rounds:
+    circuit_name: str
+    client: Client
+    onodes: list[int]
+    test_runs: list[TrapStabilizers]
+    rounds: list[int]
 
 
-def for_each_instance(circuit):
-    dask_client = dask.distributed.Client(cluster)
+def get_rounds(circuit_name: str) -> Rounds:
     # Generate a different instance
-    pattern, onodes = load_pattern_from_circuit(circuit)
+    pattern, onodes = load_pattern_from_circuit(circuit_name)
 
     # Instanciate Client and create Test runs
     client = Client(pattern=pattern, secrets=Secrets(a=True, r=True, theta=True))
     colours = gospel.brickwork_state_transpiler.get_bipartite_coloring(pattern)
     test_runs = client.create_test_runs(manual_colouring=colours)
 
-    outcome_sum = 0
-    # Trappified scheme parameters
-
     rounds = list(range(N))
     random.shuffle(rounds)
 
-    n_failed_trap_rounds = 0
-    n_tolerated_failures = threshold * t
+    return Rounds(circuit_name, client, onodes, test_runs, rounds)
 
-    def for_each_round(i):
-        noise_model = GlobalNoiseModel(prob=p_err, nodes=range(pattern.n_node))
-        backend = DensityMatrixBackend()
 
-        if i < d:
-            # Computation round
-            client.delegate_pattern(backend=backend, noise_model=noise_model)
-            return ("computation", client.results[onodes[0]])
+local = True
+
+if not local:
+    portdash = 10000 + os.getuid()
+    cluster = SLURMCluster(
+        account="inria",
+        queue="cpu_devel",
+        cores=1,
+        memory="1GB",
+        walltime="00:01:00",
+        scheduler_options={"dashboard_address": f":{portdash}"},
+    )
+    cluster.scale(10)
+
+
+def for_each_round(args):
+    rounds, i = args
+    noise_model = GlobalNoiseModel(
+        prob=p_err, nodes=range(rounds.client.initial_pattern.n_node)
+    )
+    backend = DensityMatrixBackend()
+
+    if i < d:
+        # Computation round
+        rounds.client.delegate_pattern(backend=backend, noise_model=noise_model)
+        result = ("computation", rounds.client.results[rounds.onodes[0]])
+    else:
         # Test round
-        run = TrappifiedCanvas(random.choice(test_runs))
-        trap_outcomes = client.delegate_test_run(
+        run = TrappifiedCanvas(random.choice(rounds.test_runs))
+        trap_outcomes = rounds.client.delegate_test_run(
             run=run, backend=backend, noise_model=noise_model
         )
         noise_model.refresh_randomness()
 
         # Record trap failure
         # A trap round fails if one of the single-qubit traps failed
-        return ("test", sum(trap_outcomes) != 0)
-
-    outcome = dask_client.gather(dask_client.map(for_each_round, rounds))
-    outcome_sum = sum(value for kind, value in outcome if kind == "computation")
-    n_failed_trap_rounds = sum(value for kind, value in outcome if kind == "test")
-
-    if n_failed_trap_rounds > n_tolerated_failures:
-        # reject instance
-        # do nothing
-        return None
-    # accept instance
-    # compute majority vote
-    # if outcome_sum == d/2:
-    #    raise ValueError("Ambiguous result")
-    return int(outcome_sum > d / 2)
+        result = ("test", sum(trap_outcomes) != 0)
+    return (rounds.circuit_name, (i, result))
 
 
 def run() -> None:
     # Recording info
-    instances = random.sample(circuits, num_instances)
+    circuit_names = random.sample(circuits, num_instances)
 
-    dask_client = dask.distributed.Client(cluster)
+    all_rounds = [get_rounds(circuit_name) for circuit_name in circuit_names]
 
-    outcome = dask_client.gather(dask_client.map(for_each_instance, instances))
+    n_failed_trap_rounds = 0
+    n_tolerated_failures = threshold * t
 
-    outcomes_dict = dict(zip(instances, outcome))
+    if local:
+        outcome = map(
+            for_each_round,
+            [(rounds, i) for rounds in all_rounds for i in rounds.rounds],
+        )
+    else:
+        dask_client = dask.distributed.Client(cluster)
+        outcome = dask_client.gather(
+            dask_client.map(
+                for_each_round,
+                [(rounds, i) for rounds in all_rounds for i in rounds.rounds],
+            )
+        )
+
+    outcome_circuits = dict(itertools.groupby(outcome, lambda pair: pair[0]))
+
+    outcomes_dict = {}
+
+    for circuit_name, results in outcome_circuits.items():
+        outcome_sum = sum(
+            value for _i, (kind, value) in results if kind == "computation"
+        )
+        n_failed_trap_rounds = sum(
+            value for _i, (kind, value) in results if kind == "test"
+        )
+
+        if n_failed_trap_rounds > n_tolerated_failures:
+            # reject instance
+            # do nothing
+            return
+        # accept instance
+        # compute majority vote
+        # if outcome_sum == d/2:
+        #    raise ValueError("Ambiguous result")
+        outcomes_dict[circuit_name] = int(outcome_sum > d / 2)
 
     print(outcomes_dict)
 
