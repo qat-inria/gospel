@@ -98,7 +98,7 @@ class GlobalNoiseModel(NoiseModel):
 d = 100  # nr of computation rounds
 t = 100  # nr of test rounds
 N = d + t  # nr of total rounds
-num_instances = 100
+num_instances = 50
 
 
 threshold, p_err = 0.2, 0.6
