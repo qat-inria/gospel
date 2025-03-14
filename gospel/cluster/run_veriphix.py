@@ -162,7 +162,7 @@ def run() -> None:
         cluster = SLURMCluster(
             account="inria",
             queue="cpu_devel",
-            cores=4,
+            cores=8,
             memory="1GB",
             walltime="00:30:00",
             scheduler_options={"dashboard_address": f":{portdash}"},
