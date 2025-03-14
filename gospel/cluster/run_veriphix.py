@@ -90,35 +90,17 @@ class GlobalNoiseModel(NoiseModel):
         return result
 
 
-threshold, p_err = 0.2, 0.6
-threshold, p_err = 0.1, 0.6
-threshold, p_err = 0.2, 0.6
-threshold, p_err = 0.1, 0.1
-
-# Recording info
-fail_rates = []
-decision_dict = {}
-outcomes_dict = {}
-
 # Fixed parameters
 d = 20  # nr of computation rounds
 t = 10  # nr of test rounds
 N = d + t  # nr of total rounds
 num_instances = 10
-instances = random.sample(circuits, num_instances)
 
 
-portdash = 10000 + os.getuid()
-cluster = SLURMCluster(
-    account="inria",
-    queue="cpu_devel",
-    cores=1,
-    memory="1GB",
-    walltime="00:01:00",
-    scheduler_options={"dashboard_address": f":{portdash}"},
-)
-cluster.scale(10)
-dask_client = dask.distributed.Client(cluster)
+threshold, p_err = 0.2, 0.6
+threshold, p_err = 0.1, 0.6
+threshold, p_err = 0.2, 0.6
+threshold, p_err = 0.1, 0.1
 
 
 def for_each_instance(circuit):
@@ -158,7 +140,7 @@ def for_each_instance(circuit):
         # A trap round fails if one of the single-qubit traps failed
         return ("test", sum(trap_outcomes) != 0)
 
-    outcome = dask_client.gather(dask_client.map(for_each_round, rounds))
+    outcome = map(for_each_round, rounds)
     outcome_sum = sum(value for kind, value in outcome if kind == "computation")
     n_failed_trap_rounds = sum(value for kind, value in outcome if kind == "test")
 
@@ -173,8 +155,27 @@ def for_each_instance(circuit):
     return int(outcome_sum > d / 2)
 
 
-outcome = dask_client.gather(dask_client.map(for_each_instance, instances))
+def run() -> None:
+    # Recording info
+    instances = random.sample(circuits, num_instances)
 
-outcomes_dict = dict(zip(instances, outcome))
+    portdash = 10000 + os.getuid()
+    cluster = SLURMCluster(
+        account="inria",
+        queue="cpu_devel",
+        cores=1,
+        memory="1GB",
+        walltime="00:01:00",
+        scheduler_options={"dashboard_address": f":{portdash}"},
+    )
+    cluster.scale(10)
+    dask_client = dask.distributed.Client(cluster)
 
-print(outcomes_dict)
+    outcome = dask_client.gather(dask_client.map(for_each_instance, instances))
+
+    outcomes_dict = dict(zip(instances, outcome))
+
+    print(outcomes_dict)
+
+
+run()
