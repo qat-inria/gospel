@@ -188,10 +188,9 @@ def run() -> None:
             )
         )
     )
+    print("here")
 
     outcome_circuits = dict(itertools.groupby(outcome, lambda pair: pair[0]))
-
-    print(outcome)
 
     outcomes_dict = {}
 
