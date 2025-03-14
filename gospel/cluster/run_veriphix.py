@@ -17,6 +17,7 @@ from graphix.sim.density_matrix import DensityMatrixBackend
 from veriphix.client import Client, Secrets, TrappifiedCanvas, TrapStabilizers
 
 import gospel.brickwork_state_transpiler
+from gospel.cluster.run_on_cleps import run_on_cleps
 from gospel.scripts.qasm2brickwork_state import read_qasm
 
 if TYPE_CHECKING:
@@ -93,10 +94,10 @@ class GlobalNoiseModel(NoiseModel):
 
 
 # Fixed parameters
-d = 20  # nr of computation rounds
-t = 10  # nr of test rounds
+d = 5  # nr of computation rounds
+t = 5  # nr of test rounds
 N = d + t  # nr of total rounds
-num_instances = 10
+num_instances = 5
 
 
 threshold, p_err = 0.2, 0.6
@@ -129,9 +130,7 @@ def get_rounds(circuit_name: str) -> Rounds:
     return Rounds(circuit_name, client, onodes, test_runs, rounds)
 
 
-local = True
-
-if not local:
+if run_on_cleps:
     portdash = 10000 + os.getuid()
     cluster = SLURMCluster(
         account="inria",
@@ -178,21 +177,27 @@ def run() -> None:
     n_failed_trap_rounds = 0
     n_tolerated_failures = threshold * t
 
-    if local:
-        outcome = map(
-            for_each_round,
-            [(rounds, i) for rounds in all_rounds for i in rounds.rounds],
+    if run_on_cleps:
+        dask_client = dask.distributed.Client(cluster)
+        outcome = list(
+            dask_client.gather(
+                dask_client.map(
+                    for_each_round,
+                    [(rounds, i) for rounds in all_rounds for i in rounds.rounds],
+                )
+            )
         )
     else:
-        dask_client = dask.distributed.Client(cluster)
-        outcome = dask_client.gather(
-            dask_client.map(
+        outcome = list(
+            map(
                 for_each_round,
                 [(rounds, i) for rounds in all_rounds for i in rounds.rounds],
             )
         )
 
     outcome_circuits = dict(itertools.groupby(outcome, lambda pair: pair[0]))
+
+    print(outcome)
 
     outcomes_dict = {}
 
