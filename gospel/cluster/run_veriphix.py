@@ -103,7 +103,7 @@ threshold, p_err = 0.2, 0.6
 threshold, p_err = 0.1, 0.1
 
 
-def for_each_instance(circuit):
+def for_each_instance(dask_client: dask.distributed.Client, circuit):
     # Generate a different instance
     pattern, onodes = load_pattern_from_circuit(circuit)
 
@@ -140,7 +140,7 @@ def for_each_instance(circuit):
         # A trap round fails if one of the single-qubit traps failed
         return ("test", sum(trap_outcomes) != 0)
 
-    outcome = map(for_each_round, rounds)
+    outcome = dask_client.gather(dask_client.map(for_each_round, rounds))
     outcome_sum = sum(value for kind, value in outcome if kind == "computation")
     n_failed_trap_rounds = sum(value for kind, value in outcome if kind == "test")
 
@@ -171,7 +171,11 @@ def run() -> None:
     cluster.scale(10)
     dask_client = dask.distributed.Client(cluster)
 
-    outcome = dask_client.gather(dask_client.map(for_each_instance, instances))
+    outcome = dask_client.gather(
+        dask_client.map(
+            lambda instance: for_each_instance(dask_client, instance), instances
+        )
+    )
 
     outcomes_dict = dict(zip(instances, outcome))
 
