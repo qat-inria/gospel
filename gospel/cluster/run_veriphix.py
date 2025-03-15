@@ -95,10 +95,11 @@ class GlobalNoiseModel(NoiseModel):
 
 
 # Fixed parameters
-d = 15  # nr of computation rounds
-t = 15  # nr of test rounds
+size = 17
+d = size  # nr of computation rounds
+t = size  # nr of test rounds
 N = d + t  # nr of total rounds
-num_instances = 15
+num_instances = size
 
 
 threshold, p_err = 0.2, 0.6
