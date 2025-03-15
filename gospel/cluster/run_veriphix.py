@@ -133,26 +133,29 @@ def get_rounds(circuit_name: str) -> Rounds:
 
 def for_each_round(args):
     rounds, i = args
-    noise_model = GlobalNoiseModel(
-        prob=p_err, nodes=range(rounds.client.initial_pattern.n_node)
-    )
-    backend = DensityMatrixBackend()
-
-    if i < d:
-        # Computation round
-        rounds.client.delegate_pattern(backend=backend, noise_model=noise_model)
-        result = ("computation", rounds.client.results[rounds.onodes[0]])
-    else:
-        # Test round
-        run = TrappifiedCanvas(random.choice(rounds.test_runs))
-        trap_outcomes = rounds.client.delegate_test_run(
-            run=run, backend=backend, noise_model=noise_model
+    try:
+        noise_model = GlobalNoiseModel(
+            prob=p_err, nodes=range(rounds.client.initial_pattern.n_node)
         )
-        noise_model.refresh_randomness()
+        backend = DensityMatrixBackend()
 
-        # Record trap failure
-        # A trap round fails if one of the single-qubit traps failed
-        result = ("test", sum(trap_outcomes) != 0)
+        if i < d:
+            # Computation round
+            rounds.client.delegate_pattern(backend=backend, noise_model=noise_model)
+            result = ("computation", rounds.client.results[rounds.onodes[0]])
+        else:
+            # Test round
+            run = TrappifiedCanvas(random.choice(rounds.test_runs))
+            trap_outcomes = rounds.client.delegate_test_run(
+                run=run, backend=backend, noise_model=noise_model
+            )
+            noise_model.refresh_randomness()
+
+            # Record trap failure
+            # A trap round fails if one of the single-qubit traps failed
+            result = ("test", sum(trap_outcomes) != 0)
+    except Exception as e:
+        result = ("exception", e)
     return (rounds.circuit_name, (socket.gethostname(), i, result))
 
 
@@ -162,12 +165,12 @@ def run() -> None:
         cluster = SLURMCluster(
             account="inria",
             queue="cpu_devel",
-            cores=4,
-            memory="1GB",
-            walltime="00:30:00",
+            cores=2,
+            memory="2GB",
+            walltime="00:10:00",
             scheduler_options={"dashboard_address": f":{portdash}"},
         )
-        cluster.scale(50)
+        cluster.scale(20)
     else:
         cluster = dask.distributed.LocalCluster()
         cluster.scale(5)
@@ -189,13 +192,15 @@ def run() -> None:
             )
         )
     )
-    print("here")
 
     outcome_circuits = dict(itertools.groupby(outcome, lambda pair: pair[0]))
 
     outcomes_dict = {}
 
     for circuit_name, results in outcome_circuits.items():
+        for _h, _i, (kind, value) in results:
+            if kind == "exception":
+                print(value)
         outcome_sum = sum(
             value for _h, _i, (kind, value) in results if kind == "computation"
         )
