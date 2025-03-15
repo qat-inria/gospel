@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import itertools
 import json
-import os
 import random
 import socket
 from dataclasses import dataclass
@@ -10,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import dask.distributed
+import typer
 from dask_jobqueue import SLURMCluster
 from graphix import command
 from graphix.noise_models import NoiseModel
@@ -18,7 +18,6 @@ from graphix.sim.density_matrix import DensityMatrixBackend
 from veriphix.client import Client, Secrets, TrappifiedCanvas, TrapStabilizers
 
 import gospel.brickwork_state_transpiler
-from gospel.cluster.run_on_cleps import run_on_cleps
 from gospel.scripts.qasm2brickwork_state import read_qasm
 
 if TYPE_CHECKING:
@@ -94,22 +93,19 @@ class GlobalNoiseModel(NoiseModel):
         return result
 
 
-# Fixed parameters
-size = 17
-d = size  # nr of computation rounds
-t = size  # nr of test rounds
-N = d + t  # nr of total rounds
-num_instances = size
-
-
-threshold, p_err = 0.2, 0.6
-threshold, p_err = 0.1, 0.6
-threshold, p_err = 0.2, 0.6
-threshold, p_err = 0.1, 0.1
+@dataclass
+class Parameters:
+    d: int
+    t: int
+    N: int
+    num_instances: int
+    threshold: float
+    p_err: float
 
 
 @dataclass
 class Rounds:
+    parameters: Parameters
     circuit_name: str
     client: Client
     onodes: list[int]
@@ -117,7 +113,7 @@ class Rounds:
     rounds: list[int]
 
 
-def get_rounds(circuit_name: str) -> Rounds:
+def get_rounds(parameters: Parameters, circuit_name: str) -> Rounds:
     # Generate a different instance
     pattern, onodes = load_pattern_from_circuit(circuit_name)
 
@@ -126,21 +122,22 @@ def get_rounds(circuit_name: str) -> Rounds:
     colours = gospel.brickwork_state_transpiler.get_bipartite_coloring(pattern)
     test_runs = client.create_test_runs(manual_colouring=colours)
 
-    rounds = list(range(N))
+    rounds = list(range(parameters.N))
     random.shuffle(rounds)
 
-    return Rounds(circuit_name, client, onodes, test_runs, rounds)
+    return Rounds(parameters, circuit_name, client, onodes, test_runs, rounds)
 
 
 def for_each_round(args):
     rounds, i = args
     try:
         noise_model = GlobalNoiseModel(
-            prob=p_err, nodes=range(rounds.client.initial_pattern.n_node)
+            prob=rounds.parameters.p_err,
+            nodes=range(rounds.client.initial_pattern.n_node),
         )
         backend = DensityMatrixBackend()
 
-        if i < d:
+        if i < rounds.parameters.d:
             # Computation round
             rounds.client.delegate_pattern(backend=backend, noise_model=noise_model)
             result = ("computation", rounds.client.results[rounds.onodes[0]])
@@ -160,29 +157,41 @@ def for_each_round(args):
     return (rounds.circuit_name, (socket.gethostname(), i, result))
 
 
-def run() -> None:
-    if run_on_cleps:
-        portdash = 10000 + os.getuid()
+def run(
+    d: int,
+    t: int,
+    num_instances: int,
+    threshold: float,
+    p_err: float,
+    cleps: int | None = None,
+) -> None:
+    if cleps is None:
+        cluster = dask.distributed.LocalCluster()
+        cluster.scale(5)
+    else:
         cluster = SLURMCluster(
             account="inria",
             queue="cpu_devel",
             cores=4,
             memory="4GB",
             walltime="01:00:00",
-            scheduler_options={"dashboard_address": f":{portdash}"},
+            scheduler_options={"dashboard_address": f":{cleps}"},
         )
         cluster.scale(20)
-    else:
-        cluster = dask.distributed.LocalCluster()
-        cluster.scale(5)
+
+    parameters = Parameters(
+        d=d, t=t, N=d + t, num_instances=num_instances, threshold=threshold, p_err=p_err
+    )
 
     # Recording info
-    circuit_names = random.sample(circuits, num_instances)
+    circuit_names = random.sample(circuits, parameters.num_instances)
 
-    all_rounds = [get_rounds(circuit_name) for circuit_name in circuit_names]
+    all_rounds = [
+        get_rounds(parameters, circuit_name) for circuit_name in circuit_names
+    ]
 
     n_failed_trap_rounds = 0
-    n_tolerated_failures = threshold * t
+    n_tolerated_failures = parameters.threshold * parameters.t
 
     dask_client = dask.distributed.Client(cluster)
     outcome = list(
@@ -217,10 +226,10 @@ def run() -> None:
         # compute majority vote
         # if outcome_sum == d/2:
         #    raise ValueError("Ambiguous result")
-        outcomes_dict[circuit_name] = int(outcome_sum > d / 2)
+        outcomes_dict[circuit_name] = int(outcome_sum > parameters.d / 2)
 
     print(outcomes_dict)
 
 
 if __name__ == "__main__":
-    run()
+    typer.run(run)
