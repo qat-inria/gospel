@@ -163,21 +163,35 @@ def run(
     num_instances: int,
     threshold: float,
     p_err: float,
-    cleps: int | None = None,
+    walltime: int | None = None,
+    memory: int | None = None,
+    cores: int | None = None,
+    port: int | None = None,
+    scale: int | None = None,
 ) -> None:
-    if cleps is None:
+    if walltime is None and memory is None and cores is None and port is None:
         cluster = dask.distributed.LocalCluster()
-        cluster.scale(5)
     else:
+        if walltime is None:
+            raise ValueError("--walltime <hours> is required for running on cleps")
+        if memory is None:
+            raise ValueError("--memory <GB> is required for running on cleps")
+        if cores is None:
+            raise ValueError("--cores <N> is required for running on cleps")
+        if port is None:
+            raise ValueError("--port <N> is required for running on cleps")
+        if scale is None:
+            raise ValueError("--scale <N> is required for running on cleps")
         cluster = SLURMCluster(
             account="inria",
             queue="cpu_devel",
-            cores=4,
-            memory="4GB",
-            walltime="01:00:00",
-            scheduler_options={"dashboard_address": f":{cleps}"},
+            cores=cores,
+            memory=f"{memory}GB",
+            walltime=f"{walltime}:00:00",
+            scheduler_options={"dashboard_address": f":{port}"},
         )
-        cluster.scale(20)
+    if scale is not None:
+        cluster.scale(scale)
 
     parameters = Parameters(
         d=d, t=t, N=d + t, num_instances=num_instances, threshold=threshold, p_err=p_err
