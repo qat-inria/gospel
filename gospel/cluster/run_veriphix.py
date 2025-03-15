@@ -166,7 +166,7 @@ def run() -> None:
             account="inria",
             queue="cpu_devel",
             cores=4,
-            memory="2GB",
+            memory="4GB",
             walltime="01:00:00",
             scheduler_options={"dashboard_address": f":{portdash}"},
         )
