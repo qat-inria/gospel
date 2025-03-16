@@ -1,0 +1,77 @@
+==========================================
+SLURM_JOB_ID = 3933787
+SLURM_JOB_NODELIST = node027
+==========================================
+2025-03-16 14:23:18,250 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.27:39809'
+2025-03-16 14:23:18,271 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.27:36057'
+2025-03-16 14:23:18,274 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.27:44641'
+2025-03-16 14:23:18,277 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.27:38061'
+2025-03-16 14:23:19,178 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.27:39435
+2025-03-16 14:23:19,179 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.27:39435
+2025-03-16 14:23:19,179 - distributed.worker - INFO -           Worker name:           SLURMCluster-9-1
+2025-03-16 14:23:19,179 - distributed.worker - INFO -          dashboard at:          10.224.1.27:44265
+2025-03-16 14:23:19,179 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:44425
+2025-03-16 14:23:19,179 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,179 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 14:23:19,179 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 14:23:19,179 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space-672848/worker-dnx6phf0
+2025-03-16 14:23:19,179 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,180 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.27:42725
+2025-03-16 14:23:19,180 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.27:42725
+2025-03-16 14:23:19,180 - distributed.worker - INFO -           Worker name:           SLURMCluster-9-2
+2025-03-16 14:23:19,180 - distributed.worker - INFO -          dashboard at:          10.224.1.27:45187
+2025-03-16 14:23:19,180 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:44425
+2025-03-16 14:23:19,180 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,180 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.27:46641
+2025-03-16 14:23:19,180 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 14:23:19,180 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.27:46641
+2025-03-16 14:23:19,180 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 14:23:19,180 - distributed.worker - INFO -           Worker name:           SLURMCluster-9-0
+2025-03-16 14:23:19,180 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space-672848/worker-x78ckxhb
+2025-03-16 14:23:19,180 - distributed.worker - INFO -          dashboard at:          10.224.1.27:35933
+2025-03-16 14:23:19,180 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,180 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:44425
+2025-03-16 14:23:19,180 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,180 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 14:23:19,181 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 14:23:19,181 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space-672848/worker-cf7iam2n
+2025-03-16 14:23:19,181 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,207 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.27:34273
+2025-03-16 14:23:19,207 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.27:34273
+2025-03-16 14:23:19,207 - distributed.worker - INFO -           Worker name:           SLURMCluster-9-3
+2025-03-16 14:23:19,207 - distributed.worker - INFO -          dashboard at:          10.224.1.27:39103
+2025-03-16 14:23:19,207 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:44425
+2025-03-16 14:23:19,207 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,207 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 14:23:19,208 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 14:23:19,208 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space-672848/worker-o88_w_01
+2025-03-16 14:23:19,208 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,718 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 14:23:19,718 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:44425
+2025-03-16 14:23:19,718 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,719 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 14:23:19,719 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:44425
+2025-03-16 14:23:19,719 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:44425
+2025-03-16 14:23:19,719 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,720 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:44425
+2025-03-16 14:23:19,723 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 14:23:19,724 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:44425
+2025-03-16 14:23:19,724 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,724 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:44425
+2025-03-16 14:23:19,729 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 14:23:19,729 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:44425
+2025-03-16 14:23:19,730 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:23:19,730 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:44425
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+slurmstepd-node027: error: *** JOB 3933787 ON node027 CANCELLED AT 2025-03-16T14:23:30 ***

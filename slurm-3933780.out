@@ -1,0 +1,89 @@
+==========================================
+SLURM_JOB_ID = 3933780
+SLURM_JOB_NODELIST = node047
+==========================================
+2025-03-16 14:21:29,470 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.47:42177'
+2025-03-16 14:21:29,479 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.47:44135'
+2025-03-16 14:21:29,485 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.47:37475'
+2025-03-16 14:21:29,494 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.47:46725'
+2025-03-16 14:21:31,656 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-tyb7aufn', purging
+2025-03-16 14:21:31,658 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-8kyc57ku', purging
+2025-03-16 14:21:31,658 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-hdw8i9xw', purging
+2025-03-16 14:21:31,659 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-2rukncrj', purging
+2025-03-16 14:21:31,659 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-sflklfk1', purging
+2025-03-16 14:21:31,660 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-ja3mqgwi', purging
+2025-03-16 14:21:31,661 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-3oupf3h_', purging
+2025-03-16 14:21:31,661 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-oy8gtjbi', purging
+2025-03-16 14:21:31,662 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-tpvf6ud2', purging
+2025-03-16 14:21:31,662 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-aqg0tok1', purging
+2025-03-16 14:21:31,663 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-mmm0uko7', purging
+2025-03-16 14:21:31,663 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-2gz_2lyx', purging
+2025-03-16 14:21:31,664 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-67_dl0dw', purging
+2025-03-16 14:21:31,664 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-e1j6giyg', purging
+2025-03-16 14:21:31,665 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-9k_dk25d', purging
+2025-03-16 14:21:31,665 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-999snk7f', purging
+2025-03-16 14:21:31,666 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-e4vuosad', purging
+2025-03-16 14:21:31,667 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-mt68_bjr', purging
+2025-03-16 14:21:31,667 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-g01q2m0e', purging
+2025-03-16 14:21:31,668 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-3lptzmoq', purging
+2025-03-16 14:21:31,668 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-yep19nyo', purging
+2025-03-16 14:21:31,669 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-0_qq_ihm', purging
+2025-03-16 14:21:31,669 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-n616b4km', purging
+2025-03-16 14:21:31,670 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space-672848/worker-7pbnyl2p', purging
+2025-03-16 14:21:31,692 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.47:45651
+2025-03-16 14:21:31,692 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.47:45651
+2025-03-16 14:21:31,692 - distributed.worker - INFO -           Worker name:          SLURMCluster-19-0
+2025-03-16 14:21:31,692 - distributed.worker - INFO -          dashboard at:          10.224.1.47:35273
+2025-03-16 14:21:31,693 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:41779
+2025-03-16 14:21:31,693 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:31,693 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 14:21:31,693 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 14:21:31,693 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space-672848/worker-fp3gbgz_
+2025-03-16 14:21:31,694 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:31,701 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.47:38175
+2025-03-16 14:21:31,702 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.47:38175
+2025-03-16 14:21:31,702 - distributed.worker - INFO -           Worker name:          SLURMCluster-19-2
+2025-03-16 14:21:31,702 - distributed.worker - INFO -          dashboard at:          10.224.1.47:41031
+2025-03-16 14:21:31,702 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:41779
+2025-03-16 14:21:31,702 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:31,702 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 14:21:31,703 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 14:21:31,703 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space-672848/worker-qnbekd0k
+2025-03-16 14:21:31,703 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:31,723 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.47:41277
+2025-03-16 14:21:31,724 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.47:41277
+2025-03-16 14:21:31,724 - distributed.worker - INFO -           Worker name:          SLURMCluster-19-1
+2025-03-16 14:21:31,724 - distributed.worker - INFO -          dashboard at:          10.224.1.47:46705
+2025-03-16 14:21:31,724 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:41779
+2025-03-16 14:21:31,725 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:31,725 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 14:21:31,725 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 14:21:31,725 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space-672848/worker-rpixb3xf
+2025-03-16 14:21:31,725 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:31,753 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.47:39153
+2025-03-16 14:21:31,754 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.47:39153
+2025-03-16 14:21:31,754 - distributed.worker - INFO -           Worker name:          SLURMCluster-19-3
+2025-03-16 14:21:31,754 - distributed.worker - INFO -          dashboard at:          10.224.1.47:46707
+2025-03-16 14:21:31,754 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:41779
+2025-03-16 14:21:31,755 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:31,755 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 14:21:31,755 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 14:21:31,755 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space-672848/worker-wtn3lh1b
+2025-03-16 14:21:31,756 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:32,811 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 14:21:32,812 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:41779
+2025-03-16 14:21:32,813 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:32,814 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:41779
+2025-03-16 14:21:32,814 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 14:21:32,816 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:41779
+2025-03-16 14:21:32,816 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:32,817 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 14:21:32,817 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:41779
+2025-03-16 14:21:32,818 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:41779
+2025-03-16 14:21:32,818 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:32,819 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:41779
+2025-03-16 14:21:32,823 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 14:21:32,824 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:41779
+2025-03-16 14:21:32,824 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 14:21:32,825 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:41779
+slurmstepd-node047: error: *** JOB 3933780 ON node047 CANCELLED AT 2025-03-16T14:21:42 ***
