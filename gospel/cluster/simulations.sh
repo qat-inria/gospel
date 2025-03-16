@@ -8,7 +8,7 @@ for thresold in 0.2 0.1; do
     echo "Running with thresold=$thresold, p_err=$p_err, PORT=$PORT"
 
     # Run the process in the background
-    time python -m gospel.cluster.run_veriphix 100 100 100 $thresold $p_err \
+    time python -m gospel.cluster.run_veriphix 1 1 1 $thresold $p_err \
       --walltime 1 --memory 4 --cores 4 --port $PORT --scale 100 &
 
   done
