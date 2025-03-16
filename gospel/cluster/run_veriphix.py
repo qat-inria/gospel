@@ -209,7 +209,7 @@ def run(
     ]
 
     n_failed_trap_rounds = 0
-    n_tolerated_failures = parameters.threshold * parameters.t
+    # n_tolerated_failures = parameters.threshold * parameters.t
 
     dask_client = dask.distributed.Client(cluster)
     outcome = [
@@ -224,6 +224,8 @@ def run(
     ]
 
     outcome_circuits = dict(itertools.groupby(outcome, lambda pair: pair[0]))
+    with open(f"w{parameters.threshold}-p{p_err}-raw.json", "w") as file:
+        json.dump(outcome_circuits, file, indent=4)
 
     outcomes_dict = {}
 
@@ -238,14 +240,15 @@ def run(
             value for _h, _i, (kind, value) in results if kind == "test"
         )
 
-        failure_rate = n_failed_trap_rounds/parameters.t
-        decision = (failure_rate>parameters.threshold) # True if the instance is accepted, False if rejected
-        if outcome_sum == parameters.d/2 :
+        failure_rate = n_failed_trap_rounds / parameters.t
+        decision = (
+            failure_rate > parameters.threshold
+        )  # True if the instance is accepted, False if rejected
+        if outcome_sum == parameters.d / 2:
             outcome = "Ambig."
         else:
-            outcome = int(outcome_sum > parameters.d/2)
+            outcome = int(outcome_sum > parameters.d / 2)
         outcomes_dict[circuit_name] = (decision, outcome, failure_rate)
-
 
     print(outcomes_dict)
     with open(f"w{parameters.threshold}-p{p_err}.json", "w") as file:
