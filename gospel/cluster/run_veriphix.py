@@ -277,7 +277,13 @@ def run(
             outcome: str | int = "Ambig."
         else:
             outcome = int(outcome_sum > parameters.d / 2)
-        outcomes_dict[circuit_name] = (decision, outcome, failure_rate)
+        outcomes_dict[circuit_name] = (
+            decision,
+            outcome_sum,
+            n_failed_trap_rounds,
+            outcome,
+            failure_rate,
+        )
 
     with open(f"w{parameters.threshold}-p{p_err}.json", "w") as file:
         json.dump(outcomes_dict, file, indent=4)
