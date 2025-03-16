@@ -158,7 +158,7 @@ def for_each_round(args):
 
 
 def for_all_rounds(rounds):
-    return [for_each_round(rounds, i) for i in rounds.rounds]
+    return [for_each_round((rounds, i)) for i in rounds.rounds]
 
 
 def run(
