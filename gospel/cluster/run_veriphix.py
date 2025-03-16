@@ -150,7 +150,7 @@ def for_each_round(args):
 
             # Record trap failure
             # A trap round fails if one of the single-qubit traps failed
-            result = ("test", sum(trap_outcomes) != 0)
+            result = ("test", bool(sum(trap_outcomes) != 0))
     except Exception as e:
         result = ("exception", e)
     return (rounds.circuit_name, (socket.gethostname(), i, result))
