@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import itertools
 import json
 import random
 import socket
@@ -158,7 +157,7 @@ def for_each_round(args):
 
 
 def for_all_rounds(rounds):
-    return [for_each_round((rounds, i)) for i in rounds.rounds]
+    return rounds.circuit_name, [for_each_round((rounds, i)) for i in rounds.rounds]
 
 
 def run(
@@ -212,18 +211,15 @@ def run(
     # n_tolerated_failures = parameters.threshold * parameters.t
 
     dask_client = dask.distributed.Client(cluster)
-    outcome = [
-        result
-        for result_list in dask_client.gather(
+    outcome_circuits = dict(
+        dask_client.gather(
             dask_client.map(
                 for_all_rounds,
                 all_rounds,
             )
         )
-        for result in result_list
-    ]
+    )
 
-    outcome_circuits = dict(itertools.groupby(outcome, lambda pair: pair[0]))
     with open(f"w{parameters.threshold}-p{p_err}-raw.json", "w") as file:
         json.dump(outcome_circuits, file, indent=4)
 
