@@ -47,7 +47,7 @@ def load_pattern_from_circuit(circuit_label: str):
 
 with Path("circuits/table.json").open() as f:
     table = json.load(f)
-    circuits = [name for name, prob in table.items() if prob < 0.1]
+    circuits = [name for name, prob in table.items() if prob < 0.4]
     print(len(circuits))
 
 """Global noise model."""
@@ -238,15 +238,14 @@ def run(
             value for _h, _i, (kind, value) in results if kind == "test"
         )
 
-        if n_failed_trap_rounds > n_tolerated_failures:
-            # reject instance
-            # do nothing
-            return
-        # accept instance
-        # compute majority vote
-        # if outcome_sum == d/2:
-        #    raise ValueError("Ambiguous result")
-        outcomes_dict[circuit_name] = int(outcome_sum > parameters.d / 2)
+        failure_rate = n_failed_trap_rounds/parameters.t
+        decision = (failure_rate>parameters.threshold) # True if the instance is accepted, False if rejected
+        if outcome_sum == parameters.d/2 :
+            outcome = "Ambig."
+        else:
+            outcome = int(outcome_sum > parameters.d/2)
+        outcomes_dict[circuit_name] = (decision, outcome, failure_rate)
+
 
     print(outcomes_dict)
     print("test")
