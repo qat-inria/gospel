@@ -157,6 +157,10 @@ def for_each_round(args):
     return (rounds.circuit_name, (socket.gethostname(), i, result))
 
 
+def for_all_rounds(rounds):
+    return [for_each_round(rounds, i) for i in rounds.rounds]
+
+
 def run(
     d: int,
     t: int,
@@ -208,14 +212,16 @@ def run(
     n_tolerated_failures = parameters.threshold * parameters.t
 
     dask_client = dask.distributed.Client(cluster)
-    outcome = list(
-        dask_client.gather(
+    outcome = [
+        result
+        for result_list in dask_client.gather(
             dask_client.map(
-                for_each_round,
-                [(rounds, i) for rounds in all_rounds for i in rounds.rounds],
+                for_all_rounds,
+                all_rounds,
             )
         )
-    )
+        for result in result_list
+    ]
 
     outcome_circuits = dict(itertools.groupby(outcome, lambda pair: pair[0]))
 
