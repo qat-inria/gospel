@@ -1,5 +1,8 @@
 #!/bin/bash
 
+rm -rf circuits
+python -m gospel.sampling_circuits.experiments
+
 for thresold in 0.2 0.1; do
   for p_err in 0.1 0.2 0.3 0.4 0.5 0.6; do
     PORT=$((24395 + RANDOM % 1000))  # Generate a random port
