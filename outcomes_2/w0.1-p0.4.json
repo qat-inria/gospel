@@ -1,0 +1,702 @@
+{
+    "circuit805.qasm": {
+        "outcome_sum": 10,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.21
+    },
+    "circuit054.qasm": {
+        "outcome_sum": 44,
+        "n_failed_trap_rounds": 20,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.2
+    },
+    "circuit838.qasm": {
+        "outcome_sum": 45,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.18
+    },
+    "circuit785.qasm": {
+        "outcome_sum": 5,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.19
+    },
+    "circuit402.qasm": {
+        "outcome_sum": 76,
+        "n_failed_trap_rounds": 17,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.17
+    },
+    "circuit547.qasm": {
+        "outcome_sum": 38,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.18
+    },
+    "circuit488.qasm": {
+        "outcome_sum": 6,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.21
+    },
+    "circuit047.qasm": {
+        "outcome_sum": 51,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.23
+    },
+    "circuit590.qasm": {
+        "outcome_sum": 33,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.18
+    },
+    "circuit953.qasm": {
+        "outcome_sum": 85,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.19
+    },
+    "circuit133.qasm": {
+        "outcome_sum": 18,
+        "n_failed_trap_rounds": 16,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.16
+    },
+    "circuit202.qasm": {
+        "outcome_sum": 50,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": "Ambig.",
+        "failure_rate": 0.23
+    },
+    "circuit796.qasm": {
+        "outcome_sum": 46,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.21
+    },
+    "circuit449.qasm": {
+        "outcome_sum": 67,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.23
+    },
+    "circuit181.qasm": {
+        "outcome_sum": 8,
+        "n_failed_trap_rounds": 26,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.26
+    },
+    "circuit807.qasm": {
+        "outcome_sum": 31,
+        "n_failed_trap_rounds": 20,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.2
+    },
+    "circuit410.qasm": {
+        "outcome_sum": 51,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.23
+    },
+    "circuit307.qasm": {
+        "outcome_sum": 87,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.21
+    },
+    "circuit364.qasm": {
+        "outcome_sum": 48,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.18
+    },
+    "circuit444.qasm": {
+        "outcome_sum": 85,
+        "n_failed_trap_rounds": 27,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.27
+    },
+    "circuit334.qasm": {
+        "outcome_sum": 95,
+        "n_failed_trap_rounds": 26,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.26
+    },
+    "circuit081.qasm": {
+        "outcome_sum": 41,
+        "n_failed_trap_rounds": 20,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.2
+    },
+    "circuit484.qasm": {
+        "outcome_sum": 72,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.21
+    },
+    "circuit269.qasm": {
+        "outcome_sum": 50,
+        "n_failed_trap_rounds": 22,
+        "decision": false,
+        "outcome": "Ambig.",
+        "failure_rate": 0.22
+    },
+    "circuit420.qasm": {
+        "outcome_sum": 7,
+        "n_failed_trap_rounds": 20,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.2
+    },
+    "circuit198.qasm": {
+        "outcome_sum": 4,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.18
+    },
+    "circuit120.qasm": {
+        "outcome_sum": 89,
+        "n_failed_trap_rounds": 29,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.29
+    },
+    "circuit507.qasm": {
+        "outcome_sum": 55,
+        "n_failed_trap_rounds": 12,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.12
+    },
+    "circuit319.qasm": {
+        "outcome_sum": 51,
+        "n_failed_trap_rounds": 14,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.14
+    },
+    "circuit239.qasm": {
+        "outcome_sum": 31,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.19
+    },
+    "circuit467.qasm": {
+        "outcome_sum": 40,
+        "n_failed_trap_rounds": 22,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.22
+    },
+    "circuit887.qasm": {
+        "outcome_sum": 77,
+        "n_failed_trap_rounds": 15,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.15
+    },
+    "circuit723.qasm": {
+        "outcome_sum": 3,
+        "n_failed_trap_rounds": 24,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.24
+    },
+    "circuit360.qasm": {
+        "outcome_sum": 3,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.23
+    },
+    "circuit132.qasm": {
+        "outcome_sum": 47,
+        "n_failed_trap_rounds": 24,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.24
+    },
+    "circuit321.qasm": {
+        "outcome_sum": 11,
+        "n_failed_trap_rounds": 13,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.13
+    },
+    "circuit057.qasm": {
+        "outcome_sum": 20,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.23
+    },
+    "circuit676.qasm": {
+        "outcome_sum": 82,
+        "n_failed_trap_rounds": 22,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.22
+    },
+    "circuit743.qasm": {
+        "outcome_sum": 82,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.19
+    },
+    "circuit495.qasm": {
+        "outcome_sum": 3,
+        "n_failed_trap_rounds": 26,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.26
+    },
+    "circuit817.qasm": {
+        "outcome_sum": 7,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.21
+    },
+    "circuit767.qasm": {
+        "outcome_sum": 21,
+        "n_failed_trap_rounds": 13,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.13
+    },
+    "circuit908.qasm": {
+        "outcome_sum": 48,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.18
+    },
+    "circuit550.qasm": {
+        "outcome_sum": 11,
+        "n_failed_trap_rounds": 22,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.22
+    },
+    "circuit643.qasm": {
+        "outcome_sum": 28,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.21
+    },
+    "circuit512.qasm": {
+        "outcome_sum": 77,
+        "n_failed_trap_rounds": 20,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.2
+    },
+    "circuit270.qasm": {
+        "outcome_sum": 28,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.23
+    },
+    "circuit292.qasm": {
+        "outcome_sum": 3,
+        "n_failed_trap_rounds": 17,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.17
+    },
+    "circuit915.qasm": {
+        "outcome_sum": 39,
+        "n_failed_trap_rounds": 29,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.29
+    },
+    "circuit504.qasm": {
+        "outcome_sum": 8,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.21
+    },
+    "circuit562.qasm": {
+        "outcome_sum": 22,
+        "n_failed_trap_rounds": 24,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.24
+    },
+    "circuit078.qasm": {
+        "outcome_sum": 12,
+        "n_failed_trap_rounds": 25,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.25
+    },
+    "circuit298.qasm": {
+        "outcome_sum": 52,
+        "n_failed_trap_rounds": 15,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.15
+    },
+    "circuit955.qasm": {
+        "outcome_sum": 69,
+        "n_failed_trap_rounds": 11,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.11
+    },
+    "circuit272.qasm": {
+        "outcome_sum": 87,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.18
+    },
+    "circuit733.qasm": {
+        "outcome_sum": 33,
+        "n_failed_trap_rounds": 17,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.17
+    },
+    "circuit528.qasm": {
+        "outcome_sum": 70,
+        "n_failed_trap_rounds": 17,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.17
+    },
+    "circuit965.qasm": {
+        "outcome_sum": 44,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.19
+    },
+    "circuit408.qasm": {
+        "outcome_sum": 65,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.18
+    },
+    "circuit652.qasm": {
+        "outcome_sum": 8,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.23
+    },
+    "circuit574.qasm": {
+        "outcome_sum": 52,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.21
+    },
+    "circuit803.qasm": {
+        "outcome_sum": 24,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.19
+    },
+    "circuit858.qasm": {
+        "outcome_sum": 47,
+        "n_failed_trap_rounds": 16,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.16
+    },
+    "circuit822.qasm": {
+        "outcome_sum": 32,
+        "n_failed_trap_rounds": 22,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.22
+    },
+    "circuit963.qasm": {
+        "outcome_sum": 78,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.19
+    },
+    "circuit454.qasm": {
+        "outcome_sum": 23,
+        "n_failed_trap_rounds": 17,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.17
+    },
+    "circuit928.qasm": {
+        "outcome_sum": 6,
+        "n_failed_trap_rounds": 14,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.14
+    },
+    "circuit059.qasm": {
+        "outcome_sum": 50,
+        "n_failed_trap_rounds": 22,
+        "decision": false,
+        "outcome": "Ambig.",
+        "failure_rate": 0.22
+    },
+    "circuit636.qasm": {
+        "outcome_sum": 78,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.21
+    },
+    "circuit393.qasm": {
+        "outcome_sum": 83,
+        "n_failed_trap_rounds": 14,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.14
+    },
+    "circuit697.qasm": {
+        "outcome_sum": 52,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.19
+    },
+    "circuit353.qasm": {
+        "outcome_sum": 76,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.23
+    },
+    "circuit559.qasm": {
+        "outcome_sum": 80,
+        "n_failed_trap_rounds": 20,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.2
+    },
+    "circuit621.qasm": {
+        "outcome_sum": 65,
+        "n_failed_trap_rounds": 15,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.15
+    },
+    "circuit413.qasm": {
+        "outcome_sum": 12,
+        "n_failed_trap_rounds": 11,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.11
+    },
+    "circuit206.qasm": {
+        "outcome_sum": 15,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.19
+    },
+    "circuit593.qasm": {
+        "outcome_sum": 59,
+        "n_failed_trap_rounds": 25,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.25
+    },
+    "circuit169.qasm": {
+        "outcome_sum": 27,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.23
+    },
+    "circuit864.qasm": {
+        "outcome_sum": 23,
+        "n_failed_trap_rounds": 15,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.15
+    },
+    "circuit398.qasm": {
+        "outcome_sum": 49,
+        "n_failed_trap_rounds": 14,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.14
+    },
+    "circuit443.qasm": {
+        "outcome_sum": 40,
+        "n_failed_trap_rounds": 17,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.17
+    },
+    "circuit109.qasm": {
+        "outcome_sum": 81,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.21
+    },
+    "circuit680.qasm": {
+        "outcome_sum": 59,
+        "n_failed_trap_rounds": 27,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.27
+    },
+    "circuit445.qasm": {
+        "outcome_sum": 6,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.18
+    },
+    "circuit765.qasm": {
+        "outcome_sum": 7,
+        "n_failed_trap_rounds": 14,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.14
+    },
+    "circuit633.qasm": {
+        "outcome_sum": 6,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.21
+    },
+    "circuit060.qasm": {
+        "outcome_sum": 6,
+        "n_failed_trap_rounds": 22,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.22
+    },
+    "circuit111.qasm": {
+        "outcome_sum": 56,
+        "n_failed_trap_rounds": 26,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.26
+    },
+    "circuit941.qasm": {
+        "outcome_sum": 69,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.19
+    },
+    "circuit821.qasm": {
+        "outcome_sum": 34,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.21
+    },
+    "circuit588.qasm": {
+        "outcome_sum": 55,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.21
+    },
+    "circuit996.qasm": {
+        "outcome_sum": 41,
+        "n_failed_trap_rounds": 19,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.19
+    },
+    "circuit526.qasm": {
+        "outcome_sum": 3,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.18
+    },
+    "circuit415.qasm": {
+        "outcome_sum": 65,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 1,
+        "failure_rate": 0.23
+    },
+    "circuit099.qasm": {
+        "outcome_sum": 18,
+        "n_failed_trap_rounds": 21,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.21
+    },
+    "circuit326.qasm": {
+        "outcome_sum": 23,
+        "n_failed_trap_rounds": 18,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.18
+    },
+    "circuit271.qasm": {
+        "outcome_sum": 45,
+        "n_failed_trap_rounds": 20,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.2
+    },
+    "circuit818.qasm": {
+        "outcome_sum": 11,
+        "n_failed_trap_rounds": 26,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.26
+    },
+    "circuit651.qasm": {
+        "outcome_sum": 20,
+        "n_failed_trap_rounds": 27,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.27
+    },
+    "circuit760.qasm": {
+        "outcome_sum": 10,
+        "n_failed_trap_rounds": 23,
+        "decision": false,
+        "outcome": 0,
+        "failure_rate": 0.23
+    }
+}
