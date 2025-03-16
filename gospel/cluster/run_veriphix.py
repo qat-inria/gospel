@@ -248,7 +248,8 @@ def run(
 
 
     print(outcomes_dict)
-    print("test")
+    with open(f"w{parameters.threshold}-p{p_err}.json", "w") as file:
+        json.dump(outcomes_dict, file, indent=4)
 
 
 if __name__ == "__main__":
