@@ -271,7 +271,7 @@ def run(
                 assert_never(result.kind)
         failure_rate = n_failed_trap_rounds / parameters.t
         decision = (
-            failure_rate > parameters.threshold
+            failure_rate < parameters.threshold
         )  # True if the instance is accepted, False if rejected
         if outcome_sum == parameters.d / 2:
             outcome: str | int = "Ambig."
