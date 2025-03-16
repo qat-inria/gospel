@@ -249,6 +249,7 @@ def run(
         outcomes_dict[circuit_name] = int(outcome_sum > parameters.d / 2)
 
     print(outcomes_dict)
+    print("test")
 
 
 if __name__ == "__main__":
