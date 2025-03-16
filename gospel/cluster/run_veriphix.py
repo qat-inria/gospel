@@ -139,7 +139,7 @@ def for_each_round(args):
         if i < rounds.parameters.d:
             # Computation round
             rounds.client.delegate_pattern(backend=backend, noise_model=noise_model)
-            result = ("computation", rounds.client.results[rounds.onodes[0]])
+            result = ("computation", bool(rounds.client.results[rounds.onodes[0]]))
         else:
             # Test round
             run = TrappifiedCanvas(random.choice(rounds.test_runs))
