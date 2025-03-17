@@ -273,10 +273,12 @@ def run(
             else:
                 assert_never(result.kind)
         failure_rate = n_failed_trap_rounds / parameters.t
+        
         # TODO: remove the decision from the simulation outcomes
         # decision = (
         #     failure_rate < parameters.threshold
         # )  # True if the instance is accepted, False if rejected
+
         if outcome_sum == parameters.d / 2:
             outcome: str | int = "Ambig."
         else:
