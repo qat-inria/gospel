@@ -10,7 +10,7 @@ n_nodes=$n_instances
 bqp_error=0.4
 
 for p_err in 0.01 0.05 0.1 0.15 0.18 0.22; do
-  PORT=$((24395 + RANDOM % 1000))  # Generate a random port
+  PORT=24395
 
   # Print p and assigned port
   echo "Running with p_err=$p_err, PORT=$PORT"
