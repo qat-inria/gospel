@@ -52,7 +52,7 @@ def load_pattern_from_circuit(circuit_label: str) -> tuple[Pattern, list[int]]:
 
 with Path("circuits/table.json").open() as f:
     table = json.load(f)
-    circuits = [name for name, prob in table.items() if prob < 0.4]
+    circuits = [name for name, prob in table.items() if prob < 0.2]
     print(len(circuits))
 
 """Global noise model."""
