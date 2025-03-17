@@ -3,9 +3,9 @@
 rm -rf circuits
 python -m gospel.sampling_circuits.experiments
 
-n_comp_run=10
-n_test_run=10
-n_instances=10
+n_comp_run=100
+n_test_run=100
+n_instances=100
 n_nodes=$n_instances
 bqp_error=0.4
 
