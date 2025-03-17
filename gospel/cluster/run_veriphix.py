@@ -50,10 +50,6 @@ def load_pattern_from_circuit(circuit_label: str) -> tuple[Pattern, list[int]]:
     return pattern, classical_output
 
 
-with Path("circuits/table.json").open() as f:
-    table = json.load(f)
-    circuits = [name for name, prob in table.items() if prob < 0.2]
-    print(len(circuits))
 
 """Global noise model."""
 
@@ -104,7 +100,6 @@ class Parameters:
     t: int
     N: int
     num_instances: int
-    threshold: float
     p_err: float
 
 
@@ -164,6 +159,7 @@ def for_each_round(
             nodes=range(rounds.client.initial_pattern.n_node),
         )
         backend = DensityMatrixBackend()
+        noise_model.refresh_randomness()
 
         if i < rounds.parameters.d:
             # Computation round
@@ -177,7 +173,6 @@ def for_each_round(
             trap_outcomes = rounds.client.delegate_test_run(
                 run=run, backend=backend, noise_model=noise_model
             )
-            noise_model.refresh_randomness()
 
             # Record trap failure
             # A trap round fails if one of the single-qubit traps failed
@@ -195,8 +190,8 @@ def run(
     d: int,
     t: int,
     num_instances: int,
-    threshold: float,
     p_err: float,
+    bqp_error:float,
     walltime: int | None = None,
     memory: int | None = None,
     cores: int | None = None,
@@ -227,8 +222,17 @@ def run(
     if scale is not None:
         cluster.scale(scale)  # type: ignore[no-untyped-call]
 
+    # TODO: put the BQP error $p$ in argument of command
+    # TODO: test this
+    with Path("circuits/table.json").open() as f:
+        table = json.load(f)
+        circuits = [name for name, prob in table.items() if prob < bqp_error or prob > 1-bqp_error]
+        # prob = prob of having 1
+        # prob < $bqp_error$ => No instance
+        print(len(circuits))
+
     parameters = Parameters(
-        d=d, t=t, N=d + t, num_instances=num_instances, threshold=threshold, p_err=p_err
+        d=d, t=t, N=d + t, num_instances=num_instances, p_err=p_err
     )
 
     # Recording info
@@ -239,7 +243,6 @@ def run(
     ]
 
     n_failed_trap_rounds = 0
-    # n_tolerated_failures = parameters.threshold * parameters.t
 
     dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
     outcome_circuits = dict(
@@ -251,7 +254,7 @@ def run(
         )
     )
 
-    with open(f"w{parameters.threshold}-p{p_err}-raw.json", "w") as file:
+    with open(f"p{p_err}-raw.json", "w") as file:
         file.write(str(outcome_circuits))
 
     outcomes_dict = {}
@@ -270,9 +273,10 @@ def run(
             else:
                 assert_never(result.kind)
         failure_rate = n_failed_trap_rounds / parameters.t
-        decision = (
-            failure_rate < parameters.threshold
-        )  # True if the instance is accepted, False if rejected
+        # TODO: remove the decision from the simulation outcomes
+        # decision = (
+        #     failure_rate < parameters.threshold
+        # )  # True if the instance is accepted, False if rejected
         if outcome_sum == parameters.d / 2:
             outcome: str | int = "Ambig."
         else:
@@ -280,12 +284,12 @@ def run(
         outcomes_dict[circuit_name] = {
             "outcome_sum": outcome_sum,
             "n_failed_trap_rounds": n_failed_trap_rounds,
-            "decision": decision,
+            # "decision": decision,
             "outcome": outcome,
             "failure_rate": failure_rate,
         }
 
-    with open(f"w{parameters.threshold}-p{p_err}.json", "w") as file:
+    with open(f"p{p_err}.json", "w") as file:
         json.dump(outcomes_dict, file, indent=4)
 
 
