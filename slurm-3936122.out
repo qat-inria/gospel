@@ -1,0 +1,109 @@
+==========================================
+SLURM_JOB_ID = 3936122
+SLURM_JOB_NODELIST = node036
+==========================================
+2025-03-16 22:42:11,991 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.36:35413'
+2025-03-16 22:42:11,997 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.36:38461'
+2025-03-16 22:42:12,008 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.36:35415'
+2025-03-16 22:42:12,013 - distributed.nanny - INFO -         Start Nanny at: 'tcp://10.224.1.36:41657'
+2025-03-16 22:42:13,204 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-5b_6qci0', purging
+2025-03-16 22:42:13,205 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-xl30tpoj', purging
+2025-03-16 22:42:13,205 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-vsdmdz_x', purging
+2025-03-16 22:42:13,205 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-n4qiy2j9', purging
+2025-03-16 22:42:13,205 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-xqo9wlqu', purging
+2025-03-16 22:42:13,206 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-45jfq2ne', purging
+2025-03-16 22:42:13,206 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-am0ds1uh', purging
+2025-03-16 22:42:13,206 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-1cieoqtu', purging
+2025-03-16 22:42:13,207 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-1avwmqlg', purging
+2025-03-16 22:42:13,207 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-99hsatx8', purging
+2025-03-16 22:42:13,207 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-zvwf6tc0', purging
+2025-03-16 22:42:13,207 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-p5qeumm1', purging
+2025-03-16 22:42:13,208 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-omyaxicm', purging
+2025-03-16 22:42:13,208 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-2_8doz2j', purging
+2025-03-16 22:42:13,208 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-48zo7oxb', purging
+2025-03-16 22:42:13,208 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-scratch-space/worker-lrbf35fs', purging
+2025-03-16 22:42:13,224 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.36:43813
+2025-03-16 22:42:13,224 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.36:43813
+2025-03-16 22:42:13,224 - distributed.worker - INFO -           Worker name:          SLURMCluster-18-0
+2025-03-16 22:42:13,224 - distributed.worker - INFO -          dashboard at:          10.224.1.36:35949
+2025-03-16 22:42:13,224 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:39345
+2025-03-16 22:42:13,224 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:13,224 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 22:42:13,224 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 22:42:13,224 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-q1qarkwb
+2025-03-16 22:42:13,225 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:13,279 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.36:36747
+2025-03-16 22:42:13,279 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.36:36747
+2025-03-16 22:42:13,280 - distributed.worker - INFO -           Worker name:          SLURMCluster-18-3
+2025-03-16 22:42:13,280 - distributed.worker - INFO -          dashboard at:          10.224.1.36:40773
+2025-03-16 22:42:13,280 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:39345
+2025-03-16 22:42:13,280 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:13,280 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 22:42:13,280 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 22:42:13,280 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-4h3pcqrz
+2025-03-16 22:42:13,280 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:13,349 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.36:40381
+2025-03-16 22:42:13,349 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.36:40381
+2025-03-16 22:42:13,349 - distributed.worker - INFO -           Worker name:          SLURMCluster-18-1
+2025-03-16 22:42:13,349 - distributed.worker - INFO -          dashboard at:          10.224.1.36:39937
+2025-03-16 22:42:13,349 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:39345
+2025-03-16 22:42:13,350 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:13,350 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 22:42:13,350 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 22:42:13,350 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-1w66i29e
+2025-03-16 22:42:13,350 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:13,446 - distributed.worker - INFO -       Start worker at:    tcp://10.224.1.36:41435
+2025-03-16 22:42:13,447 - distributed.worker - INFO -          Listening to:    tcp://10.224.1.36:41435
+2025-03-16 22:42:13,447 - distributed.worker - INFO -           Worker name:          SLURMCluster-18-2
+2025-03-16 22:42:13,447 - distributed.worker - INFO -          dashboard at:          10.224.1.36:35255
+2025-03-16 22:42:13,447 - distributed.worker - INFO - Waiting to connect to:   tcp://128.93.170.2:39345
+2025-03-16 22:42:13,447 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:13,447 - distributed.worker - INFO -               Threads:                          1
+2025-03-16 22:42:13,447 - distributed.worker - INFO -                Memory:                   0.93 GiB
+2025-03-16 22:42:13,447 - distributed.worker - INFO -       Local Directory: /tmp/dask-scratch-space/worker-_hpfzoey
+2025-03-16 22:42:13,447 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:28,399 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 22:42:28,400 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:39345
+2025-03-16 22:42:28,401 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:28,402 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:39345
+2025-03-16 22:42:28,450 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 22:42:28,451 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:39345
+2025-03-16 22:42:28,451 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:28,452 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:39345
+2025-03-16 22:42:28,501 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 22:42:28,503 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:39345
+2025-03-16 22:42:28,503 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:28,504 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:39345
+2025-03-16 22:42:28,862 - distributed.worker - INFO - Starting Worker plugin shuffle
+2025-03-16 22:42:28,863 - distributed.worker - INFO -         Registered to:   tcp://128.93.170.2:39345
+2025-03-16 22:42:28,863 - distributed.worker - INFO - -------------------------------------------------
+2025-03-16 22:42:28,864 - distributed.core - INFO - Starting established connection to tcp://128.93.170.2:39345
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/sabdulsa/miniconda3/envs/gospel/lib/python3.12/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+2025-03-16 22:44:19,813 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.49s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2025-03-16 22:44:19,889 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.58s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2025-03-16 22:44:19,905 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.60s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2025-03-16 22:44:19,953 - distributed.core - INFO - Event loop was unresponsive in Worker for 4.63s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+slurmstepd-node036: error: *** JOB 3936122 ON node036 CANCELLED AT 2025-03-17T00:42:38 DUE TO TIME LIMIT ***
