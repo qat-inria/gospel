@@ -8,7 +8,7 @@ from gospel.sampling_circuits.sampling_circuits import (
     sample_truncated_circuit,
 )
 
-ncircuits = 1000
+ncircuits = 10000
 nqubits = 7
 depth = 10
 p_gate = 0.5
