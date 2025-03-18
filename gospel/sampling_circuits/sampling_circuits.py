@@ -11,11 +11,16 @@ import qiskit
 import qiskit.qasm2
 import typer
 from graphix import Circuit
+from graphix import command
+
 from graphix.instruction import Instruction, InstructionKind
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.quantum_info import Pauli, Statevector  # type: ignore[attr-defined]
 from qiskit_aer.primitives import SamplerV2  # type: ignore[attr-defined]
 from tqdm import tqdm
+
+import gospel.brickwork_state_transpiler
+from gospel.scripts.qasm_parser import read_qasm
 
 from gospel.brickwork_state_transpiler import (
     XZ,
@@ -265,12 +270,26 @@ def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) ->
     which is more accurate, deterministic and faster.
     """
     # TODO
-    # qc.h(0)
-    # Hadamard in a funky way
-    qc.rx(np.pi/2, 0)
-    qc.rz(np.pi, 0)
+    filename = f"circuit_test.qasm"
+    with open(filename, "w") as f:
+        qiskit.qasm2.dump(qc, f)
+    
+    with open("circuit_test.qasm", "r") as f:
+        circuit = read_qasm(f)
+    
+    pattern = gospel.brickwork_state_transpiler.transpile(circuit=circuit)
+    ## Measure output nodes, to have classical output
+    classical_output = pattern.output_nodes
+    for onode in classical_output:
+        pattern.add(command.M(node=onode))
+    print(classical_output[0])
+    outcome_sum = 0
+    n_samples = 256
+    for _ in range(n_samples):
+        pattern.simulate_pattern()
+        outcome_sum += pattern.results[classical_output[0]]
+    return outcome_sum/n_samples
 
-    qc.measure(0, 0)
     nb_shots = 2 << 8
     sampler = SamplerV2(seed=seed)
     job = sampler.run([qc], shots=nb_shots)
