@@ -265,14 +265,19 @@ def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) ->
     which is more accurate, deterministic and faster.
     """
     # TODO
-    qc.h(0)
+    # qc.h(0)
+    # Hadamard in a funky way
+    qc.rx(np.pi/2, 0)
+    qc.rz(np.pi, 0)
+
     qc.measure(0, 0)
     nb_shots = 2 << 8
     sampler = SamplerV2(seed=seed)
     job = sampler.run([qc], shots=nb_shots)
     job_result = job.result()
     nb_one_outcomes = sum(next(iter(job_result[0].data.values())).bitcount())
-    assert isinstance(nb_one_outcomes, int)
+    # print(type(nb_one_outcomes))
+    # assert isinstance(nb_one_outcomes, int)
     return nb_one_outcomes / nb_shots
 
 
@@ -301,7 +306,8 @@ def estimate_circuits(
     circuits: Iterable[QuantumCircuit],
 ) -> list[tuple[QuantumCircuit, float]]:
     return [
-        (circuit, estimate_circuit_by_expectation_value(circuit))
+        (circuit, estimate_circuit_by_sampling(circuit))
+        # (circuit, estimate_circuit_by_expectation_value(circuit))
         for circuit in tqdm(list(circuits))
     ]
 
