@@ -165,6 +165,7 @@ def for_each_round(
             # Computation round
             rounds.client.delegate_pattern(backend=backend, noise_model=noise_model)
             result: RoundResultOrException = RoundResult(
+                ## TODO: vérifier que onodes[0] est bien le qubit qu'on recherche
                 RoundKind.Computation, bool(rounds.client.results[rounds.onodes[0]])
             )
         else:
@@ -274,11 +275,6 @@ def run(
                 assert_never(result.kind)
         failure_rate = n_failed_trap_rounds / parameters.t
         
-        # TODO: remove the decision from the simulation outcomes
-        # decision = (
-        #     failure_rate < parameters.threshold
-        # )  # True if the instance is accepted, False if rejected
-
         if outcome_sum == parameters.d / 2:
             outcome: str | int = "Ambig."
         else:

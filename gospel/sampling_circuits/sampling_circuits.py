@@ -264,6 +264,8 @@ def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) ->
     This method is deprecated in favor of `estimate_circuit_expectation_value`,
     which is more accurate, deterministic and faster.
     """
+    # TODO
+    qc.h(0)
     qc.measure(0, 0)
     nb_shots = 2 << 8
     sampler = SamplerV2(seed=seed)
@@ -288,7 +290,8 @@ def estimate_circuit_by_expectation_value(qc: QuantumCircuit) -> float:
     # Get the statevector for the circuit
     sv = Statevector.from_instruction(qc)
     # Compute the expectation value of the observable
-    exp_val = sv.expectation_value(Pauli("Z"), [0])
+    exp_val = sv.expectation_value(Pauli("X"), [0])
+    # exp_val = sv.expectation_value(Pauli("Z"), [0])
     assert np.imag(exp_val) == 0
     # p(1) = (1 - <Z>)/2
     return (1 - np.real(exp_val)) / 2
