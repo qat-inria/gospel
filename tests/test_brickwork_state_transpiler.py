@@ -14,7 +14,6 @@ from gospel.brickwork_state_transpiler import (
     SingleQubitPair,
     generate_random_pauli_pattern,
     get_bipartite_coloring,
-    get_brickwork_state_pattern_width,
     get_node_positions,
     layers_to_circuit,
     transpile,
@@ -71,7 +70,6 @@ def test_transpile_to_layers_cnot_rx_cnot_rx() -> None:
             False,
             [
                 SingleQubitPair(SingleQubit(rx=math.pi / 4), SingleQubit()),
-                SingleQubitPair(SingleQubit(), SingleQubit()),
             ],
         ),
         Layer(True, [CNOT(target_above=False)]),
@@ -79,7 +77,12 @@ def test_transpile_to_layers_cnot_rx_cnot_rx() -> None:
             False,
             [
                 CNOT(target_above=True),
-                SingleQubitPair(SingleQubit(rx=math.pi / 4), SingleQubit()),
+            ],
+        ),
+        Layer(
+            True,
+            [
+                SingleQubitPair(SingleQubit(), SingleQubit(rx=math.pi / 4)),
             ],
         ),
     ]
@@ -140,7 +143,7 @@ def test_transpile_to_layers_four_cnots() -> None:
 
 
 def check_order(pattern: Pattern, order: ConstructionOrder) -> None:
-    width = get_brickwork_state_pattern_width(pattern)
+    width = len(pattern.input_nodes)
     positions = get_node_positions(pattern)
     has_horizontal_bar = set()
     for cmd in pattern:

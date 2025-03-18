@@ -1,59 +1,39 @@
 from __future__ import annotations
 
+import enum
 import json
-import os
 import random
+import socket
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, assert_never
 
 import dask.distributed
-import graphix.command
-from dask_jobqueue import SLURMCluster
+import typer
+from dask_jobqueue import SLURMCluster  # type: ignore[attr-defined]
+from graphix import command
 from graphix.noise_models import NoiseModel
 from graphix.rng import ensure_rng
 from graphix.sim.density_matrix import DensityMatrixBackend
-from graphix.states import BasicStates
-from veriphix.client import Client, Secrets, TrappifiedCanvas
+from veriphix.client import Client, Secrets
+from veriphix.trappifiedCanvas import TrappifiedCanvas, TrapStabilizers
 
 import gospel.brickwork_state_transpiler
-from gospel.scripts.qasm2brickwork_state import read_qasm
+from gospel.scripts.qasm_parser import read_qasm
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from graphix import Pattern
     from graphix.command import BaseM
     from graphix.noise_models.noise_model import (
         CommandOrNoise,
         NoiseCommands,
     )
 
-## Load a circuit with success probability p = 0.7839549798834848
-# BQP error
-# context handler open renvoie f et à la fin ferme le fichier
-# valeur à durer de vie, resource libéré.
 
-with Path("circuits/circuit000.qasm").open() as f:
-    circuit = read_qasm(f)
-
-print(circuit.instruction)
-
-pattern = gospel.brickwork_state_transpiler.transpile(circuit)
-
-print(list(pattern))
-
-
-## Measure output nodes, to have classical output
-classical_output = pattern.output_nodes
-for onode in classical_output:
-    pattern.add(graphix.command.M(node=onode))
-
-states = [BasicStates.PLUS] * len(pattern.input_nodes)
-
-# correct since the pattern is transpiled from a circuit and hence has a causal flow
-pattern.minimize_space()
-
-print(f"Number of nodes in the pattern : {pattern.n_node}")
-
-
-def load_pattern_from_circuit(circuit_label: str):
+def load_pattern_from_circuit(circuit_label: str) -> tuple[Pattern, list[int]]:
     with Path(f"circuits/{circuit_label}").open() as f:
         circuit = read_qasm(f)
         pattern = gospel.brickwork_state_transpiler.transpile(circuit)
@@ -61,7 +41,7 @@ def load_pattern_from_circuit(circuit_label: str):
         ## Measure output nodes, to have classical output
         classical_output = pattern.output_nodes
         for onode in classical_output:
-            pattern.add(graphix.command.M(node=onode))
+            pattern.add(command.M(node=onode))
 
         # states = [BasicStates.PLUS] * len(pattern.input_nodes)
 
@@ -70,12 +50,9 @@ def load_pattern_from_circuit(circuit_label: str):
     return pattern, classical_output
 
 
-pattern, onodes = load_pattern_from_circuit("circuit000.qasm")
-print(onodes)
-
 with Path("circuits/table.json").open() as f:
     table = json.load(f)
-    circuits = [name for name, prob in table.items() if prob < 0.1]
+    circuits = [name for name, prob in table.items() if prob < 0.4]
     print(len(circuits))
 
 """Global noise model."""
@@ -94,16 +71,16 @@ class GlobalNoiseModel(NoiseModel):
 
     def __init__(
         self,
-        nodes: list[int],
+        nodes: Iterable[int],
         prob: float = 0.0,
-        rng: Generator = None,
+        rng: Generator | None = None,
     ) -> None:
         self.prob = prob
-        self.nodes = nodes
+        self.nodes = list(nodes)
         self.node = random.choice(self.nodes)
         self.rng = ensure_rng(rng)
 
-    def refresh_randomness(self):
+    def refresh_randomness(self) -> None:
         self.node = random.choice(self.nodes)
 
     def input_nodes(self, nodes: list[int]) -> NoiseCommands:
@@ -121,92 +98,196 @@ class GlobalNoiseModel(NoiseModel):
         return result
 
 
-threshold, p_err = 0.2, 0.6
-threshold, p_err = 0.1, 0.6
-threshold, p_err = 0.2, 0.6
-threshold, p_err = 0.1, 0.1
-
-# Recording info
-fail_rates = []
-decision_dict = {}
-outcomes_dict = {}
-
-# Fixed parameters
-d = 20  # nr of computation rounds
-t = 10  # nr of test rounds
-N = d + t  # nr of total rounds
-num_instances = 10
-instances = random.sample(circuits, num_instances)
+@dataclass
+class Parameters:
+    d: int
+    t: int
+    N: int
+    num_instances: int
+    threshold: float
+    p_err: float
 
 
-backend = DensityMatrixBackend()
-
-portdash = 10000 + os.getuid()
-cluster = SLURMCluster(
-    account="inria",
-    queue="cpu_devel",
-    cores=1,
-    memory="1GB",
-    walltime="00:01:00",
-    scheduler_options={"dashboard_address": f":{portdash}"},
-)
-cluster.scale(10)
-dask_client = dask.distributed.Client(cluster)
+@dataclass
+class Rounds:
+    parameters: Parameters
+    circuit_name: str
+    client: Client
+    onodes: list[int]
+    test_runs: list[TrapStabilizers]
+    rounds: list[int]
 
 
-def for_each_instance(circuit):
+def get_rounds(parameters: Parameters, circuit_name: str) -> Rounds:
     # Generate a different instance
-    pattern, onodes = load_pattern_from_circuit(circuit)
+    pattern, onodes = load_pattern_from_circuit(circuit_name)
 
     # Instanciate Client and create Test runs
     client = Client(pattern=pattern, secrets=Secrets(a=True, r=True, theta=True))
     colours = gospel.brickwork_state_transpiler.get_bipartite_coloring(pattern)
     test_runs = client.create_test_runs(manual_colouring=colours)
 
-    outcome_sum = 0
-    # Trappified scheme parameters
-
-    rounds = list(range(N))
+    rounds = list(range(parameters.N))
     random.shuffle(rounds)
 
-    n_failed_trap_rounds = 0
-    n_tolerated_failures = threshold * t
+    return Rounds(parameters, circuit_name, client, onodes, test_runs, rounds)
 
-    noise_model = GlobalNoiseModel(prob=p_err, nodes=range(pattern.n_node))
 
-    def for_each_round(i):
-        if i < d:
-            # Computation round
-            client.delegate_pattern(backend=backend, noise_model=noise_model)
-            return ("computation", client.results[onodes[0]])
-        # Test round
-        run = TrappifiedCanvas(random.choice(test_runs))
-        trap_outcomes = client.delegate_test_run(
-            run=run, backend=backend, noise_model=noise_model
+class RoundKind(Enum):
+    Computation = enum.auto()
+    Test = enum.auto()
+
+
+@dataclass
+class RoundResult:
+    kind: RoundKind
+    value: bool
+
+
+RoundResultOrException = RoundResult | Exception
+
+
+@dataclass
+class ComputationResult:
+    hostname: str
+    i: int
+    round_result: RoundResultOrException
+
+
+def for_each_round(
+    args: tuple[Rounds, int],
+) -> ComputationResult:
+    rounds, i = args
+    try:
+        noise_model = GlobalNoiseModel(
+            prob=rounds.parameters.p_err,
+            nodes=range(rounds.client.initial_pattern.n_node),
         )
-        noise_model.refresh_randomness()
+        backend = DensityMatrixBackend()
 
-        # Record trap failure
-        # A trap round fails if one of the single-qubit traps failed
-        return ("test", sum(trap_outcomes) != 0)
+        if i < rounds.parameters.d:
+            # Computation round
+            rounds.client.delegate_pattern(backend=backend, noise_model=noise_model)
+            result: RoundResultOrException = RoundResult(
+                RoundKind.Computation, bool(rounds.client.results[rounds.onodes[0]])
+            )
+        else:
+            # Test round
+            run = TrappifiedCanvas(random.choice(rounds.test_runs))
+            trap_outcomes = rounds.client.delegate_test_run(
+                run=run, backend=backend, noise_model=noise_model
+            )
+            noise_model.refresh_randomness()
 
-    outcome = dask_client.gather(dask_client.map(for_each_round, rounds))
-    outcome_sum = sum(value for kind, value in outcome if kind == "computation")
-    n_failed_trap_rounds = sum(value for kind, value in outcome if kind == "test")
-
-    if n_failed_trap_rounds > n_tolerated_failures:
-        # reject instance
-        # do nothing
-        return None
-    # accept instance
-    # compute majority vote
-    # if outcome_sum == d/2:
-    #    raise ValueError("Ambiguous result")
-    return int(outcome_sum > d / 2)
+            # Record trap failure
+            # A trap round fails if one of the single-qubit traps failed
+            result = RoundResult(RoundKind.Test, bool(sum(trap_outcomes) != 0))
+    except Exception as e:
+        result = e
+    return ComputationResult(socket.gethostname(), i, result)
 
 
-outcome = dask_client.gather(dask_client.map(for_each_instance, instances))
+def for_all_rounds(rounds: Rounds) -> tuple[str, list[ComputationResult]]:
+    return rounds.circuit_name, [for_each_round((rounds, i)) for i in rounds.rounds]
 
-outcomes_dict = dict(zip(instances, outcome))
 
-print(outcomes_dict)
+def run(
+    d: int,
+    t: int,
+    num_instances: int,
+    threshold: float,
+    p_err: float,
+    walltime: int | None = None,
+    memory: int | None = None,
+    cores: int | None = None,
+    port: int | None = None,
+    scale: int | None = None,
+) -> None:
+    if walltime is None and memory is None and cores is None and port is None:
+        cluster = dask.distributed.LocalCluster()  # type: ignore[no-untyped-call]
+    else:
+        if walltime is None:
+            raise ValueError("--walltime <hours> is required for running on cleps")
+        if memory is None:
+            raise ValueError("--memory <GB> is required for running on cleps")
+        if cores is None:
+            raise ValueError("--cores <N> is required for running on cleps")
+        if port is None:
+            raise ValueError("--port <N> is required for running on cleps")
+        if scale is None:
+            raise ValueError("--scale <N> is required for running on cleps")
+        cluster = SLURMCluster(  # type: ignore[assignment]
+            account="inria",
+            queue="cpu_devel",
+            cores=cores,
+            memory=f"{memory}GB",
+            walltime=f"{walltime}:00:00",
+            scheduler_options={"dashboard_address": f":{port}"},
+        )
+    if scale is not None:
+        cluster.scale(scale)  # type: ignore[no-untyped-call]
+
+    parameters = Parameters(
+        d=d, t=t, N=d + t, num_instances=num_instances, threshold=threshold, p_err=p_err
+    )
+
+    # Recording info
+    circuit_names = random.sample(circuits, parameters.num_instances)
+
+    all_rounds = [
+        get_rounds(parameters, circuit_name) for circuit_name in circuit_names
+    ]
+
+    n_failed_trap_rounds = 0
+    # n_tolerated_failures = parameters.threshold * parameters.t
+
+    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
+    outcome_circuits = dict(
+        dask_client.gather(  # type: ignore[no-untyped-call]
+            dask_client.map(
+                for_all_rounds,
+                all_rounds,
+            )
+        )
+    )
+
+    with open(f"w{parameters.threshold}-p{p_err}-raw.json", "w") as file:
+        file.write(str(outcome_circuits))
+
+    outcomes_dict = {}
+
+    for circuit_name, results in outcome_circuits.items():
+        outcome_sum = 0
+        n_failed_trap_rounds = 0
+        for computation_result in results:
+            result = computation_result.round_result
+            if isinstance(result, Exception):
+                print(result)
+            elif result.kind == RoundKind.Computation:
+                outcome_sum += result.value
+            elif result.kind == RoundKind.Test:
+                n_failed_trap_rounds += result.value
+            else:
+                assert_never(result.kind)
+        failure_rate = n_failed_trap_rounds / parameters.t
+        decision = (
+            failure_rate > parameters.threshold
+        )  # True if the instance is accepted, False if rejected
+        if outcome_sum == parameters.d / 2:
+            outcome: str | int = "Ambig."
+        else:
+            outcome = int(outcome_sum > parameters.d / 2)
+        outcomes_dict[circuit_name] = {
+            "outcome_sum": outcome_sum,
+            "n_failed_trap_rounds": n_failed_trap_rounds,
+            "decision": decision,
+            "outcome": outcome,
+            "failure_rate": failure_rate,
+        }
+
+    with open(f"w{parameters.threshold}-p{p_err}.json", "w") as file:
+        json.dump(outcomes_dict, file, indent=4)
+
+
+if __name__ == "__main__":
+    typer.run(run)
