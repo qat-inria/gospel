@@ -93,5 +93,5 @@ plt.legend()
 plt.title("Test round Failure Rate and Wrong Decision Proportion vs p_err")
 plt.grid()
 plt.savefig("output.png")
-plt.show()
+# plt.show()
 
