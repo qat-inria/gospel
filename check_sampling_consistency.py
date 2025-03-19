@@ -110,14 +110,13 @@ def find_correct_value(circuit_name):
         return table[circuit_name], (int(table[circuit_name] > 0.5))
 #######
         
-p_err = 0
 outcomes_dict = {}
 d = 100       # nr of computation rounds
 num_instances = 100
 instances = random.sample(circuits, num_instances)
 
 # Noiseless simulation, only need to define the backend, no noise model
-backend = DensityMatrixBackend()
+backend = StatevectorBackend()
 for circuit in instances:
     # Generate a different instance
     pattern, onodes = load_pattern_from_circuit(circuit)
@@ -126,11 +125,9 @@ for circuit in instances:
     client = Client(pattern=pattern, secrets=Secrets(a=False, r=False, theta=False))
 
     outcomes_sum_all_onodes = {onode:0 for onode in onodes}
-    noise_model = GlobalNoiseModel(prob=p_err, nodes=range(pattern.n_node))
     for i in range(d):
         # print("new round")
-        client.delegate_pattern(backend=backend, noise_model=noise_model)
-        noise_model.refresh_randomness()
+        client.delegate_pattern(backend=backend)
         # Record outcomes of all output nodes
         for onode in onodes:
             outcomes_sum_all_onodes[onode] += client.results[onode]
