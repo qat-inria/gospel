@@ -1,7 +1,7 @@
 #!/bin/bash
 
-rm -rf circuits
-python -m gospel.sampling_circuits.experiments
+# rm -rf circuits
+# python -m gospel.sampling_circuits.experiments
 
 n_instances=100
 bqp_error=0.4
