@@ -312,7 +312,7 @@ def estimate_circuit_by_expectation_value(qc: QuantumCircuit) -> float:
     # Get the statevector for the circuit
     sv = Statevector.from_instruction(qc_copy)
     # Compute the expectation value of the observable
-    exp_val = sv.expectation_value(Pauli("Z"), [0])
+    exp_val = sv.expectation_value(Pauli("X"), [0])
     assert np.imag(exp_val) == 0
     # p(1) = (1 - <Z>)/2
     return (1 - np.real(exp_val)) / 2
