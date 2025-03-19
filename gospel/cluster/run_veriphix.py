@@ -43,7 +43,7 @@ def load_pattern_from_circuit(circuit_label: str) -> tuple[Pattern, list[int]]:
         ## Measure output nodes, to have classical output
         classical_output = pattern.output_nodes
         for onode in classical_output:
-            pattern.add(command.M(node=onode, plane=Plane.YZ))
+            pattern.add(command.M(node=onode))
 
         # states = [BasicStates.PLUS] * len(pattern.input_nodes)
 

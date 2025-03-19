@@ -47,6 +47,7 @@ def load_pattern_from_circuit(circuit_label:str):
     with Path(f"circuits/{circuit_label}").open() as f:
         circuit = read_qasm(f)
         pattern = circuit.transpile().pattern
+        # pattern = gospel.brickwork_state_transpiler.transpile(circuit)
 
         ## Measure output nodes, to have classical output
         classical_output = pattern.output_nodes
@@ -124,7 +125,7 @@ for circuit in instances:
     pattern, onodes = load_pattern_from_circuit(circuit)
 
     # Instanciate Client and create Test runs
-    client = Client(pattern=pattern, secrets=Secrets(a=False, r=False, theta=False))
+    client = Client(pattern=pattern, secrets=Secrets(a=True, r=True, theta=True))
 
     outcomes_sum_all_onodes = {onode:0 for onode in onodes}
     for i in range(d):
