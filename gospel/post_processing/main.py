@@ -3,6 +3,15 @@ import json
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import csv
+import json
+import os
+import pandas as pd
+
+
+folder = "../../outcomes-n7-good"
+threshold_values = sorted([0.05, 0.07, 0.083, 0.1, 0.15, 0.01])
+
 
 bqp_error=0.4
 with Path("../../circuits/table.json").open() as f:
@@ -12,7 +21,6 @@ with Path("../../circuits/table.json").open() as f:
     # prob < $bqp_error$ => No instance
     # print(len(circuits))
 
-bqp_error = 0.4
 def find_correct_value(circuit_name):
     with Path("../../circuits/table.json").open() as f:
         table = json.load(f)
@@ -22,9 +30,7 @@ def find_correct_value(circuit_name):
         return(int(table[circuit_name] > 1-bqp_error))
 
 
-print(find_correct_value("circuit700.qasm"))
 
-folder = "../../outcomes-n7-good"
 files_dict = {}
 for file in os.listdir(folder):
     file_path=os.path.join(folder, file)
@@ -49,65 +55,21 @@ def get_failure_rate(threshold:float):
         proportion_wrong_outcomes_dict[prob] = proportion_wrong_outcomes
     return proportion_wrong_outcomes_dict
 
-get_failure_rate(threshold=0.05)
-
-import json
-import os
-import pandas as pd
-
-failure_rates_dict = {}
-for prob in files_dict:
-    file_path = files_dict[prob]
-    with open(file_path, 'r') as file:
-        json_data = json.load(file)
-
-    # Convert JSON data to DataFrame
-    df = pd.DataFrame.from_dict(json_data, orient='index')
-    df["expected_outcome"] = [find_correct_value(circuit) for circuit in df.index]
-    df[["outcome_sum",  "n_failed_trap_rounds", "failure_rate", "outcome",  "expected_outcome"]]
-    if prob == "0.01":
-        print(df)
-
-    trap_round_failure_rate = df["failure_rate"].mean()
-    failure_rates_dict[prob] = trap_round_failure_rate
-
-
-threshold_values = [0.05, 0.07, 0.083, 0.1, 0.15, 0.01]
-
-
 p_values = sorted(list(files_dict.keys()))
-trap_failure_rates = [failure_rates_dict[prob] for prob in p_values]
 
+filename = "wrong-decisions-prob.csv"
 
-plt.figure(figsize=(8, 6))
-# wrong_outcomes_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
-plt.scatter(x=p_values, y=trap_failure_rates, color="black", marker="x")
-# plt.scatter(x=p_values, y=wrong_outcomes_rates, color="red", marker="o")
-plt.xlabel("p_err")
-plt.ylabel("Rate")
-plt.ylim(0, 0.5)
-plt.legend()
-plt.title("Test round Failure Rate and Wrong Decision Proportion vs p_err")
-plt.grid()
-plt.savefig("output-failure_rates.png")
-plt.show()
+# Open the file for writing
+with open(filename, mode="w", newline="") as file:
+    writer = csv.writer(file)
+    
+    # Write header row
+    writer.writerow(["Threshold"] + p_values)
+    
+    # Compute and write failure rates
+    for t in threshold_values:
+        proportion_wrong_outcomes_dict = get_failure_rate(t)
+        comp_failure_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
+        writer.writerow([t] + comp_failure_rates)
 
-
-plt.figure(figsize=(8, 6))
-# wrong_outcomes_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
-for t in threshold_values:
-    proportion_wrong_outcomes_dict = get_failure_rate(t)
-    comp_failure_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
-    plt.plot(p_values, comp_failure_rates, label=f'w={t}')
-# plt.scatter(x=p_values, y=wrong_outcomes_rates, color="red", marker="o")
-plt.xlabel("p_err")
-plt.ylabel("Rate")
-plt.ylim(0,0.1)
-# plt.ylim(0, 0.5)
-plt.legend()
-plt.title("Test round Failure Rate and Wrong Decision Proportion vs p_err")
-plt.grid()
-plt.savefig("output-wrong-decision.png")
-plt.show()
-
-
+print(f"Data saved to {filename}")
