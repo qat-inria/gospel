@@ -11,7 +11,7 @@ n_comp_run=100
 n_test_run=0
 n_nodes=$n_instances
 
-for p_err in  0.01 0.05 0.1 0.15 0.18 0.22 0.3; do
+for p_err in  0 0.01 0.05 0.1 0.15 0.18 0.22 0.3; do
   PORT=24395
 
   # Print p and assigned port
