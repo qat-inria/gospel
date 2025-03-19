@@ -271,14 +271,16 @@ def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) ->
     This method is deprecated in favor of `estimate_circuit_expectation_value`,
     which is more accurate, deterministic and faster.
     """
+    # Copy the circuit before adding a measure to qubit 0
+    qc = qc.copy()
     qc.measure(0, 0)
-    nb_shots = 2 << 8
+    nb_shots = 2 << 12
     sampler = SamplerV2(seed=seed)
     job = sampler.run([qc], shots=nb_shots)
     job_result = job.result()
     nb_one_outcomes = sum(next(iter(job_result[0].data.values())).bitcount())
-    assert isinstance(nb_one_outcomes, int)
-    return nb_one_outcomes / nb_shots
+    assert nb_one_outcomes.is_integer()
+    return int(nb_one_outcomes) / nb_shots
 
 
 def estimate_circuit_by_expectation_value(qc: QuantumCircuit) -> float:

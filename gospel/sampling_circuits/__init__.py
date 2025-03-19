@@ -1,5 +1,8 @@
 from gospel.sampling_circuits.experiments import get_circuit, ncircuits
 from gospel.sampling_circuits.sampling_circuits import (
+    circuit_to_qiskit,
+    estimate_circuit_by_expectation_value,
+    estimate_circuit_by_sampling,
     estimate_circuits,
     sample_circuit,
     sample_circuits,
@@ -7,6 +10,9 @@ from gospel.sampling_circuits.sampling_circuits import (
 )
 
 __all__ = [
+    "circuit_to_qiskit",
+    "estimate_circuit_by_expectation_value",
+    "estimate_circuit_by_sampling",
     "estimate_circuits",
     "get_circuit",
     "ncircuits",
