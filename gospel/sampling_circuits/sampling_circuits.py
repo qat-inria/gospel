@@ -11,17 +11,11 @@ import qiskit
 import qiskit.qasm2
 import typer
 from graphix import Circuit
-from graphix import command
-from pathlib import Path
-
 from graphix.instruction import Instruction, InstructionKind
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 from qiskit.quantum_info import Pauli, Statevector  # type: ignore[attr-defined]
 from qiskit_aer.primitives import SamplerV2  # type: ignore[attr-defined]
 from tqdm import tqdm
-
-import gospel.brickwork_state_transpiler
-from gospel.scripts.qasm_parser import read_qasm
 
 from gospel.brickwork_state_transpiler import (
     XZ,
@@ -160,6 +154,13 @@ def sample_truncated_circuit(
             truncated_layers = layers[-depth:]
         assert not truncated_layers[0].odd
         circuit = layers_to_circuit(truncated_layers)
+        rotated = set()
+        for instr in circuit.instruction:
+            # Use of `==` here for mypy
+            if instr.kind == InstructionKind.RX or instr.kind == InstructionKind.RZ:  # noqa: PLR1714
+                rotated.add(instr.target)
+        # if rotated != set(range(nqubits)):
+        #    continue
         if len(transpile_to_layers(circuit)) == depth:
             break
     return circuit
@@ -234,7 +235,12 @@ def strip_circuit(circuit: Circuit) -> None:
     circuit.instruction = new_instructions
 
 
-def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
+def add_hadamard_on_inputs(qc: QuantumCircuit) -> None:
+    for qubit in range(qc.num_qubits):
+        qc.h(qubit)
+
+
+def circuit_to_qiskit(c: Circuit, hadamard_on_inputs: bool = False) -> QuantumCircuit:
     """
     Convert a Graphix circuit to a Qiskit QuantumCircuit.
 
@@ -247,7 +253,9 @@ def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
     Raises:
         ValueError: If an instruction type is not supported.
     """
-    qc = QuantumCircuit(QuantumRegister(c.width), ClassicalRegister(1))
+    qc = QuantumCircuit(QuantumRegister(c.width))
+    if hadamard_on_inputs:
+        add_hadamard_on_inputs(qc)
     for instr in c.instruction:
         # Use of `if` instead of `match` here for mypy
         if instr.kind == InstructionKind.CNOT:
@@ -262,6 +270,13 @@ def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
     return qc
 
 
+def copy_qiskit_circuit_with_hamadard_on_inputs(qc: QuantumCircuit) -> QuantumCircuit:
+    qc_copy = QuantumCircuit(QuantumRegister(qc.num_qubits), ClassicalRegister(1))
+    add_hadamard_on_inputs(qc_copy)
+    qc_copy.append(qc.to_instruction(), range(qc.num_qubits))
+    return qc_copy.decompose()
+
+
 def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) -> float:
     """
     Estimate the probability of measuring the '1' outcome on the first qubit.
@@ -270,36 +285,17 @@ def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) ->
     This method is deprecated in favor of `estimate_circuit_expectation_value`,
     which is more accurate, deterministic and faster.
     """
-    # TODO
-    filename = f"circuit_test.qasm"
-    with open(filename, "w") as f:
-        qiskit.qasm2.dump(qc, f)
-    
-    with open("circuit_test.qasm", "r") as f:
-        circuit = read_qasm(f)
-    
-    # pattern = gospel.brickwork_state_transpiler.transpile(circuit=circuit)
-    pattern = circuit.transpile().pattern
-    ## Measure output nodes, to have classical output
-    classical_output = pattern.output_nodes
-    for onode in classical_output:
-        pattern.add(command.M(node=onode))
-    print(classical_output[0])
-    outcome_sum = 0
-    # n_samples = 100
-    # for _ in range(n_samples):
-    #     pattern.simulate_pattern()
-    #     outcome_sum += pattern.results[classical_output[0]]
-    return 0
-
-    nb_shots = 2 << 8
+    # Copy the circuit before adding a measure to qubit 0
+    qc_copy = copy_qiskit_circuit_with_hamadard_on_inputs(qc)
+    qc_copy.h(0)
+    qc_copy.measure(0, 0)
+    nb_shots = 2 << 12
     sampler = SamplerV2(seed=seed)
-    job = sampler.run([qc], shots=nb_shots)
+    job = sampler.run([qc_copy], shots=nb_shots)
     job_result = job.result()
     nb_one_outcomes = sum(next(iter(job_result[0].data.values())).bitcount())
-    # print(type(nb_one_outcomes))
-    # assert isinstance(nb_one_outcomes, int)
-    return nb_one_outcomes / nb_shots
+    assert nb_one_outcomes.is_integer()
+    return int(nb_one_outcomes) / nb_shots
 
 
 def estimate_circuit_by_expectation_value(qc: QuantumCircuit) -> float:
@@ -313,11 +309,11 @@ def estimate_circuit_by_expectation_value(qc: QuantumCircuit) -> float:
     the probability of outcome '1' is computed as:
         p(1) = (1 - <Z>) / 2
     """
+    qc_copy = copy_qiskit_circuit_with_hamadard_on_inputs(qc)
     # Get the statevector for the circuit
-    sv = Statevector.from_instruction(qc)
+    sv = Statevector.from_instruction(qc_copy)
     # Compute the expectation value of the observable
     exp_val = sv.expectation_value(Pauli("X"), [0])
-    # exp_val = sv.expectation_value(Pauli("Z"), [0])
     assert np.imag(exp_val) == 0
     # p(1) = (1 - <Z>)/2
     return (1 - np.real(exp_val)) / 2
@@ -327,8 +323,7 @@ def estimate_circuits(
     circuits: Iterable[QuantumCircuit],
 ) -> list[tuple[QuantumCircuit, float]]:
     return [
-        (circuit, estimate_circuit_by_sampling(circuit))
-        # (circuit, estimate_circuit_by_expectation_value(circuit))
+        (circuit, estimate_circuit_by_expectation_value(circuit))
         for circuit in tqdm(list(circuits))
     ]
 
