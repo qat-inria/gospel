@@ -3,12 +3,14 @@ import math
 import pytest
 from graphix.fundamentals import Plane
 from graphix.measurements import Measurement
+from graphix.sim.density_matrix import DensityMatrixBackend
 from graphix.sim.statevec import Statevec, StatevectorBackend
 from graphix.states import BasicStates
 from numpy.random import PCG64, Generator
 from qiskit.quantum_info import Statevector  # type: ignore[attr-defined]
 
 from gospel.brickwork_state_transpiler import transpile
+from gospel.noise_models import GlobalNoiseModel
 from gospel.sampling_circuits import (
     circuit_to_qiskit,
     estimate_circuit_by_expectation_value,
@@ -84,6 +86,24 @@ def test_estimate_pattern_vs_qiskit(fx_bg: PCG64, jumps: int) -> None:
     p1 = estimate_circuit_by_expectation_value(qc)
     backend = StatevectorBackend()
     pattern.simulate_pattern(backend=backend, input_state=BasicStates.ZERO)
+    p2 = 1 - backend.estimate(pattern.output_nodes[0], Measurement(0, Plane.YZ))
+    assert math.isclose(p1, p2, abs_tol=1e-8)
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
+def test_estimate_pattern_with_noise_vs_qiskit(fx_bg: PCG64, jumps: int) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+    index = rng.integers(ncircuits)
+    circuit = get_circuit(index)
+    qc = circuit_to_qiskit(circuit)
+    pattern = transpile(circuit)
+    p1 = estimate_circuit_by_expectation_value(qc)
+    backend = DensityMatrixBackend()
+    pattern.simulate_pattern(
+        backend=backend,
+        input_state=BasicStates.ZERO,
+        noise_model=GlobalNoiseModel(nodes=pattern.input_nodes, rng=rng),
+    )
     p2 = 1 - backend.estimate(pattern.output_nodes[0], Measurement(0, Plane.YZ))
     assert math.isclose(p1, p2, abs_tol=1e-8)
 
