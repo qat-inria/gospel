@@ -9,7 +9,7 @@ from gospel.sampling_circuits.sampling_circuits import (
 )
 
 ncircuits = 1000
-nqubits = 5
+nqubits = 7
 depth = 10
 p_gate = 0.5
 p_cnot = 0.25
