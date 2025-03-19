@@ -10,7 +10,7 @@ import pandas as pd
 
 
 folder = "../../outcomes-n7-good"
-threshold_values = sorted([0.05, 0.07, 0.083, 0.1, 0.15, 0.01])
+threshold_values = sorted([0.05, 0.07, 0.083, 0.1, 0.15, 0.01, 0.2, 0.3])
 
 
 bqp_error=0.4
@@ -70,6 +70,7 @@ with open(filename, mode="w", newline="") as file:
     for t in threshold_values:
         proportion_wrong_outcomes_dict = get_failure_rate(t)
         comp_failure_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
+        print(comp_failure_rates)
         writer.writerow([t] + comp_failure_rates)
 
 print(f"Data saved to {filename}")
