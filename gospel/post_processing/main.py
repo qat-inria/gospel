@@ -75,14 +75,11 @@ for prob in files_dict:
 threshold_values = [0.05, 0.07, 0.083, 0.1, 0.15, 0.01]
 
 
-plt.figure(figsize=(8, 6))
 p_values = sorted(list(files_dict.keys()))
 trap_failure_rates = [failure_rates_dict[prob] for prob in p_values]
 
-for t in threshold_values:
-    proportion_wrong_outcomes_dict = get_failure_rate(t)
-    comp_failure_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
-    plt.plot(p_values, comp_failure_rates, label=f'w={t}')
+
+plt.figure(figsize=(8, 6))
 # wrong_outcomes_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
 plt.scatter(x=p_values, y=trap_failure_rates, color="black", marker="x")
 # plt.scatter(x=p_values, y=wrong_outcomes_rates, color="red", marker="o")
@@ -92,6 +89,24 @@ plt.ylim(0, 0.5)
 plt.legend()
 plt.title("Test round Failure Rate and Wrong Decision Proportion vs p_err")
 plt.grid()
-plt.savefig("output.png")
-# plt.show()
+plt.savefig("output-failure_rates.png")
+plt.show()
+
+
+plt.figure(figsize=(8, 6))
+# wrong_outcomes_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
+for t in threshold_values:
+    proportion_wrong_outcomes_dict = get_failure_rate(t)
+    comp_failure_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
+    plt.plot(p_values, comp_failure_rates, label=f'w={t}')
+# plt.scatter(x=p_values, y=wrong_outcomes_rates, color="red", marker="o")
+plt.xlabel("p_err")
+plt.ylabel("Rate")
+plt.ylim(0, 0.5)
+plt.legend()
+plt.title("Test round Failure Rate and Wrong Decision Proportion vs p_err")
+plt.grid()
+plt.savefig("output-wrong-decision.png")
+plt.show()
+
 
