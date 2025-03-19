@@ -28,7 +28,11 @@ def find_correct_value(circuit_name):
         # return 0 else (no instance, as circuits are already filtered)
         # print(table[circuit_name])
         return(int(table[circuit_name] > 1-bqp_error))
-
+    
+def find_prob(circuit_name):
+    with Path("../../circuits/table.json").open() as f:
+        table = json.load(f)
+        return(table[circuit_name])
 
 
 files_dict = {}
@@ -48,11 +52,16 @@ def get_failure_rate(threshold:float):
 
         # Convert JSON data to DataFrame
         df = pd.DataFrame.from_dict(json_data, orient='index')
+        df["bqp_error"] = [find_prob(circuit) for circuit in df.index]
         df["expected_outcome"] = [find_correct_value(circuit) for circuit in df.index]
 
         proportion_wrong_outcomes = len(df[(df['outcome'] != "Ambig.") & (df['outcome'] != df["expected_outcome"]) & (df['failure_rate'] < threshold)])/len(df)
         print(prob)
-        print(df[(df['outcome'] != "Ambig.") & (df['outcome'] != df["expected_outcome"]) & (df['failure_rate'] < threshold)])
+        # print("Incorrect decision dataframe")
+        # print(df[(df['outcome'] != "Ambig.") & (df['outcome'] != df["expected_outcome"]) & (df['failure_rate'] < threshold)])
+
+        print("Too fragile instances")
+        print(df[(df['bqp_error'] > 0.3) & (df['bqp_error'] < 0.7)])
             
         proportion_wrong_outcomes_dict[prob] = proportion_wrong_outcomes
     return proportion_wrong_outcomes_dict
