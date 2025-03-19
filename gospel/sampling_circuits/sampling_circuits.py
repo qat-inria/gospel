@@ -159,8 +159,8 @@ def sample_truncated_circuit(
             # Use of `==` here for mypy
             if instr.kind == InstructionKind.RX or instr.kind == InstructionKind.RZ:  # noqa: PLR1714
                 rotated.add(instr.target)
-        if rotated != set(range(nqubits)):
-            continue
+        # if rotated != set(range(nqubits)):
+        #    continue
         if len(transpile_to_layers(circuit)) == depth:
             break
     return circuit

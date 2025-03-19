@@ -12,7 +12,7 @@ from gospel.scripts import read_qasm
 
 def regenerate_table(path: Path) -> None:
     table = {}
-    for circuit_path in Path(path).glob("*.qasm"):
+    for circuit_path in sorted(Path(path).glob("*.qasm")):
         with circuit_path.open() as f:
             circuit = read_qasm(f)
         qc = circuit_to_qiskit(circuit)
