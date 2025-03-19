@@ -120,7 +120,7 @@ def get_rounds(parameters: Parameters, circuit_name: str) -> Rounds:
     pattern, onodes = load_pattern_from_circuit(circuit_name)
 
     # Instanciate Client and create Test runs
-    client = Client(pattern=pattern, secrets=Secrets(a=True, r=True, theta=True), input_state=[BasicStates.ZERO for _ in pattern.input_nodes])
+    client = Client(pattern=pattern, secrets=Secrets(a=True, r=True, theta=True))
     colours = gospel.brickwork_state_transpiler.get_bipartite_coloring(pattern)
     test_runs = client.create_test_runs(manual_colouring=colours)
 
