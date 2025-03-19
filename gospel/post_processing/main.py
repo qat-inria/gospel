@@ -10,7 +10,7 @@ import pandas as pd
 
 
 folder = "../../outcomes-n7-good"
-threshold_values = sorted([0.05, 0.07, 0.083, 0.1, 0.15, 0.01, 0.2, 0.3])
+threshold_values = sorted([1])
 
 
 bqp_error=0.4
@@ -50,7 +50,8 @@ def get_failure_rate(threshold:float):
         df = pd.DataFrame.from_dict(json_data, orient='index')
         df["expected_outcome"] = [find_correct_value(circuit) for circuit in df.index]
 
-        proportion_wrong_outcomes = len(df[(df['outcome'] != df["expected_outcome"]) & (df['failure_rate'] < threshold)])/len(df)
+        proportion_wrong_outcomes = len(df[(df['outcome'] != "Ambig.") & (df['outcome'] != df["expected_outcome"]) & (df['failure_rate'] < threshold)])/len(df)
+        print(df[(df['outcome'] != "Ambig.") & (df['outcome'] != df["expected_outcome"]) & (df['failure_rate'] < threshold)])
             
         proportion_wrong_outcomes_dict[prob] = proportion_wrong_outcomes
     return proportion_wrong_outcomes_dict

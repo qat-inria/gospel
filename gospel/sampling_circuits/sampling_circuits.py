@@ -12,6 +12,7 @@ import qiskit.qasm2
 import typer
 from graphix import Circuit
 from graphix import command
+from pathlib import Path
 
 from graphix.instruction import Instruction, InstructionKind
 from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
@@ -285,11 +286,11 @@ def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) ->
         pattern.add(command.M(node=onode))
     print(classical_output[0])
     outcome_sum = 0
-    n_samples = 100
-    for _ in range(n_samples):
-        pattern.simulate_pattern()
-        outcome_sum += pattern.results[classical_output[0]]
-    return outcome_sum/n_samples
+    # n_samples = 100
+    # for _ in range(n_samples):
+    #     pattern.simulate_pattern()
+    #     outcome_sum += pattern.results[classical_output[0]]
+    return 0
 
     nb_shots = 2 << 8
     sampler = SamplerV2(seed=seed)
