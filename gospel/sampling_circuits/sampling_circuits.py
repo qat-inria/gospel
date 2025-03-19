@@ -249,6 +249,8 @@ def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
         ValueError: If an instruction type is not supported.
     """
     qc = QuantumCircuit(QuantumRegister(c.width), ClassicalRegister(1))
+    for qubit in range(c.width):
+        qc.h(qubit)
     for instr in c.instruction:
         # Use of `if` instead of `match` here for mypy
         if instr.kind == InstructionKind.CNOT:

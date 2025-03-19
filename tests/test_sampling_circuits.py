@@ -5,7 +5,6 @@ from graphix.fundamentals import Plane
 from graphix.measurements import Measurement
 from graphix.sim.density_matrix import DensityMatrixBackend
 from graphix.sim.statevec import Statevec, StatevectorBackend
-from graphix.states import BasicStates
 from numpy.random import PCG64, Generator
 from qiskit.quantum_info import Statevector  # type: ignore[attr-defined]
 
@@ -54,7 +53,7 @@ def test_simulate_circuit_vs_qiskit(fx_bg: PCG64, jumps: int) -> None:
     index = rng.integers(ncircuits)
     circuit = get_circuit(index)
     qc = circuit_to_qiskit(circuit)
-    sv1 = circuit.simulate_statevector(input_state=BasicStates.ZERO).statevec
+    sv1 = circuit.simulate_statevector().statevec
     sv2 = Statevector.from_instruction(qc)
     assert fidelity(
         sv1.psi.transpose(*reversed(range(len(sv1.psi.shape)))).flatten(), sv2.data
@@ -68,7 +67,7 @@ def test_simulate_pattern_vs_qiskit(fx_bg: PCG64, jumps: int) -> None:
     circuit = get_circuit(index)
     qc = circuit_to_qiskit(circuit)
     pattern = transpile(circuit)
-    sv1 = pattern.simulate_pattern(input_state=BasicStates.ZERO)
+    sv1 = pattern.simulate_pattern()
     sv2 = Statevector.from_instruction(qc)
     assert isinstance(sv1, Statevec)
     assert fidelity(
@@ -85,7 +84,7 @@ def test_estimate_pattern_vs_qiskit(fx_bg: PCG64, jumps: int) -> None:
     pattern = transpile(circuit)
     p1 = estimate_circuit_by_expectation_value(qc)
     backend = StatevectorBackend()
-    pattern.simulate_pattern(backend=backend, input_state=BasicStates.ZERO)
+    pattern.simulate_pattern(backend=backend)
     p2 = 1 - backend.estimate(pattern.output_nodes[0], Measurement(0, Plane.YZ))
     assert math.isclose(p1, p2, abs_tol=1e-8)
 
@@ -101,7 +100,6 @@ def test_estimate_pattern_with_noise_vs_qiskit(fx_bg: PCG64, jumps: int) -> None
     backend = DensityMatrixBackend()
     pattern.simulate_pattern(
         backend=backend,
-        input_state=BasicStates.ZERO,
         noise_model=GlobalNoiseModel(nodes=pattern.input_nodes, rng=rng),
     )
     p2 = 1 - backend.estimate(pattern.output_nodes[0], Measurement(0, Plane.YZ))
