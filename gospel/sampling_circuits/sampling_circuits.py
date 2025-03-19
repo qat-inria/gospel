@@ -287,6 +287,7 @@ def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) ->
     """
     # Copy the circuit before adding a measure to qubit 0
     qc_copy = copy_qiskit_circuit_with_hamadard_on_inputs(qc)
+    qc_copy.h(0)
     qc_copy.measure(0, 0)
     nb_shots = 2 << 12
     sampler = SamplerV2(seed=seed)

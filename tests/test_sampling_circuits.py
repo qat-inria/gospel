@@ -85,7 +85,7 @@ def test_estimate_pattern_vs_qiskit(fx_bg: PCG64, jumps: int) -> None:
     p1 = estimate_circuit_by_expectation_value(qc)
     backend = StatevectorBackend()
     pattern.simulate_pattern(backend=backend)
-    p2 = 1 - backend.estimate(pattern.output_nodes[0], Measurement(0, Plane.YZ))
+    p2 = 1 - backend.estimate(pattern.output_nodes[0], Measurement(0, Plane.XY))
     assert math.isclose(p1, p2, abs_tol=1e-8)
 
 
@@ -102,7 +102,7 @@ def test_estimate_pattern_with_noise_vs_qiskit(fx_bg: PCG64, jumps: int) -> None
         backend=backend,
         noise_model=GlobalNoiseModel(nodes=pattern.input_nodes, rng=rng),
     )
-    p2 = 1 - backend.estimate(pattern.output_nodes[0], Measurement(0, Plane.YZ))
+    p2 = 1 - backend.estimate(pattern.output_nodes[0], Measurement(0, Plane.XY))
     assert math.isclose(p1, p2, abs_tol=1e-8)
 
 
