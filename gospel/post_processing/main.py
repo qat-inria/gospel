@@ -51,6 +51,7 @@ def get_failure_rate(threshold:float):
         df["expected_outcome"] = [find_correct_value(circuit) for circuit in df.index]
 
         proportion_wrong_outcomes = len(df[(df['outcome'] != "Ambig.") & (df['outcome'] != df["expected_outcome"]) & (df['failure_rate'] < threshold)])/len(df)
+        print(prob)
         print(df[(df['outcome'] != "Ambig.") & (df['outcome'] != df["expected_outcome"]) & (df['failure_rate'] < threshold)])
             
         proportion_wrong_outcomes_dict[prob] = proportion_wrong_outcomes
