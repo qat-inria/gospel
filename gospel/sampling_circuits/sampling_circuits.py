@@ -277,14 +277,15 @@ def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) ->
     with open("circuit_test.qasm", "r") as f:
         circuit = read_qasm(f)
     
-    pattern = gospel.brickwork_state_transpiler.transpile(circuit=circuit)
+    # pattern = gospel.brickwork_state_transpiler.transpile(circuit=circuit)
+    pattern = circuit.transpile().pattern
     ## Measure output nodes, to have classical output
     classical_output = pattern.output_nodes
     for onode in classical_output:
         pattern.add(command.M(node=onode))
     print(classical_output[0])
     outcome_sum = 0
-    n_samples = 256
+    n_samples = 100
     for _ in range(n_samples):
         pattern.simulate_pattern()
         outcome_sum += pattern.results[classical_output[0]]

@@ -64,7 +64,6 @@ with Path("circuits/table.json").open() as f:
     circuits = [name for name,prob in table.items() if prob < BQP_ERROR or prob > 1-BQP_ERROR]
 
 
-
 class GlobalNoiseModel(NoiseModel):
     """Global noise model.
 
