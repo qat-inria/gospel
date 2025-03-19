@@ -12,7 +12,9 @@ from typing import TYPE_CHECKING, assert_never
 import dask.distributed
 import typer
 from dask_jobqueue import SLURMCluster  # type: ignore[attr-defined]
+from graphix.fundamentals import IXYZ, Plane
 from graphix import command
+from graphix.states import BasicStates
 from graphix.noise_models import NoiseModel
 from graphix.rng import ensure_rng
 from graphix.sim.density_matrix import DensityMatrixBackend
@@ -41,7 +43,7 @@ def load_pattern_from_circuit(circuit_label: str) -> tuple[Pattern, list[int]]:
         ## Measure output nodes, to have classical output
         classical_output = pattern.output_nodes
         for onode in classical_output:
-            pattern.add(command.M(node=onode))
+            pattern.add(command.M(node=onode, plane=Plane.YZ))
 
         # states = [BasicStates.PLUS] * len(pattern.input_nodes)
 
@@ -118,7 +120,7 @@ def get_rounds(parameters: Parameters, circuit_name: str) -> Rounds:
     pattern, onodes = load_pattern_from_circuit(circuit_name)
 
     # Instanciate Client and create Test runs
-    client = Client(pattern=pattern, secrets=Secrets(a=True, r=True, theta=True))
+    client = Client(pattern=pattern, secrets=Secrets(a=True, r=True, theta=True), input_state=[BasicStates.ZERO for _ in pattern.input_nodes])
     colours = gospel.brickwork_state_transpiler.get_bipartite_coloring(pattern)
     test_runs = client.create_test_runs(manual_colouring=colours)
 
@@ -223,24 +225,20 @@ def run(
     if scale is not None:
         cluster.scale(scale)  # type: ignore[no-untyped-call]
 
-    # TODO: put the BQP error $p$ in argument of command
-    # TODO: test this
-    with Path("circuits/table.json").open() as f:
-        table = json.load(f)
-        circuits = [name for name, prob in table.items() if prob < bqp_error or prob > 1-bqp_error]
-        # prob = prob of having 1
-        # prob < $bqp_error$ => No instance
-        print(len(circuits))
+   # Load circuits list from the text file
+    with Path("gospel/cluster/sampled_circuits.txt").open() as f:
+        circuits = json.load(f)
+
+    print(f"Loaded {len(circuits)} circuits.")
 
     parameters = Parameters(
         d=d, t=t, N=d + t, num_instances=num_instances, p_err=p_err
     )
 
     # Recording info
-    circuit_names = random.sample(circuits, parameters.num_instances)
 
     all_rounds = [
-        get_rounds(parameters, circuit_name) for circuit_name in circuit_names
+        get_rounds(parameters, circuit_name) for circuit_name in circuits
     ]
 
     n_failed_trap_rounds = 0
@@ -273,19 +271,9 @@ def run(
                 n_failed_trap_rounds += result.value
             else:
                 assert_never(result.kind)
-        failure_rate = n_failed_trap_rounds / parameters.t
-        
-        if outcome_sum == parameters.d / 2:
-            outcome: str | int = "Ambig."
-        else:
-            outcome = int(outcome_sum > parameters.d / 2)
-        outcomes_dict[circuit_name] = {
-            "outcome_sum": outcome_sum,
-            "n_failed_trap_rounds": n_failed_trap_rounds,
-            # "decision": decision,
-            "outcome": outcome,
-            "failure_rate": failure_rate,
-        }
+
+        outcomes_dict[circuit_name]={"outcome_sum":outcome_sum, 
+                                     "n_failed_trap_rounds": n_failed_trap_rounds}
 
     with open(f"p{p_err}.json", "w") as file:
         json.dump(outcomes_dict, file, indent=4)
