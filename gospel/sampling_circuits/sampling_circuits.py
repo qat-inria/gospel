@@ -235,7 +235,12 @@ def strip_circuit(circuit: Circuit) -> None:
     circuit.instruction = new_instructions
 
 
-def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
+def add_hadamard_on_inputs(qc: QuantumCircuit) -> None:
+    for qubit in range(qc.num_qubits):
+        qc.h(qubit)
+
+
+def circuit_to_qiskit(c: Circuit, hadamard_on_inputs: bool = False) -> QuantumCircuit:
     """
     Convert a Graphix circuit to a Qiskit QuantumCircuit.
 
@@ -248,9 +253,9 @@ def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
     Raises:
         ValueError: If an instruction type is not supported.
     """
-    qc = QuantumCircuit(QuantumRegister(c.width), ClassicalRegister(1))
-    for qubit in range(c.width):
-        qc.h(qubit)
+    qc = QuantumCircuit(QuantumRegister(c.width))
+    if hadamard_on_inputs:
+        add_hadamard_on_inputs(qc)
     for instr in c.instruction:
         # Use of `if` instead of `match` here for mypy
         if instr.kind == InstructionKind.CNOT:
@@ -265,6 +270,13 @@ def circuit_to_qiskit(c: Circuit) -> QuantumCircuit:
     return qc
 
 
+def copy_qiskit_circuit_with_hamadard_on_inputs(qc: QuantumCircuit) -> QuantumCircuit:
+    qc_copy = QuantumCircuit(QuantumRegister(qc.num_qubits), ClassicalRegister(1))
+    add_hadamard_on_inputs(qc_copy)
+    qc_copy.append(qc.to_instruction(), range(qc.num_qubits))
+    return qc_copy.decompose()
+
+
 def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) -> float:
     """
     Estimate the probability of measuring the '1' outcome on the first qubit.
@@ -274,11 +286,11 @@ def estimate_circuit_by_sampling(qc: QuantumCircuit, seed: int | None = None) ->
     which is more accurate, deterministic and faster.
     """
     # Copy the circuit before adding a measure to qubit 0
-    qc = qc.copy()
-    qc.measure(0, 0)
+    qc_copy = copy_qiskit_circuit_with_hamadard_on_inputs(qc)
+    qc_copy.measure(0, 0)
     nb_shots = 2 << 12
     sampler = SamplerV2(seed=seed)
-    job = sampler.run([qc], shots=nb_shots)
+    job = sampler.run([qc_copy], shots=nb_shots)
     job_result = job.result()
     nb_one_outcomes = sum(next(iter(job_result[0].data.values())).bitcount())
     assert nb_one_outcomes.is_integer()
@@ -296,8 +308,9 @@ def estimate_circuit_by_expectation_value(qc: QuantumCircuit) -> float:
     the probability of outcome '1' is computed as:
         p(1) = (1 - <Z>) / 2
     """
+    qc_copy = copy_qiskit_circuit_with_hamadard_on_inputs(qc)
     # Get the statevector for the circuit
-    sv = Statevector.from_instruction(qc)
+    sv = Statevector.from_instruction(qc_copy)
     # Compute the expectation value of the observable
     exp_val = sv.expectation_value(Pauli("Z"), [0])
     assert np.imag(exp_val) == 0

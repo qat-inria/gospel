@@ -41,7 +41,7 @@ def test_estimate_circuit_vs_sampling(fx_bg: PCG64, jumps: int) -> None:
     rng = Generator(fx_bg.jumped(jumps))
     index = rng.integers(ncircuits)
     circuit = get_circuit(index)
-    qc = circuit_to_qiskit(circuit)
+    qc = circuit_to_qiskit(circuit, hadamard_on_inputs=True)
     p1 = estimate_circuit_by_expectation_value(qc)
     p2 = estimate_circuit_by_sampling(qc, seed=rng.integers(2 << 16))
     assert math.isclose(p1, p2, abs_tol=1e-1)
@@ -52,7 +52,7 @@ def test_simulate_circuit_vs_qiskit(fx_bg: PCG64, jumps: int) -> None:
     rng = Generator(fx_bg.jumped(jumps))
     index = rng.integers(ncircuits)
     circuit = get_circuit(index)
-    qc = circuit_to_qiskit(circuit)
+    qc = circuit_to_qiskit(circuit, hadamard_on_inputs=True)
     sv1 = circuit.simulate_statevector().statevec
     sv2 = Statevector.from_instruction(qc)
     assert fidelity(
@@ -65,7 +65,7 @@ def test_simulate_pattern_vs_qiskit(fx_bg: PCG64, jumps: int) -> None:
     rng = Generator(fx_bg.jumped(jumps))
     index = rng.integers(ncircuits)
     circuit = get_circuit(index)
-    qc = circuit_to_qiskit(circuit)
+    qc = circuit_to_qiskit(circuit, hadamard_on_inputs=True)
     pattern = transpile(circuit)
     sv1 = pattern.simulate_pattern()
     sv2 = Statevector.from_instruction(qc)
@@ -111,7 +111,7 @@ def test_estimate_pattern_with_noise_vs_qiskit(fx_bg: PCG64, jumps: int) -> None
 #    rng = Generator(fx_bg.jumped(jumps))
 #    index = rng.integers(ncircuits)
 #    circuit = get_circuit(index)
-#    qiskit_circuit = circuit_to_qiskit(circuit)
+#    qiskit_circuit = circuit_to_qiskit(circuit, hadamard_on_inputs=True)
 #    p1 = estimate_circuit_by_expectation_value(qiskit_circuit)
 #    pattern = transpile(circuit)
 #    output_node = pattern.output_nodes[0]
