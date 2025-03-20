@@ -9,10 +9,10 @@ bqp_error=0.4
 
 
 n_comp_run=20
-n_test_run=0
+n_test_run=20
 n_nodes=$n_instances
 
-for p_err in  0.1 0.2 0.3 0.4 0.5 ; do
+for p_err in 0.05 0.1 0.15 0.2 0.3 0.5 0.7 ; do
   PORT=24395
 
   # Print p and assigned port
