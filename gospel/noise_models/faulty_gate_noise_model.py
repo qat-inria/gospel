@@ -88,7 +88,9 @@ class FaultyCZNoiseModel(NoiseModel):
         # choose the target faulty gate
         # random for now
         # need the list type even for a single edge for the test
-        self.chosen_edges = [*self.rng.choice(list(self.edges), size=5)]
+        self.chosen_edges = [*self.rng.choice(list(self.edges), size=1).tolist()]
+
+        print(f"the chosen hot gates are {self.chosen_edges} {self.edges}")
 
     def input_nodes(self, nodes: list[int]) -> NoiseCommands:
         """Return the noise to apply to input nodes."""
@@ -105,22 +107,23 @@ class FaultyCZNoiseModel(NoiseModel):
                 A(noise=DepolarisingNoise(self.prepare_error_prob), nodes=[cmd.node]),
             ]
         if cmd.kind == CommandKind.E:
+            print(f"test {cmd.nodes in self.chosen_edges} and {cmd.nodes}")
             if (
                 cmd.nodes in self.chosen_edges
                 or reversed(cmd.nodes) in self.chosen_edges
             ):  # need symmetrisation since edges are directed
                 u, v = cmd.nodes
-            return [
-                cmd,
-                A(
-                    noise=DepolarisingNoise(self.entanglement_error_prob),
-                    nodes=[u],
-                ),
-                A(
-                    noise=DepolarisingNoise(self.entanglement_error_prob),
-                    nodes=[v],
-                ),
-            ]
+                return [
+                    cmd,
+                    A(
+                        noise=DepolarisingNoise(self.entanglement_error_prob),
+                        nodes=[u],
+                    ),
+                    A(
+                        noise=DepolarisingNoise(self.entanglement_error_prob),
+                        nodes=[v],
+                    ),
+                ]
             return [cmd]
 
         if cmd.kind == CommandKind.M:
