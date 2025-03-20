@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from numpy.random import Generator
 
 
+# keep if want to swith to two A command to compose in parallel
 @dataclass
 class DepolarisingNoise(Noise):
     """One-qubit depolarising noise with probabibity `prob`."""
@@ -56,17 +57,17 @@ class TwoQubitUncorrelatedDepolarisingNoise(Noise):
         return two_qubit_depolarising_tensor_channel(self.prob)
 
 
-class UncorrelatedDepolarisingNoiseModel(NoiseModel):
-    """Depolarising noise model.
+class FaultyCZNoiseModel(NoiseModel):
+    """Uncorrelated depolarising noise model. with fixed gate.
 
-    Only return the identity channel.
-
+    edges: list of possible edges to draw from
     :param NoiseModel: Parent abstract class class:`graphix.noise_model.NoiseModel`
     :type NoiseModel: class
     """
 
     def __init__(
         self,
+        edges: set[tuple[int, int]],
         prepare_error_prob: float = 0.0,
         x_error_prob: float = 0.0,
         z_error_prob: float = 0.0,
@@ -75,6 +76,7 @@ class UncorrelatedDepolarisingNoiseModel(NoiseModel):
         measure_error_prob: float = 0.0,
         rng: Generator = None,
     ) -> None:
+        self.edges = edges
         self.prepare_error_prob = prepare_error_prob
         self.x_error_prob = x_error_prob
         self.z_error_prob = z_error_prob
@@ -82,6 +84,11 @@ class UncorrelatedDepolarisingNoiseModel(NoiseModel):
         self.measure_error_prob = measure_error_prob
         self.measure_channel_prob = measure_channel_prob
         self.rng = ensure_rng(rng)
+
+        # choose the target faulty gate
+        # random for now
+        # need the list type even for a single edge for the test
+        self.chosen_edges = [*rng.choice(list(self.edges), size=5)]
 
     def input_nodes(self, nodes: list[int]) -> NoiseCommands:
         """Return the noise to apply to input nodes."""
@@ -98,15 +105,21 @@ class UncorrelatedDepolarisingNoiseModel(NoiseModel):
                 A(noise=DepolarisingNoise(self.prepare_error_prob), nodes=[cmd.node]),
             ]
         if cmd.kind == CommandKind.E:
-            return [
-                cmd,
-                A(
-                    noise=TwoQubitUncorrelatedDepolarisingNoise(
-                        self.entanglement_error_prob
+            if (
+                cmd.nodes in self.chosen_edges
+                or reversed(cmd.nodes) in self.chosen_edges
+            ):  # need symmetrisation since edges are directed
+                return [
+                    cmd,
+                    A(
+                        noise=TwoQubitUncorrelatedDepolarisingNoise(
+                            self.entanglement_error_prob
+                        ),
+                        nodes=list(cmd.nodes),
                     ),
-                    nodes=list(cmd.nodes),
-                ),
-            ]
+                ]
+            return [cmd]
+
         if cmd.kind == CommandKind.M:
             return [
                 A(noise=DepolarisingNoise(self.measure_channel_prob), nodes=[cmd.node]),
