@@ -254,13 +254,14 @@ class StimBackend(Backend):
     def apply_noise(self, nodes: list[int], noise: Noise) -> None:
         match noise:
             case DepolarisingNoise(prob=prob):
+                print(f"in stim nodes {nodes} prob {prob}")
                 (q,) = nodes
                 self.sim.depolarize1(q, p=prob)
             case TwoQubitDepolarisingNoise(prob=prob):
                 (q0, q1) = nodes
                 self.sim.depolarize2(q0, q1, p=prob)
             case _:
-                raise ValueError(f"Unsupported noise: {noise}")
+                raise ValueError(f"Unsupported noise: {noise} and {nodes}")
 
     def finalize(self, output_nodes: list[int]) -> None:
         pass
