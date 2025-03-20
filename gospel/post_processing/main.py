@@ -9,7 +9,7 @@ import os
 import pandas as pd
 
 
-folder = "../../outcomes-n5-trapless-20c"
+folder = "../../outcomes-n5-traps-20ct"
 threshold_values = [1]
 d = 20
 
