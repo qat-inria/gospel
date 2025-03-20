@@ -74,7 +74,7 @@ class FaultyCZNoiseModel(NoiseModel):
         entanglement_error_prob: float = 0.0,
         measure_channel_prob: float = 0.0,
         measure_error_prob: float = 0.0,
-        rng: Generator = None,
+        rng: Generator | None = None,
     ) -> None:
         self.edges = edges
         self.prepare_error_prob = prepare_error_prob
@@ -88,7 +88,7 @@ class FaultyCZNoiseModel(NoiseModel):
         # choose the target faulty gate
         # random for now
         # need the list type even for a single edge for the test
-        self.chosen_edges = [*rng.choice(list(self.edges), size=5)]
+        self.chosen_edges = [*self.rng.choice(list(self.edges), size=5)]
 
     def input_nodes(self, nodes: list[int]) -> NoiseCommands:
         """Return the noise to apply to input nodes."""

@@ -73,7 +73,7 @@ class UncorrelatedDepolarisingNoiseModel(NoiseModel):
         entanglement_error_prob: float = 0.0,
         measure_channel_prob: float = 0.0,
         measure_error_prob: float = 0.0,
-        rng: Generator = None,
+        rng: Generator | None = None,
     ) -> None:
         self.prepare_error_prob = prepare_error_prob
         self.x_error_prob = x_error_prob
@@ -98,13 +98,16 @@ class UncorrelatedDepolarisingNoiseModel(NoiseModel):
                 A(noise=DepolarisingNoise(self.prepare_error_prob), nodes=[cmd.node]),
             ]
         if cmd.kind == CommandKind.E:
+            u, v = cmd.nodes
             return [
                 cmd,
                 A(
-                    noise=TwoQubitUncorrelatedDepolarisingNoise(
-                        self.entanglement_error_prob
-                    ),
-                    nodes=list(cmd.nodes),
+                    noise=DepolarisingNoise(self.entanglement_error_prob),
+                    nodes=[u],
+                ),
+                A(
+                    noise=DepolarisingNoise(self.entanglement_error_prob),
+                    nodes=[v],
                 ),
             ]
         if cmd.kind == CommandKind.M:
