@@ -14,6 +14,7 @@ from gospel.brickwork_state_transpiler import (
     SingleQubitPair,
     generate_random_pauli_pattern,
     get_bipartite_coloring,
+    get_hot_traps_of_faulty_gate,
     get_node_positions,
     layers_to_circuit,
     transpile,
@@ -263,3 +264,33 @@ def test_layers_to_circuit(fx_bg: PCG64, jumps: int) -> None:
     sv1 = circuit.simulate_statevector().statevec
     sv2 = circuit2.simulate_statevector().statevec
     assert compare_backend_results(sv1, sv2) == pytest.approx(1)
+
+
+def test_get_hot_traps_of_faulty_gate() -> None:
+    nqubits = 7
+    # Map between a gate and the "kind" of hot traps
+    #
+    # *+*-*-o-o
+    #     |   |
+    # o-o-o-o-o-o-*+*-*
+    #             |   |
+    # o-*+*-*-o-o-o-o-o
+    #     |   |
+    # o-o-*-o-o-o-o-o-o
+    #             |   |
+    # o-o-*-*-o-*+*-*-o
+    #     +   |
+    # o-o-*-*-o-o-o-o-o
+    #             |   |
+    #         o-o-*+*-*
+    faulty_gates = {
+        (0, 7): (0, {0, 7, 14}),
+        (9, 16): (1, {9, 16, 17, 23}),
+        (18, 19): (2, {18, 19, 25, 26}),
+        (43, 50): (3, {43, 50, 57}),
+        (39, 46): (4, {39, 46, 53}),
+        (48, 55): (5, {48, 55, 62}),
+        (1, 8): (None, set()),
+    }
+    for faulty_gate, expected_answer in faulty_gates.items():
+        assert get_hot_traps_of_faulty_gate(nqubits, faulty_gate) == expected_answer

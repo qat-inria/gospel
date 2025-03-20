@@ -417,3 +417,63 @@ def layers_to_circuit(layers: list[Layer]) -> Circuit:
             brick.to_circuit(circuit, nqubit)
             nqubit += 2
     return circuit
+
+
+def get_hot_traps_of_faulty_gate(
+    nqubits: int, edge: tuple[int, int]
+) -> tuple[int | None, set[int]]:
+    """
+    For an edge `(u, v)`, return the "kind" of hot traps and the set of hot traps.
+    This function raises an exception of `edge` does not belong to the brickwork state graph,
+    and returns `(None, [])` if it is not a faulty gate.
+
+    Hot trap kinds are (`+` is the faulty gate, `*` are hot traps):
+    - 0: *+*-*-o-o
+             |   |
+         o-o-o-o-o
+
+    - 1: o-*+*-*-o
+             |   |
+         o-o-*-o-o
+
+    - 2: o-o-*-*-o
+             +   |
+         o-o-*-*-o
+
+    - 3: o-o-*+*-*
+             |   |
+         o-o-o-o-o
+
+    - 4: o-o-o-o-o
+             |   |
+         o-*+*-*-o
+
+    - 5: o-o-o-o-o
+             |   |
+         o-o-*+*-*
+    """
+    u, v = sorted(edge)
+    uy = u % nqubits
+    ux = u // nqubits
+    vy = v % nqubits
+    vx = v // nqubits
+    horizontal = uy == vy
+    u_on_top_of_brick = (ux // 4) % 2 == uy % 2
+    if (horizontal and vx != ux + 1) or (
+        not horizontal
+        and (not u_on_top_of_brick or vy != uy + 1 or ux == 0 or ux % 4 not in {0, 2})
+    ):
+        raise ValueError("Not an edge")
+    if horizontal and ux % 4 == 0 and u_on_top_of_brick:
+        return 0, {u, v, v + nqubits}
+    if horizontal and ux % 4 == 1 and u_on_top_of_brick:
+        return 1, {u, v, v + 1, v + nqubits}
+    if not horizontal and ux % 4 == 2 and u_on_top_of_brick:
+        return 2, {u, v, u + nqubits, v + nqubits}
+    if horizontal and ux % 4 == 2 and u_on_top_of_brick:
+        return 3, {u, v, v + nqubits}
+    if horizontal and ux % 4 == 1 and not u_on_top_of_brick:
+        return 4, {u, v, v + nqubits}
+    if horizontal and ux % 4 == 2 and not u_on_top_of_brick:
+        return 5, {u, v, v + nqubits}
+    return None, set()
