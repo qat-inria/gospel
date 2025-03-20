@@ -16,6 +16,7 @@ from graphix.fundamentals import IXYZ, Plane
 from graphix import command
 from graphix.states import BasicStates
 from graphix.noise_models import DepolarisingNoiseModel, NoiseModel
+from gospel.noise_models.uncorrelated_depolarising_noise_model import UncorrelatedDepolarisingNoiseModel
 from graphix.rng import ensure_rng
 from graphix.sim.density_matrix import DensityMatrixBackend
 from veriphix.client import Client, Secrets
@@ -77,13 +78,13 @@ class GlobalNoiseModel(NoiseModel):
         self.prob = prob
         self.nodes = list(nodes)
         self.n_targets = int(len(self.nodes)*target_rate)
-        self.node = random.choice(self.nodes)
-        self.target_nodes = random.sample(self.nodes, self.n_targets)
+        self.refresh_randomness()
         self.rng = ensure_rng(rng)
 
     def refresh_randomness(self) -> None:
-        self.node = random.choice(self.nodes)
+        # self.node = random.choice(self.nodes)
         self.target_nodes = random.sample(self.nodes, self.n_targets)
+        self.attack = int(self.rng.uniform() < self.prob)
 
     def input_nodes(self, nodes: list[int]) -> NoiseCommands:
         """Return the noise to apply to input nodes."""
@@ -95,8 +96,7 @@ class GlobalNoiseModel(NoiseModel):
 
     def confuse_result(self, cmd: BaseM, result: bool) -> bool:
         """Assign wrong measurement result cmd = "M"."""
-        if cmd.node in self.target_nodes and self.rng.uniform() < self.prob:
-        # if cmd.node == self.node and self.rng.uniform() < self.prob:
+        if cmd.node in self.target_nodes and self.attack:
             return not result
         return result
 
@@ -161,14 +161,21 @@ def for_each_round(
 ) -> ComputationResult:
     rounds, i = args
     try:
-        global_noise_model = GlobalNoiseModel(
+        # strong_global_noise_model = GlobalNoiseModel(
+        #     prob=rounds.parameters.p_err,
+        #     nodes=range(rounds.client.initial_pattern.n_node),
+        #     target_rate=0.02
+        # )
+        gentle_global_noise_model = GlobalNoiseModel(
             prob=rounds.parameters.p_err,
             nodes=range(rounds.client.initial_pattern.n_node),
+            target_rate=1/rounds.client.initial_pattern.n_node
         )
-        global_noise_model.refresh_randomness()
-        depolarizing_noise_model = DepolarisingNoiseModel(entanglement_error_prob=rounds.parameters.p_err)
 
-        noise_model = global_noise_model
+        # depolarizing_noise_model = DepolarisingNoiseModel(entanglement_error_prob=rounds.parameters.p_err)
+        # uncorrelated_depolarizing_noise_model = UncorrelatedDepolarisingNoiseModel(entanglement_error_prob=rounds.parameters.p_err)
+
+        noise_model = gentle_global_noise_model
 
         backend = DensityMatrixBackend()
 
