@@ -109,15 +109,18 @@ class FaultyCZNoiseModel(NoiseModel):
                 cmd.nodes in self.chosen_edges
                 or reversed(cmd.nodes) in self.chosen_edges
             ):  # need symmetrisation since edges are directed
-                return [
-                    cmd,
-                    A(
-                        noise=TwoQubitUncorrelatedDepolarisingNoise(
-                            self.entanglement_error_prob
-                        ),
-                        nodes=list(cmd.nodes),
-                    ),
-                ]
+                u, v = cmd.nodes
+            return [
+                cmd,
+                A(
+                    noise=DepolarisingNoise(self.entanglement_error_prob),
+                    nodes=[u],
+                ),
+                A(
+                    noise=DepolarisingNoise(self.entanglement_error_prob),
+                    nodes=[v],
+                ),
+            ]
             return [cmd]
 
         if cmd.kind == CommandKind.M:
