@@ -9,9 +9,8 @@ import os
 import pandas as pd
 
 
-folder = "../../outcomes-n7-good"
-threshold_values = sorted([1])
-
+folder = "../../outcomes-n5-trapless"
+threshold_values = [1]
 
 bqp_error=0.4
 with Path("../../circuits/table.json").open() as f:
@@ -54,11 +53,12 @@ def get_failure_rate(threshold:float):
         df = pd.DataFrame.from_dict(json_data, orient='index')
         df["bqp_error"] = [find_prob(circuit) for circuit in df.index]
         df["expected_outcome"] = [find_correct_value(circuit) for circuit in df.index]
+        df["outcome"] = df["outcome_sum"].apply(lambda s : int(s>50))
 
-        proportion_wrong_outcomes = len(df[(df['outcome'] != "Ambig.") & (df['outcome'] != df["expected_outcome"]) & (df['failure_rate'] < threshold)])/len(df)
+        proportion_wrong_outcomes = len(df[df['outcome'] != df["expected_outcome"]])/len(df)
         print(prob)
         print("Incorrect decision dataframe")
-        print(df[(df['outcome'] != "Ambig.") & (df['outcome'] != df["expected_outcome"]) & (df['failure_rate'] < threshold)])
+        print(df[df['outcome'] != df["expected_outcome"]])
 
         # print("Too fragile instances")
         # print(df[(df['bqp_error'] > 0.3) & (df['bqp_error'] < 0.7)])
