@@ -1,18 +1,18 @@
 #!/bin/bash
 
-rm -rf circuits
-python -m gospel.sampling_circuits.experiments
+# rm -rf circuits
+# python -m gospel.sampling_circuits.experiments
 
 n_instances=100
 bqp_error=0.4
-python -m gospel.cluster.generate_circuit_sample $n_instances $bqp_error
+# python -m gospel.cluster.generate_circuit_sample $n_instances $bqp_error
 
 
 n_comp_run=100
 n_test_run=100
 n_nodes=$n_instances
 
-for p_err in 0.05 0.1 0.15 0.2 0.3 0.5 0.7 ; do
+for p_err in 0.01 0.05 0.1 0.15 0.18 0.2 0.3 0.5 0.7 ; do
   PORT=24395
 
   # Print p and assigned port

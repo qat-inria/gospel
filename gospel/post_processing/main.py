@@ -42,10 +42,10 @@ for file in os.listdir(folder):
         prob = file.split(".json")[0].split("p")[1]
         files_dict[prob] = file_path
     
-
-def get_failure_rate(threshold:float):
+p_values = sorted(list(files_dict.keys()))
+def get_failure_rate(threshold:float=1):
     proportion_wrong_outcomes_dict = {}
-    for prob in files_dict:
+    for prob in p_values:
         file_path = files_dict[prob]
         with open(file_path, 'r') as file:
             json_data = json.load(file)
@@ -57,9 +57,11 @@ def get_failure_rate(threshold:float):
         df["outcome"] = df["outcome_sum"].apply(lambda s : int(s>d/2))
 
         proportion_wrong_outcomes = len(df[df['outcome'] != df["expected_outcome"]])/len(df)
-        print(prob)
-        print("Incorrect decision dataframe")
-        print(df[df['outcome'] != df["expected_outcome"]])
+        print(f"p={prob} => {proportion_wrong_outcomes}/100 wrong decisions")
+        if proportion_wrong_outcomes != 0:
+            print("Incorrect decision dataframe")
+            print(df[df['outcome'] != df["expected_outcome"]])
+            print("#######")
 
         df.to_csv(f"summary-p{prob}.csv")
         # print("Too fragile instances")
@@ -68,22 +70,27 @@ def get_failure_rate(threshold:float):
         proportion_wrong_outcomes_dict[prob] = proportion_wrong_outcomes
     return proportion_wrong_outcomes_dict
 
-p_values = sorted(list(files_dict.keys()))
+proportion_wrong_outcomes_dict = get_failure_rate()
+plt.figure()
+plt.xlabel("Prob. values")
+plt.ylabel("Proportion of wrongly decided instances")
+plt.plot(p_values, [proportion_wrong_outcomes_dict[prob] for prob in p_values])
+plt.show()
 
-filename = "wrong-decisions-prob.csv"
+# filename = "wrong-decisions-prob.csv"
 
-# Open the file for writing
-with open(filename, mode="w", newline="") as file:
-    writer = csv.writer(file)
+# # Open the file for writing
+# with open(filename, mode="w", newline="") as file:
+#     writer = csv.writer(file)
     
-    # Write header row
-    writer.writerow(["Threshold"] + p_values)
+#     # Write header row
+#     writer.writerow(["Threshold"] + p_values)
     
-    # Compute and write failure rates
-    for t in threshold_values:
-        proportion_wrong_outcomes_dict = get_failure_rate(t)
-        comp_failure_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
-        print(comp_failure_rates)
-        writer.writerow([t] + comp_failure_rates)
+#     # Compute and write failure rates
+#     for t in threshold_values:
+#         proportion_wrong_outcomes_dict = get_failure_rate(t)
+#         comp_failure_rates = [proportion_wrong_outcomes_dict[prob] for prob in p_values]
+#         print(comp_failure_rates)
+#         writer.writerow([t] + comp_failure_rates)
 
-print(f"Data saved to {filename}")
+# print(f"Data saved to {filename}")

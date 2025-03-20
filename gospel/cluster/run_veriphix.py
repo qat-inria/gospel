@@ -15,7 +15,7 @@ from dask_jobqueue import SLURMCluster  # type: ignore[attr-defined]
 from graphix.fundamentals import IXYZ, Plane
 from graphix import command
 from graphix.states import BasicStates
-from graphix.noise_models import NoiseModel
+from graphix.noise_models import DepolarisingNoiseModel, NoiseModel
 from graphix.rng import ensure_rng
 from graphix.sim.density_matrix import DensityMatrixBackend
 from veriphix.client import Client, Secrets
@@ -156,12 +156,16 @@ def for_each_round(
 ) -> ComputationResult:
     rounds, i = args
     try:
-        noise_model = GlobalNoiseModel(
+        global_noise_model = GlobalNoiseModel(
             prob=rounds.parameters.p_err,
             nodes=range(rounds.client.initial_pattern.n_node),
         )
+        global_noise_model.refresh_randomness()
+        depolarizing_noise_model = DepolarisingNoiseModel(entanglement_error_prob=rounds.parameters.p_err)
+
+        noise_model = depolarizing_noise_model
+
         backend = DensityMatrixBackend()
-        noise_model.refresh_randomness()
 
         if i < rounds.parameters.d:
             # Computation round
