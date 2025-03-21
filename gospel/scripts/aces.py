@@ -352,7 +352,7 @@ def generate_qubit_edge_matrix_with_unknowns_dev(Noqubits, Nolayers):
                                 #matrix_dev[q_idx_dev, e_idx_dev] = edge_symbols_dev[e_idx_dev]
                                 matrix_dev[q_idx_dev, e_idx_dev] = 1
     # Return matrix with symbolic edge variables
-    return matrix_dev, qubits_dev, edges_dev, edge_symbols_dev    
+    return matrix_dev, qubits_dev, edges_dev   
 
 
 if __name__ == "__main__":
