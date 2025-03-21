@@ -2,20 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import typing_extensions
-from graphix.channels import (
-    KrausChannel,
-    depolarising_channel,
-    two_qubit_depolarising_tensor_channel,
-)
 from graphix.command import BaseM, CommandKind
+from graphix.noise_models.depolarising_noise_model import DepolarisingNoise
 from graphix.noise_models.noise_model import (
     A,
     CommandOrNoise,
-    Noise,
     NoiseCommands,
     NoiseModel,
 )
@@ -23,37 +17,6 @@ from graphix.rng import ensure_rng
 
 if TYPE_CHECKING:
     from numpy.random import Generator
-
-
-@dataclass
-class DepolarisingNoise(Noise):
-    """One-qubit depolarising noise with probabibity `prob`."""
-
-    prob: float
-
-    def nqubits(self) -> int:
-        """Return the number of qubits targetted by the noise element."""
-        return 1
-
-    def to_kraus_channel(self) -> KrausChannel:
-        """Return the Kraus channel describing the noise element."""
-        return depolarising_channel(self.prob)
-
-
-@dataclass
-class TwoQubitUncorrelatedDepolarisingNoise(Noise):
-    """Two-qubits uncorrelated depolarising noise with probabibity `prob` i.e. tensor
-    of two single-qubit depolarising channels with same probability"""
-
-    prob: float
-
-    def nqubits(self) -> int:
-        """Return the number of qubits targetted by the noise element."""
-        return 2
-
-    def to_kraus_channel(self) -> KrausChannel:
-        """Return the Kraus channel describing the noise element."""
-        return two_qubit_depolarising_tensor_channel(self.prob)
 
 
 class UncorrelatedDepolarisingNoiseModel(NoiseModel):

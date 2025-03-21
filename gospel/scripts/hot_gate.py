@@ -2,6 +2,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from graphix import command
 from graphix.pattern import Pattern
 from tqdm import tqdm
 from veriphix.client import Client, Secrets
@@ -27,7 +28,6 @@ def perform_simulation(
     # NOTE data validation? nqubits, nlayers larger than 0, p between 0 and 1,n shots int >0
 
     # for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant):
-    # rng = Generator(fx_bg.jumped(jumps))  # Use the jumped rng
 
     # dummy computation
     # only canonical ordering
@@ -40,23 +40,28 @@ def perform_simulation(
     colours = get_bipartite_coloring(pattern)
     test_runs = client.create_test_runs(manual_colouring=colours)
 
-    # Define backend and noise model
-    backend = StimBackend()
-
+    # Define noise model
     # don't reinitialise it since has its own randomness
+
+    # noise_model = UncorrelatedDepolarisingNoiseModel(entanglement_error_prob=depol_prob)
+
     noise_model = FaultyCZNoiseModel(
         entanglement_error_prob=depol_prob, edges=set(pattern.get_graph()[1])
     )
+    # noise_model = DepolarisingNoiseModel(entanglement_error_prob = 0.001)
 
     results_table = []
     n_failures = 0
 
     for i in tqdm(range(shots)):
+        # reinitialise the backend!
+        backend = StimBackend()
         # generate trappiefied canvas (input state is refreshed)
+
         run = TrappifiedCanvas(test_runs[rng.integers(len(test_runs))], rng=rng)
 
         # Delegate the test run to the client
-        trap_outcomes = client.delegate_test_run(
+        trap_outcomes = client.delegate_test_run(  # no noise model, things go wrong
             backend=backend, run=run, noise_model=noise_model
         )
 
@@ -80,7 +85,7 @@ def perform_simulation(
         flush=True,
     )
     print("-" * 50, flush=True)
-    return results_table  # duration
+    return results_table
 
 
 def compute_failure_probabilities(
@@ -119,15 +124,19 @@ if __name__ == "__main__":
     pattern = generate_random_pauli_pattern(
         nqubits=nqubits, nlayers=nlayers, order=ConstructionOrder.Canonical, rng=rng
     )
+    # Add measurement commands to the output nodes
+    for onode in pattern.output_nodes:
+        pattern.add(command.M(node=onode))
 
     print("starting simulation...")
     start = time.time()
-    results_table = perform_simulation(pattern, depol_prob=0.15, shots=int(1e1))
+    results_table = perform_simulation(pattern, depol_prob=0.5, shots=int(5e2))
 
-    print(f"simulation finished in {time.time() - start} seconds.")
+    print(f"simulation finished in {time.time() - start:.4f} seconds.")
 
     print("Computing failure probabilities...")
     failure_probas = compute_failure_probabilities(results_table)
+    print(f" final failure probas {failure_probas}")
 
     print("Plotting the heatmap")
 

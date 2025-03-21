@@ -2,20 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import typing_extensions
-from graphix.channels import (
-    KrausChannel,
-    depolarising_channel,
-    two_qubit_depolarising_tensor_channel,
-)
 from graphix.command import BaseM, CommandKind
 from graphix.noise_models.noise_model import (
     A,
     CommandOrNoise,
-    Noise,
     NoiseCommands,
     NoiseModel,
 )
@@ -25,36 +18,7 @@ if TYPE_CHECKING:
     from numpy.random import Generator
 
 
-# keep if want to swith to two A command to compose in parallel
-@dataclass
-class DepolarisingNoise(Noise):
-    """One-qubit depolarising noise with probabibity `prob`."""
-
-    prob: float
-
-    def nqubits(self) -> int:
-        """Return the number of qubits targetted by the noise element."""
-        return 1
-
-    def to_kraus_channel(self) -> KrausChannel:
-        """Return the Kraus channel describing the noise element."""
-        return depolarising_channel(self.prob)
-
-
-@dataclass
-class TwoQubitUncorrelatedDepolarisingNoise(Noise):
-    """Two-qubits uncorrelated depolarising noise with probabibity `prob` i.e. tensor
-    of two single-qubit depolarising channels with same probability"""
-
-    prob: float
-
-    def nqubits(self) -> int:
-        """Return the number of qubits targetted by the noise element."""
-        return 2
-
-    def to_kraus_channel(self) -> KrausChannel:
-        """Return the Kraus channel describing the noise element."""
-        return two_qubit_depolarising_tensor_channel(self.prob)
+from graphix.noise_models.depolarising_noise_model import DepolarisingNoise
 
 
 class FaultyCZNoiseModel(NoiseModel):
@@ -88,9 +52,10 @@ class FaultyCZNoiseModel(NoiseModel):
         # choose the target faulty gate
         # random for now
         # need the list type even for a single edge for the test
-        self.chosen_edges = [*self.rng.choice(list(self.edges), size=1).tolist()]
+        # self.chosen_edges = [*self.rng.choice(list(self.edges), size=1).tolist()]
 
-        print(f"the chosen hot gates are {self.chosen_edges} {self.edges}")
+        # specific to 7 qubits and brick depth 2 instance
+        self.chosen_edges = [(0, 7), (9, 16), (18, 19), (43, 50), (39, 46), (48, 55)]
 
     def input_nodes(self, nodes: list[int]) -> NoiseCommands:
         """Return the noise to apply to input nodes."""
@@ -107,10 +72,8 @@ class FaultyCZNoiseModel(NoiseModel):
                 A(noise=DepolarisingNoise(self.prepare_error_prob), nodes=[cmd.node]),
             ]
         if cmd.kind == CommandKind.E:
-            print(f"test {cmd.nodes in self.chosen_edges} and {cmd.nodes}")
             if (
-                cmd.nodes in self.chosen_edges
-                or reversed(cmd.nodes) in self.chosen_edges
+                cmd.nodes in self.chosen_edges or cmd.nodes[::-1] in self.chosen_edges
             ):  # need symmetrisation since edges are directed
                 u, v = cmd.nodes
                 return [

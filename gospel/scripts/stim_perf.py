@@ -20,13 +20,13 @@ def perform_random_depolarising_simulation(
     pattern = generate_random_pauli_pattern(nqubits=nqubits, nlayers=nlayers)
     # print(f"nodes {pattern.get_graph()[0]}")
     # all qubits are already measured
-    sim = stim.TableauSimulator()
 
     # MODIFY THE NOISE MODEL HERE
     noise_model = DepolarisingNoiseModel(entanglement_error_prob=depol_prob)
 
     start = time.time()
     for _ in range(shots):
+        sim = stim.TableauSimulator()
         # print(simulate_pauli(sim, pattern, noise_model))
         simulate_pauli(sim, pattern, noise_model)
     duration = time.time() - start
@@ -96,7 +96,7 @@ def plot_data(
     plt.xticks(
         ticks=range(1, max_depth + 1), labels=[str(i) for i in range(1, max_depth + 1)]
     )
-    # plt.show()
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -106,7 +106,7 @@ if __name__ == "__main__":
 
     print(generate_benchmark_data(nqubits=2, max_depth=4, depol_prob=0, shots=100))
 
-    plot_data(nqubits=2, max_depth=4, depol_prob=0.75, shots=int(1e3))
+    plot_data(nqubits=8, max_depth=10, depol_prob=0.75, shots=int(1e4))
 
     # res = perform_random_depolarising_simulation(nqubits=2, nlayers=2)
     # print(res)

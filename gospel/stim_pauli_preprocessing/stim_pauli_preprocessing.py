@@ -254,7 +254,6 @@ class StimBackend(Backend):
     def apply_noise(self, nodes: list[int], noise: Noise) -> None:
         match noise:
             case DepolarisingNoise(prob=prob):
-                print(f"in stim nodes {nodes} prob {prob}")
                 (q,) = nodes
                 self.sim.depolarize1(q, p=prob)
             case TwoQubitDepolarisingNoise(prob=prob):
