@@ -166,16 +166,16 @@ def for_each_round(
         #     nodes=range(rounds.client.initial_pattern.n_node),
         #     target_rate=0.02
         # )
-        gentle_global_noise_model = GlobalNoiseModel(
-            prob=rounds.parameters.p_err,
-            nodes=range(rounds.client.initial_pattern.n_node),
-            target_rate=1/rounds.client.initial_pattern.n_node
-        )
+        # gentle_global_noise_model = GlobalNoiseModel(
+        #     prob=rounds.parameters.p_err,
+        #     nodes=range(rounds.client.initial_pattern.n_node),
+        #     target_rate=1/rounds.client.initial_pattern.n_node
+        # )
 
         # depolarizing_noise_model = DepolarisingNoiseModel(entanglement_error_prob=rounds.parameters.p_err)
-        # uncorrelated_depolarizing_noise_model = UncorrelatedDepolarisingNoiseModel(entanglement_error_prob=rounds.parameters.p_err)
+        uncorrelated_depolarizing_noise_model = UncorrelatedDepolarisingNoiseModel(entanglement_error_prob=rounds.parameters.p_err)
 
-        noise_model = gentle_global_noise_model
+        noise_model = uncorrelated_depolarizing_noise_model
 
         backend = DensityMatrixBackend()
 
@@ -269,7 +269,7 @@ def run(
         )
     )
 
-    with open(f"p{p_err}-raw.json", "w") as file:
+    with open(f"UNCOR_DEPOL-p{p_err}-raw.json", "w") as file:
         file.write(str(outcome_circuits))
 
     outcomes_dict = {}
@@ -291,7 +291,7 @@ def run(
         outcomes_dict[circuit_name]={"outcome_sum":outcome_sum, 
                                      "n_failed_trap_rounds": n_failed_trap_rounds}
 
-    with open(f"p{p_err}.json", "w") as file:
+    with open(f"UNCOR_DEPOL-p{p_err}.json", "w") as file:
         json.dump(outcomes_dict, file, indent=4)
 
 
