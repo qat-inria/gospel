@@ -75,7 +75,7 @@ def perform_simulation(
         # Print pass/fail based on the sum of the trap outcomes
         if sum(trap_outcomes) != 0:
             n_failures += 1
-            # print(f"Iteration {i}: ❌ Failed trap round", flush=True)
+            # print(f"Iteration {i}: ❌ Trap round failed", flush=True)
         else:
             pass
             # print(f"Iteration {i}: ✅ Trap round passed", flush=True)
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     # initialising pattern
     rng = np.random.default_rng(12345)
-    order = ConstructionOrder.Canonical  # ConstructionOrder.Deviant
+    order = ConstructionOrder.Deviant  # ConstructionOrder.Deviant
     pattern = generate_random_pauli_pattern(
         nqubits=nqubits, nlayers=nlayers, order=order, rng=rng
     )
@@ -130,15 +130,15 @@ if __name__ == "__main__":
     for onode in pattern.output_nodes:
         pattern.add(command.M(node=onode))
 
-    print("starting simulation...")
+    print("Starting simulation...")
     start = time.time()
-    results_table = perform_simulation(pattern, depol_prob=0.5, shots=int(5e2))
+    results_table = perform_simulation(pattern, depol_prob=0.5, shots=int(1e3))
 
-    print(f"simulation finished in {time.time() - start:.4f} seconds.")
+    print(f"Simulation finished in {time.time() - start:.4f} seconds.")
 
     print("Computing failure probabilities...")
     failure_probas = compute_failure_probabilities(results_table)
-    print(f" final failure probas {failure_probas}")
+    # print(f" final failure probas {failure_probas}")
 
     print("Plotting the heatmap...")
 
