@@ -1,475 +1,441 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "ac4aec7e-aabc-4ba4-809e-f3d0002399fb",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import time\n",
-    "import sympy as sp\n",
-    "import seaborn as sns\n",
-    "from graphix import command\n",
-    "from numpy.random import PCG64, Generator\n",
-    "from tqdm import tqdm\n",
-    "from veriphix.client import Client, Secrets\n",
-    "from veriphix.trappifiedCanvas import TrappifiedCanvas\n",
-    "\n",
-    "from gospel.brickwork_state_transpiler import (\n",
-    "    ConstructionOrder,\n",
-    "    generate_random_pauli_pattern,\n",
-    "    get_bipartite_coloring,\n",
-    ")\n",
-    "from gospel.noise_models.uncorrelated_depolarising_noise_model import (\n",
-    "    UncorrelatedDepolarisingNoiseModel,\n",
-    ")\n",
-    "from gospel.stim_pauli_preprocessing import (\n",
-    "    StimBackend,\n",
-    ")\n",
-    "\n",
-    "\n",
-    "def perform_simulation(\n",
-    "    nqubits: int, nlayers: int, depol_prob: float = 0.0, shots: int = 1\n",
-    ") -> tuple[list[dict[int, int]], list[dict[int, int]]]:\n",
-    "    # Initialization\n",
-    "    fx_bg = PCG64(42)\n",
-    "    jumps = 5\n",
-    "    # Number of test iterations\n",
-    "\n",
-    "    # Define separate outcome tables for Canonical and Deviant\n",
-    "    test_outcome_table_canonical: list[dict[int, int]] = []\n",
-    "    test_outcome_table_deviant: list[dict[int, int]] = []\n",
-    "\n",
-    "    # Loop over Construction Orders\n",
-    "    for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant):\n",
-    "        rng = Generator(fx_bg.jumped(jumps))  # Use the jumped rng\n",
-    "\n",
-    "        # TODO not really needed\n",
-    "        # just two patterns are enough...\n",
-    "        pattern = generate_random_pauli_pattern(\n",
-    "            nqubits=nqubits, nlayers=nlayers, order=order, rng=rng\n",
-    "        )\n",
-    "\n",
-    "        # Add measurement commands to the output nodes\n",
-    "        for onode in pattern.output_nodes:\n",
-    "            pattern.add(command.M(node=onode))\n",
-    "\n",
-    "        secrets = Secrets(r=False, a=False, theta=False)\n",
-    "        client = Client(pattern=pattern, secrets=secrets)\n",
-    "\n",
-    "        # Get bipartite coloring and create test runs\n",
-    "        colours = get_bipartite_coloring(pattern)\n",
-    "        test_runs = client.create_test_runs(manual_colouring=colours)\n",
-    "\n",
-    "        # Define noise model\n",
-    "        noise_model = UncorrelatedDepolarisingNoiseModel(\n",
-    "            entanglement_error_prob=depol_prob\n",
-    "        )\n",
-    "\n",
-    "        n_failures = 0\n",
-    "\n",
-    "        # Choose the correct outcome table based on order\n",
-    "        if order == ConstructionOrder.Canonical:\n",
-    "            test_outcome_table = test_outcome_table_canonical\n",
-    "        else:\n",
-    "            test_outcome_table = test_outcome_table_deviant\n",
-    "\n",
-    "        for i in tqdm(range(shots)):  # noqa: B007\n",
-    "            # reinitialise the backend!\n",
-    "            backend = StimBackend()\n",
-    "            # generate trappiefied canvas (input state is refreshed)\n",
-    "\n",
-    "            run = TrappifiedCanvas(test_runs[rng.integers(len(test_runs))], rng=rng)\n",
-    "\n",
-    "            # Delegate the test run to the client\n",
-    "            trap_outcomes = client.delegate_test_run(  # no noise model, things go wrong\n",
-    "                backend=backend, run=run, noise_model=noise_model\n",
-    "            )\n",
-    "\n",
-    "            # Create a result dictionary (trap -> outcome)\n",
-    "            result = {\n",
-    "                tuple(trap): outcome\n",
-    "                for trap, outcome in zip(run.traps_list, trap_outcomes)\n",
-    "            }\n",
-    "\n",
-    "            test_outcome_table.append(result)\n",
-    "\n",
-    "            # Print pass/fail based on the sum of the trap outcomes\n",
-    "            if sum(trap_outcomes) != 0:\n",
-    "                n_failures += 1\n",
-    "                # print(f\"Iteration {i}: ❌ Trap round failed\", flush=True)\n",
-    "            else:\n",
-    "                pass\n",
-    "                # print(f\"Iteration {i}: ✅ Trap round passed\", flush=True)\n",
-    "\n",
-    "        # Final report after completing the test rounds\n",
-    "        print(\n",
-    "            f\"Final result: {n_failures}/{shots} failed rounds\",\n",
-    "            flush=True,\n",
-    "        )\n",
-    "        print(\"-\" * 50, flush=True)\n",
-    "    return test_outcome_table_canonical, test_outcome_table_deviant\n",
-    "\n",
-    "\n",
-    "def compute_failure_probabilities(\n",
-    "    results_table: list[dict[int, int]],\n",
-    ") -> dict[int, float]:\n",
-    "    occurences = {}\n",
-    "    occurences_one = {}\n",
-    "\n",
-    "    for results in results_table:\n",
-    "        for q, r in results.items():\n",
-    "            if q not in occurences:\n",
-    "                occurences[q] = 1\n",
-    "                occurences_one[q] = r\n",
-    "            else:\n",
-    "                occurences[q] += 1\n",
-    "                if r == 1:\n",
-    "                    occurences_one[q] += 1\n",
-    "\n",
-    "    return {q: occurences_one[q] / occurences[q] for q in occurences}\n",
-    "\n",
-    "def compute_failure_probabilities_can(\n",
-    "    failure_proba_can_result: list[dict[int, float]],\n",
-    ") -> list[float]:\n",
-    "    failure_proba_can_array = [v for k, v in sorted(failure_proba_can_result.items(), key=lambda x: x[0][0])]\n",
-    "    failure_proba_can_inverted = [1 - x for x in failure_proba_can_array]\n",
-    "    return [abs(orig - inv) for orig, inv in zip(failure_proba_can_array, failure_proba_can_inverted)]\n",
-    "\n",
-    "def compute_failure_probabilities_dev(\n",
-    "    failure_proba_dev_result: list[dict[int, float]],\n",
-    ") -> list[float]:\n",
-    "    required_indices = []\n",
-    "    start = 8\n",
-    "    max_index = (nqubits * ((4 * nlayers) + 1) - 1)\n",
-    "\n",
-    "    while start <= max_index:\n",
-    "        for offset in [0, 2, 4, 6]:\n",
-    "            current_index = start + offset\n",
-    "            if current_index > max_index:\n",
-    "                break\n",
-    "            required_indices.append((current_index,))  # Note the comma to create tuple\n",
-    "        start += 16\n",
-    "\n",
-    "\n",
-    "    failure_proba_dev_final = {\n",
-    "        idx: failure_proba_dev_all[idx] \n",
-    "        for idx in required_indices \n",
-    "        if idx in failure_proba_dev_all\n",
-    "    }\n",
-    "\n",
-    "\n",
-    "    failure_proba_dev_array = [v for k, v in sorted(failure_proba_dev_final.items(), key=lambda x: x[0][0])]\n",
-    "    failure_proba_dev_inverted = [1 - x for x in failure_proba_dev_array]\n",
-    "    return [abs(origi - inve) for origi, inve in zip(failure_proba_dev_array, failure_proba_dev_inverted)]\n",
-    "\n",
-    "def generate_qubit_edge_matrix_with_unknowns_can(Nqubits, Nlayers):\n",
-    "    n = Nqubits\n",
-    "    m = 4 * Nlayers + 1\n",
-    "    qubits = {}  # Mapping from (i, j) to qubit index\n",
-    "    edges = {}   # Mapping from edge (start, end) to edge index\n",
-    "    edge_index = 0\n",
-    "    qubit_index = 0\n",
-    "\n",
-    "    # Assign an index to each qubit (i, j)\n",
-    "    for j in range(m):\n",
-    "        for i in range(n):\n",
-    "            qubits[(i, j)] = qubit_index\n",
-    "            qubit_index += 1\n",
-    "\n",
-    "    # Collect all edges and assign them an index\n",
-    "    for i in range(n):\n",
-    "        for j in range(m - 1):\n",
-    "            edge = ((i, j), (i, j + 1))  # Horizontal edge\n",
-    "            edges[edge] = edge_index\n",
-    "            edge_index += 1\n",
-    "\n",
-    "    for i in range(n - 1):\n",
-    "        for j in range(m):\n",
-    "            if ((j + 1) % 8 == 3 and (i + 1) % 2 != 0):  # Column j ≡ 3 (mod 8) and odd row i\n",
-    "                if j + 3 < m:  # Ensure we don't go out of bounds\n",
-    "                    edge = ((i, j), (i + 1, j))\n",
-    "                    edges[edge] = edge_index\n",
-    "                    edge_index += 1\n",
-    "                    edge = ((i, j + 2), (i + 1, j + 2))\n",
-    "                    edges[edge] = edge_index\n",
-    "                    edge_index += 1\n",
-    "            if ((j + 1) % 8 == 7 and (i + 1) % 2 == 0):  # Column j ≡ 7 (mod 8) and even row i\n",
-    "                if j + 3 < m:  # Ensure we don't go out of bounds\n",
-    "                    edge = ((i, j), (i + 1, j))\n",
-    "                    edges[edge] = edge_index\n",
-    "                    edge_index += 1\n",
-    "                    edge = ((i, j + 2), (i + 1, j + 2))\n",
-    "                    edges[edge] = edge_index\n",
-    "                    edge_index += 1\n",
-    "\n",
-    "    # Create the symbolic matrix (qubits × edges)\n",
-    "    matrix = np.zeros((len(qubits), len(edges)), dtype=object)\n",
-    "\n",
-    "    # Create symbolic variables for edges\n",
-    "    #edge_symbols = [sp.symbols(f'x{i}') for i in range(len(edges))]\n",
-    "\n",
-    "    # Apply special conditions for qubits\n",
-    "    conditions = [\n",
-    "        (lambda i, j: ((i % 2 == 0 and (j % 8 == 0 or j % 8 == 6)) or (i % 2 == 1 and (j % 8 == 2 or j % 8 == 4)), [\n",
-    "            ((i, j - 2), (i, j - 1)),\n",
-    "            ((i, j - 1), (i, j)),\n",
-    "            ((i - 1, j - 1), (i - 1, j)),\n",
-    "            ((i - 1, j), (i, j)),\n",
-    "            ((i, j), (i, j + 1))\n",
-    "        ])),\n",
-    "        (lambda i, j: ((i % 2 == 1 and (j % 8 == 0 or j % 8 == 6)) or (i % 2 == 0 and (j % 8 == 2 or j % 8 == 4)), [\n",
-    "            ((i, j - 2), (i, j - 1)),\n",
-    "            ((i, j - 1), (i, j)),\n",
-    "            ((i + 1, j - 1), (i + 1, j)),\n",
-    "            ((i, j), (i + 1, j)),\n",
-    "             ((i, j), (i, j + 1))\n",
-    "        ])),\n",
-    "        (lambda i, j: ((i % 2 == 0 and (j % 8 == 1 or j % 8 == 7)) or (i % 2 == 1 and (j % 8 == 3 or j % 8 == 5)), [\n",
-    "            ((i, j - 2), (i, j - 1)),\n",
-    "            ((i - 1, j - 1), (i, j - 1)),\n",
-    "            ((i, j - 1), (i, j)),\n",
-    "            ((i, j), (i, j + 1))\n",
-    "        ])),\n",
-    "        (lambda i, j: ((i % 2 == 1 and (j % 8 == 1 or j % 8 == 7)) or (i % 2 == 0 and (j % 8 == 3 or j % 8 == 5)), [\n",
-    "            ((i, j - 2), (i, j - 1)),\n",
-    "            ((i, j - 1), (i + 1, j)),\n",
-    "            ((i, j - 1), (i, j)),\n",
-    "            ((i, j), (i, j + 1))\n",
-    "        ]))\n",
-    "    ]\n",
-    "\n",
-    "\n",
-    "    for f in conditions:\n",
-    "        for i in range(n):\n",
-    "            for j in range(m):\n",
-    "                condition, special_edges = f(i, j)\n",
-    "                if condition:\n",
-    "                    for (rel_i1, rel_j1), (rel_i2, rel_j2) in special_edges:\n",
-    "                        # Compute actual coordinates of edge\n",
-    "                        edge = ((rel_i1, rel_j1), (rel_i2, rel_j2))\n",
-    "\n",
-    "                        # Ensure the edge exists before modifying the matrix\n",
-    "                        if edge in edges:\n",
-    "                            e_idx = edges[edge]\n",
-    "                            q_idx = qubits[(i, j)]\n",
-    "                            # Use symbolic variables for edges\n",
-    "                            #matrix[q_idx, e_idx] = edge_symbols[e_idx]\n",
-    "                            matrix[q_idx, e_idx] = 1\n",
-    "\n",
-    "    # Return matrix with symbolic edge variables\n",
-    "    return matrix, qubits, edges\n",
-    "\n",
-    "def generate_qubit_edge_matrix_with_unknowns_dev(Noqubits, Nolayers):\n",
-    "    #assert n % 2 == 0, \"The number of rows (n) must be even.\"\n",
-    "    n = Noqubits\n",
-    "    m = 4 * Nolayers + 1\n",
-    "    qubits_dev = {}  # Mapping from (i, j) to qubit index\n",
-    "    edges_dev = {}   # Mapping from edge (start, end) to edge index\n",
-    "    edge_index_dev = 0\n",
-    "    qubit_index_dev = 0\n",
-    "\n",
-    "    # Assign an index to each qubit (i, j)\n",
-    "    for j in range(m):\n",
-    "        for i in range(n):\n",
-    "            if(i % 2 == 0 and (j % 8 == 1 or j % 8 == 3 or j % 8 == 5 or j % 8 == 7)):\n",
-    "                qubits_dev[(i, j)] = qubit_index_dev\n",
-    "                qubit_index_dev += 1\n",
-    "\n",
-    "    # Collect all edges and assign them an index\n",
-    "    for i in range(n):\n",
-    "        for j in range(m - 1):\n",
-    "            edge_dev = ((i, j), (i, j + 1))  # Horizontal edge\n",
-    "            edges_dev[edge_dev] = edge_index_dev\n",
-    "            edge_index_dev += 1\n",
-    "\n",
-    "    for i in range(n - 1):\n",
-    "        for j in range(m):\n",
-    "            if ((j + 1) % 8 == 3 and (i + 1) % 2 != 0):  # Column j ≡ 3 (mod 8) and odd row i\n",
-    "                if j + 3 < m:  # Ensure we don't go out of bounds\n",
-    "                    edge_dev = ((i, j), (i + 1, j))\n",
-    "                    edges_dev[edge_dev] = edge_index_dev\n",
-    "                    edge_index_dev += 1\n",
-    "                    edge_dev = ((i, j + 2), (i + 1, j + 2))\n",
-    "                    edges_dev[edge_dev] = edge_index_dev\n",
-    "                    edge_index_dev += 1\n",
-    "            if ((j + 1) % 8 == 7 and (i + 1) % 2 == 0):  # Column j ≡ 7 (mod 8) and even row i\n",
-    "                if j + 3 < m:  # Ensure we don't go out of bounds\n",
-    "                    edge_dev = ((i, j), (i + 1, j))\n",
-    "                    edges_dev[edge_dev] = edge_index_dev\n",
-    "                    edge_index_dev += 1\n",
-    "                    edge_dev = ((i, j + 2), (i + 1, j + 2))\n",
-    "                    edges_dev[edge_dev] = edge_index_dev\n",
-    "                    edge_index_dev += 1\n",
-    "\n",
-    "    # Create the symbolic matrix (qubits × edges)\n",
-    "    matrix_dev = np.zeros((len(qubits_dev), len(edges_dev)), dtype=object)\n",
-    "\n",
-    "    # Create symbolic variables for edges\n",
-    "    #edge_symbols_dev = [sp.symbols(f'x{i}') for i in range(len(edges_dev))]\n",
-    "\n",
-    "    # Apply special conditions for qubits\n",
-    "    conditions_dev = [\n",
-    "        (lambda i, j: ((i % 2 == 0 and j % 8 == 1), [\n",
-    "            ((i, j - 2), (i, j - 1)),\n",
-    "            ((i - 1, j - 1), (i, j - 1)),\n",
-    "            ((i, j - 1), (i, j)),\n",
-    "            ((i, j), (i, j + 1)),\n",
-    "            ((i, j + 1), (i + 1, j + 1))\n",
-    "        ])),\n",
-    "        (lambda i, j: ((i % 2 == 0 and j % 8 == 3), [\n",
-    "            ((i, j - 2), (i, j - 1)),\n",
-    "            ((i, j - 1), (i + 1, j - 1)),\n",
-    "            ((i, j - 1), (i, j)),\n",
-    "            ((i, j), (i, j + 1)),\n",
-    "             ((i, j + 1), (i + 1, j + 1))\n",
-    "        ])),\n",
-    "        (lambda i, j: ((i % 2 == 0 and j % 8 == 5), [\n",
-    "            ((i, j - 2), (i, j - 1)),\n",
-    "            ((i, j - 1), (i + 1, j - 1)),\n",
-    "            ((i, j - 1), (i, j)),\n",
-    "            ((i, j), (i, j + 1)),\n",
-    "            ((i - 1, j + 1), (i, j + 1))\n",
-    "        ])),\n",
-    "        (lambda i, j: ((i % 2 == 0 and j % 8 == 7), [\n",
-    "            ((i, j - 2), (i, j - 1)),\n",
-    "            ((i - 1, j - 1), (i, j - 1)),\n",
-    "            ((i, j - 1), (i, j)),\n",
-    "            ((i, j), (i, j + 1)),\n",
-    "            ((i - 1, j + 1), (i, j + 1))\n",
-    "        ]))\n",
-    "    ]\n",
-    "\n",
-    "\n",
-    "    #print(edges_dev)\n",
-    "    for f in conditions_dev:\n",
-    "        for i in range(n):\n",
-    "            for j in range(m):\n",
-    "                if(i % 2 == 0 and (j % 8 == 1 or j % 8 == 3 or j % 8 == 5 or j % 8 == 7)):\n",
-    "                    condition_dev, special_edges_dev = f(i, j)\n",
-    "                    if condition_dev:\n",
-    "                        for (rel_i1, rel_j1), (rel_i2, rel_j2) in special_edges_dev:\n",
-    "                            # Compute actual coordinates of edge\n",
-    "                            edge_dev = ((rel_i1, rel_j1), (rel_i2, rel_j2))\n",
-    "\n",
-    "                            # Ensure the edge exists before modifying the matrix\n",
-    "                            if edge_dev in edges_dev:\n",
-    "                                e_idx_dev = edges_dev[edge_dev]\n",
-    "                                q_idx_dev = qubits_dev[(i, j)]\n",
-    "                                # Use symbolic variables for edges\n",
-    "                                #matrix_dev[q_idx_dev, e_idx_dev] = edge_symbols_dev[e_idx_dev]\n",
-    "                                matrix_dev[q_idx_dev, e_idx_dev] = 1\n",
-    "    # Return matrix with symbolic edge variables\n",
-    "    return matrix_dev, qubits_dev, edges_dev, edge_symbols_dev    \n",
-    "\n",
-    "\n",
-    "if __name__ == \"__main__\":\n",
-    "    # TODO do cli with typer!\n",
-    "\n",
-    "    nqubits = 5\n",
-    "    nlayers = 10\n",
-    "\n",
-    "    print(\"Starting simulations...\")\n",
-    "    start = time.time()\n",
-    "    results_canonical, results_deviant = perform_simulation(\n",
-    "        nqubits=nqubits, nlayers=nlayers, depol_prob=0.001, shots=int(1e6)\n",
-    "    )\n",
-    "\n",
-    "    print(f\"Simulation finished in {time.time() - start:.4f} seconds.\")\n",
-    "\n",
-    "    print(\"Computing failure probabilities...\")\n",
-    "    failure_proba_can_final = compute_failure_probabilities(results_canonical)\n",
-    "    failure_proba_dev_all = compute_failure_probabilities(results_deviant)\n",
-    "    failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final)\n",
-    "    failure_proba_dev = compute_failure_probabilities_dev(failure_proba_dev_all)\n",
-    "    failure_proba_can = np.array(failure_proba_can, dtype=np.float64)\n",
-    "    failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)\n",
-    "\n",
-    "    print(\"Setting up ACES...\")\n",
-    "    qubit_edge_matrix, qubit_map, edge_map = generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)\n",
-    "    qubit_edge_matrix_dev, qubit_map_dev, edge_map_dev = generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)\n",
-    "    qubit_edge_matrix = np.array(qubit_edge_matrix, dtype=np.float64)\n",
-    "    qubit_edge_matrix_dev = np.array(qubit_edge_matrix_dev, dtype=np.float64)\n",
-    "\n",
-    "    # Stack the matrices together to form a single system\n",
-    "    lhs = np.vstack((qubit_edge_matrix, qubit_edge_matrix_dev))  # Combine coefficient matrices\n",
-    "    rhs = np.concatenate((failure_proba_can, failure_proba_dev))  # Combine constant vectors\n",
-    "\n",
-    "    log_rhs = np.log(rhs)  # log constant vectors\n",
-    "\n",
-    "    log_params, residuals, rank, singular_values = np.linalg.lstsq(lhs, log_rhs, rcond=None)\n",
-    "    \n",
-    "    print(\"Calculating the lambdas...\")\n",
-    "    X = np.exp(log_params)  # Convert log values back to original variables\n",
-    "    lamba_initial = 1 - ((4/3) * depol_prob)\n",
-    "    X_diff = [(dif - lamba_initial) for dif in X]\n",
-    "    \n",
-    "    print(\"Plotting the result...\")\n",
-    "\n",
-    "    plt.figure(figsize=(10, 6))\n",
-    "\n",
-    "    # Create histogram with density curve\n",
-    "    n, bins, patches = plt.hist(X_diff, \n",
-    "                            bins='auto', \n",
-    "                            color='#2ecc71',\n",
-    "                            edgecolor='#27ae60',\n",
-    "                            alpha=0.7,\n",
-    "                            density=True)\n",
-    "\n",
-    "    # Add KDE plot\n",
-    "    sns.kdeplot(X_diff, color='#34495e', linewidth=2, label='Density of $\\lambda(diff)_{\\mathrm{edge}}$')\n",
-    "\n",
-    "    # Add reference lines\n",
-    "    plt.axvline(0.0, color='red', linestyle='--', linewidth=1.5, label='(λ(diff)=0.0)')\n",
-    "    plt.axvline(np.mean(X_diff), color='#3498db', linestyle='-', \n",
-    "                linewidth=1.5, label=f'Mean ({np.mean(X_diff):.2f})')\n",
-    "    plt.axvline(np.median(X_diff), color='#9b59b6', linestyle='-', \n",
-    "                linewidth=1.5, label=f'Median ({np.median(X_diff):.2f})')\n",
-    "\n",
-    "    # Formatting\n",
-    "    plt.title(r'ACES', fontsize=14)\n",
-    "    plt.xlabel(r'$\\lambda(diff)_{\\mathrm{edge}}$', fontsize=12)\n",
-    "    plt.ylabel('Density', fontsize=12)\n",
-    "    plt.legend()\n",
-    "    plt.grid(alpha=0.3)\n",
-    "    sns.despine()\n",
-    "\n",
-    "    # Add statistical annotations\n",
-    "    stats_text = (f'Total edges: {len(X_diff)}\\n'\n",
-    "                  f'Min: {np.min(X_diff):.2f}\\n'\n",
-    "                  f'Max: {np.max(X_diff):.2f}\\n'\n",
-    "                  f'Std: {np.std(X_diff):.2f}')\n",
-    "    plt.text(0.75, 0.95, stats_text, \n",
-    "             transform=plt.gca().transAxes,\n",
-    "             verticalalignment='top',\n",
-    "             bbox=dict(facecolor='white', alpha=0.9))\n",
-    "\n",
-    "    plt.tight_layout()\n",
-    "    plt.show()\n",
-    "    print(\"Done!\")"
-   ]
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python 3 (ipykernel)",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.12.4"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
-}
+import time
+import sympy as sp
+import seaborn as sns
+from graphix import command
+from numpy.random import PCG64, Generator
+from tqdm import tqdm
+from veriphix.client import Client, Secrets
+from veriphix.trappifiedCanvas import TrappifiedCanvas
+
+from gospel.brickwork_state_transpiler import (
+    ConstructionOrder,
+    generate_random_pauli_pattern,
+    get_bipartite_coloring,
+)
+from gospel.noise_models.uncorrelated_depolarising_noise_model import (
+    UncorrelatedDepolarisingNoiseModel,
+)
+from gospel.stim_pauli_preprocessing import (
+    StimBackend,
+)
+
+
+def perform_simulation(
+    nqubits: int, nlayers: int, depol_prob: float = 0.0, shots: int = 1
+) -> tuple[list[dict[int, int]], list[dict[int, int]]]:
+    # Initialization
+    fx_bg = PCG64(42)
+    jumps = 5
+    # Number of test iterations
+
+    # Define separate outcome tables for Canonical and Deviant
+    test_outcome_table_canonical: list[dict[int, int]] = []
+    test_outcome_table_deviant: list[dict[int, int]] = []
+
+    # Loop over Construction Orders
+    for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant):
+        rng = Generator(fx_bg.jumped(jumps))  # Use the jumped rng
+
+        # TODO not really needed
+        # just two patterns are enough...
+        pattern = generate_random_pauli_pattern(
+            nqubits=nqubits, nlayers=nlayers, order=order, rng=rng
+        )
+
+        # Add measurement commands to the output nodes
+        for onode in pattern.output_nodes:
+            pattern.add(command.M(node=onode))
+
+        secrets = Secrets(r=False, a=False, theta=False)
+        client = Client(pattern=pattern, secrets=secrets)
+
+        # Get bipartite coloring and create test runs
+        colours = get_bipartite_coloring(pattern)
+        test_runs = client.create_test_runs(manual_colouring=colours)
+
+        # Define noise model
+        noise_model = UncorrelatedDepolarisingNoiseModel(
+            entanglement_error_prob=depol_prob
+        )
+
+        n_failures = 0
+
+        # Choose the correct outcome table based on order
+        if order == ConstructionOrder.Canonical:
+            test_outcome_table = test_outcome_table_canonical
+        else:
+            test_outcome_table = test_outcome_table_deviant
+
+        for i in tqdm(range(shots)):  # noqa: B007
+            # reinitialise the backend!
+            backend = StimBackend()
+            # generate trappiefied canvas (input state is refreshed)
+
+            run = TrappifiedCanvas(test_runs[rng.integers(len(test_runs))], rng=rng)
+
+            # Delegate the test run to the client
+            trap_outcomes = client.delegate_test_run(  # no noise model, things go wrong
+                backend=backend, run=run, noise_model=noise_model
+            )
+
+            # Create a result dictionary (trap -> outcome)
+            result = {
+                tuple(trap): outcome
+                for trap, outcome in zip(run.traps_list, trap_outcomes)
+            }
+
+            test_outcome_table.append(result)
+
+            # Print pass/fail based on the sum of the trap outcomes
+            if sum(trap_outcomes) != 0:
+                n_failures += 1
+                # print(f"Iteration {i}: ❌ Trap round failed", flush=True)
+            else:
+                pass
+                # print(f"Iteration {i}: ✅ Trap round passed", flush=True)
+
+        # Final report after completing the test rounds
+        print(
+            f"Final result: {n_failures}/{shots} failed rounds",
+            flush=True,
+        )
+        print("-" * 50, flush=True)
+    return test_outcome_table_canonical, test_outcome_table_deviant
+
+
+def compute_failure_probabilities(
+    results_table: list[dict[int, int]],
+) -> dict[int, float]:
+    occurences = {}
+    occurences_one = {}
+
+    for results in results_table:
+        for q, r in results.items():
+            if q not in occurences:
+                occurences[q] = 1
+                occurences_one[q] = r
+            else:
+                occurences[q] += 1
+                if r == 1:
+                    occurences_one[q] += 1
+
+    return {q: occurences_one[q] / occurences[q] for q in occurences}
+
+def compute_failure_probabilities_can(
+    failure_proba_can_result: list[dict[int, float]],
+) -> list[float]:
+    failure_proba_can_array = [v for k, v in sorted(failure_proba_can_result.items(), key=lambda x: x[0][0])]
+    failure_proba_can_inverted = [1 - x for x in failure_proba_can_array]
+    return [abs(orig - inv) for orig, inv in zip(failure_proba_can_array, failure_proba_can_inverted)]
+
+def compute_failure_probabilities_dev(
+    failure_proba_dev_result: list[dict[int, float]],
+) -> list[float]:
+    required_indices = []
+    start = 8
+    max_index = (nqubits * ((4 * nlayers) + 1) - 1)
+
+    while start <= max_index:
+        for offset in [0, 2, 4, 6]:
+            current_index = start + offset
+            if current_index > max_index:
+                break
+            required_indices.append((current_index,))  # Note the comma to create tuple
+        start += 16
+
+
+    failure_proba_dev_final = {
+        idx: failure_proba_dev_all[idx] 
+        for idx in required_indices 
+        if idx in failure_proba_dev_all
+    }
+
+
+    failure_proba_dev_array = [v for k, v in sorted(failure_proba_dev_final.items(), key=lambda x: x[0][0])]
+    failure_proba_dev_inverted = [1 - x for x in failure_proba_dev_array]
+    return [abs(origi - inve) for origi, inve in zip(failure_proba_dev_array, failure_proba_dev_inverted)]
+
+def generate_qubit_edge_matrix_with_unknowns_can(Nqubits, Nlayers):
+    n = Nqubits
+    m = 4 * Nlayers + 1
+    qubits = {}  # Mapping from (i, j) to qubit index
+    edges = {}   # Mapping from edge (start, end) to edge index
+    edge_index = 0
+    qubit_index = 0
+
+    # Assign an index to each qubit (i, j)
+    for j in range(m):
+        for i in range(n):
+            qubits[(i, j)] = qubit_index
+            qubit_index += 1
+
+    # Collect all edges and assign them an index
+    for i in range(n):
+        for j in range(m - 1):
+            edge = ((i, j), (i, j + 1))  # Horizontal edge
+            edges[edge] = edge_index
+            edge_index += 1
+
+    for i in range(n - 1):
+        for j in range(m):
+            if ((j + 1) % 8 == 3 and (i + 1) % 2 != 0):  # Column j ≡ 3 (mod 8) and odd row i
+                if j + 3 < m:  # Ensure we don't go out of bounds
+                    edge = ((i, j), (i + 1, j))
+                    edges[edge] = edge_index
+                    edge_index += 1
+                    edge = ((i, j + 2), (i + 1, j + 2))
+                    edges[edge] = edge_index
+                    edge_index += 1
+            if ((j + 1) % 8 == 7 and (i + 1) % 2 == 0):  # Column j ≡ 7 (mod 8) and even row i
+                if j + 3 < m:  # Ensure we don't go out of bounds
+                    edge = ((i, j), (i + 1, j))
+                    edges[edge] = edge_index
+                    edge_index += 1
+                    edge = ((i, j + 2), (i + 1, j + 2))
+                    edges[edge] = edge_index
+                    edge_index += 1
+
+    # Create the symbolic matrix (qubits × edges)
+    matrix = np.zeros((len(qubits), len(edges)), dtype=object)
+
+    # Create symbolic variables for edges
+    #edge_symbols = [sp.symbols(f'x{i}') for i in range(len(edges))]
+
+    # Apply special conditions for qubits
+    conditions = [
+        (lambda i, j: ((i % 2 == 0 and (j % 8 == 0 or j % 8 == 6)) or (i % 2 == 1 and (j % 8 == 2 or j % 8 == 4)), [
+            ((i, j - 2), (i, j - 1)),
+            ((i, j - 1), (i, j)),
+            ((i - 1, j - 1), (i - 1, j)),
+            ((i - 1, j), (i, j)),
+            ((i, j), (i, j + 1))
+        ])),
+        (lambda i, j: ((i % 2 == 1 and (j % 8 == 0 or j % 8 == 6)) or (i % 2 == 0 and (j % 8 == 2 or j % 8 == 4)), [
+            ((i, j - 2), (i, j - 1)),
+            ((i, j - 1), (i, j)),
+            ((i + 1, j - 1), (i + 1, j)),
+            ((i, j), (i + 1, j)),
+             ((i, j), (i, j + 1))
+        ])),
+        (lambda i, j: ((i % 2 == 0 and (j % 8 == 1 or j % 8 == 7)) or (i % 2 == 1 and (j % 8 == 3 or j % 8 == 5)), [
+            ((i, j - 2), (i, j - 1)),
+            ((i - 1, j - 1), (i, j - 1)),
+            ((i, j - 1), (i, j)),
+            ((i, j), (i, j + 1))
+        ])),
+        (lambda i, j: ((i % 2 == 1 and (j % 8 == 1 or j % 8 == 7)) or (i % 2 == 0 and (j % 8 == 3 or j % 8 == 5)), [
+            ((i, j - 2), (i, j - 1)),
+            ((i, j - 1), (i + 1, j)),
+            ((i, j - 1), (i, j)),
+            ((i, j), (i, j + 1))
+        ]))
+    ]
+
+
+    for f in conditions:
+        for i in range(n):
+            for j in range(m):
+                condition, special_edges = f(i, j)
+                if condition:
+                    for (rel_i1, rel_j1), (rel_i2, rel_j2) in special_edges:
+                        # Compute actual coordinates of edge
+                        edge = ((rel_i1, rel_j1), (rel_i2, rel_j2))
+
+                        # Ensure the edge exists before modifying the matrix
+                        if edge in edges:
+                            e_idx = edges[edge]
+                            q_idx = qubits[(i, j)]
+                            # Use symbolic variables for edges
+                            #matrix[q_idx, e_idx] = edge_symbols[e_idx]
+                            matrix[q_idx, e_idx] = 1
+
+    # Return matrix with symbolic edge variables
+    return matrix, qubits, edges
+
+def generate_qubit_edge_matrix_with_unknowns_dev(Noqubits, Nolayers):
+    #assert n % 2 == 0, "The number of rows (n) must be even."
+    n = Noqubits
+    m = 4 * Nolayers + 1
+    qubits_dev = {}  # Mapping from (i, j) to qubit index
+    edges_dev = {}   # Mapping from edge (start, end) to edge index
+    edge_index_dev = 0
+    qubit_index_dev = 0
+
+    # Assign an index to each qubit (i, j)
+    for j in range(m):
+        for i in range(n):
+            if(i % 2 == 0 and (j % 8 == 1 or j % 8 == 3 or j % 8 == 5 or j % 8 == 7)):
+                qubits_dev[(i, j)] = qubit_index_dev
+                qubit_index_dev += 1
+
+    # Collect all edges and assign them an index
+    for i in range(n):
+        for j in range(m - 1):
+            edge_dev = ((i, j), (i, j + 1))  # Horizontal edge
+            edges_dev[edge_dev] = edge_index_dev
+            edge_index_dev += 1
+
+    for i in range(n - 1):
+        for j in range(m):
+            if ((j + 1) % 8 == 3 and (i + 1) % 2 != 0):  # Column j ≡ 3 (mod 8) and odd row i
+                if j + 3 < m:  # Ensure we don't go out of bounds
+                    edge_dev = ((i, j), (i + 1, j))
+                    edges_dev[edge_dev] = edge_index_dev
+                    edge_index_dev += 1
+                    edge_dev = ((i, j + 2), (i + 1, j + 2))
+                    edges_dev[edge_dev] = edge_index_dev
+                    edge_index_dev += 1
+            if ((j + 1) % 8 == 7 and (i + 1) % 2 == 0):  # Column j ≡ 7 (mod 8) and even row i
+                if j + 3 < m:  # Ensure we don't go out of bounds
+                    edge_dev = ((i, j), (i + 1, j))
+                    edges_dev[edge_dev] = edge_index_dev
+                    edge_index_dev += 1
+                    edge_dev = ((i, j + 2), (i + 1, j + 2))
+                    edges_dev[edge_dev] = edge_index_dev
+                    edge_index_dev += 1
+
+    # Create the symbolic matrix (qubits × edges)
+    matrix_dev = np.zeros((len(qubits_dev), len(edges_dev)), dtype=object)
+
+    # Create symbolic variables for edges
+    #edge_symbols_dev = [sp.symbols(f'x{i}') for i in range(len(edges_dev))]
+
+    # Apply special conditions for qubits
+    conditions_dev = [
+        (lambda i, j: ((i % 2 == 0 and j % 8 == 1), [
+            ((i, j - 2), (i, j - 1)),
+            ((i - 1, j - 1), (i, j - 1)),
+            ((i, j - 1), (i, j)),
+            ((i, j), (i, j + 1)),
+            ((i, j + 1), (i + 1, j + 1))
+        ])),
+        (lambda i, j: ((i % 2 == 0 and j % 8 == 3), [
+            ((i, j - 2), (i, j - 1)),
+            ((i, j - 1), (i + 1, j - 1)),
+            ((i, j - 1), (i, j)),
+            ((i, j), (i, j + 1)),
+             ((i, j + 1), (i + 1, j + 1))
+        ])),
+        (lambda i, j: ((i % 2 == 0 and j % 8 == 5), [
+            ((i, j - 2), (i, j - 1)),
+            ((i, j - 1), (i + 1, j - 1)),
+            ((i, j - 1), (i, j)),
+            ((i, j), (i, j + 1)),
+            ((i - 1, j + 1), (i, j + 1))
+        ])),
+        (lambda i, j: ((i % 2 == 0 and j % 8 == 7), [
+            ((i, j - 2), (i, j - 1)),
+            ((i - 1, j - 1), (i, j - 1)),
+            ((i, j - 1), (i, j)),
+            ((i, j), (i, j + 1)),
+            ((i - 1, j + 1), (i, j + 1))
+        ]))
+    ]
+
+
+    #print(edges_dev)
+    for f in conditions_dev:
+        for i in range(n):
+            for j in range(m):
+                if(i % 2 == 0 and (j % 8 == 1 or j % 8 == 3 or j % 8 == 5 or j % 8 == 7)):
+                    condition_dev, special_edges_dev = f(i, j)
+                    if condition_dev:
+                        for (rel_i1, rel_j1), (rel_i2, rel_j2) in special_edges_dev:
+                            # Compute actual coordinates of edge
+                            edge_dev = ((rel_i1, rel_j1), (rel_i2, rel_j2))
+
+                            # Ensure the edge exists before modifying the matrix
+                            if edge_dev in edges_dev:
+                                e_idx_dev = edges_dev[edge_dev]
+                                q_idx_dev = qubits_dev[(i, j)]
+                                # Use symbolic variables for edges
+                                #matrix_dev[q_idx_dev, e_idx_dev] = edge_symbols_dev[e_idx_dev]
+                                matrix_dev[q_idx_dev, e_idx_dev] = 1
+    # Return matrix with symbolic edge variables
+    return matrix_dev, qubits_dev, edges_dev, edge_symbols_dev    
+
+
+if __name__ == "__main__":
+    # TODO do cli with typer!
+
+    nqubits = 5
+    nlayers = 10
+
+    print("Starting simulations...")
+    start = time.time()
+    results_canonical, results_deviant = perform_simulation(
+        nqubits=nqubits, nlayers=nlayers, depol_prob=0.001, shots=int(1e6)
+    )
+
+    print(f"Simulation finished in {time.time() - start:.4f} seconds.")
+
+    print("Computing failure probabilities...")
+    failure_proba_can_final = compute_failure_probabilities(results_canonical)
+    failure_proba_dev_all = compute_failure_probabilities(results_deviant)
+    failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final)
+    failure_proba_dev = compute_failure_probabilities_dev(failure_proba_dev_all)
+    failure_proba_can = np.array(failure_proba_can, dtype=np.float64)
+    failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)
+
+    print("Setting up ACES...")
+    qubit_edge_matrix, qubit_map, edge_map = generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
+    qubit_edge_matrix_dev, qubit_map_dev, edge_map_dev = generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)
+    qubit_edge_matrix = np.array(qubit_edge_matrix, dtype=np.float64)
+    qubit_edge_matrix_dev = np.array(qubit_edge_matrix_dev, dtype=np.float64)
+
+    # Stack the matrices together to form a single system
+    lhs = np.vstack((qubit_edge_matrix, qubit_edge_matrix_dev))  # Combine coefficient matrices
+    rhs = np.concatenate((failure_proba_can, failure_proba_dev))  # Combine constant vectors
+
+    log_rhs = np.log(rhs)  # log constant vectors
+
+    log_params, residuals, rank, singular_values = np.linalg.lstsq(lhs, log_rhs, rcond=None)
+    
+    print("Calculating the lambdas...")
+    X = np.exp(log_params)  # Convert log values back to original variables
+    lamba_initial = 1 - ((4/3) * depol_prob)
+    X_diff = [(dif - lamba_initial) for dif in X]
+    
+    print("Plotting the result...")
+
+    plt.figure(figsize=(10, 6))
+
+    # Create histogram with density curve
+    n, bins, patches = plt.hist(X_diff, 
+                            bins='auto', 
+                            color='#2ecc71',
+                            edgecolor='#27ae60',
+                            alpha=0.7,
+                            density=True)
+
+    # Add KDE plot
+    sns.kdeplot(X_diff, color='#34495e', linewidth=2, label='Density of $\lambda(diff)_{\mathrm{edge}}$')
+
+    # Add reference lines
+    plt.axvline(0.0, color='red', linestyle='--', linewidth=1.5, label='(λ(diff)=0.0)')
+    plt.axvline(np.mean(X_diff), color='#3498db', linestyle='-', 
+                linewidth=1.5, label=f'Mean ({np.mean(X_diff):.2f})')
+    plt.axvline(np.median(X_diff), color='#9b59b6', linestyle='-', 
+                linewidth=1.5, label=f'Median ({np.median(X_diff):.2f})')
+
+    # Formatting
+    plt.title(r'ACES', fontsize=14)
+    plt.xlabel(r'$\lambda(diff)_{\mathrm{edge}}$', fontsize=12)
+    plt.ylabel('Density', fontsize=12)
+    plt.legend()
+    plt.grid(alpha=0.3)
+    sns.despine()
+
+    # Add statistical annotations
+    stats_text = (f'Total edges: {len(X_diff)}\n'
+                  f'Min: {np.min(X_diff):.2f}\n'
+                  f'Max: {np.max(X_diff):.2f}\n'
+                  f'Std: {np.std(X_diff):.2f}')
+    plt.text(0.75, 0.95, stats_text, 
+             transform=plt.gca().transAxes,
+             verticalalignment='top',
+             bbox=dict(facecolor='white', alpha=0.9))
+
+    plt.tight_layout()
+    plt.show()
+    print("Done!")
