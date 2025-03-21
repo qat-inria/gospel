@@ -9,7 +9,7 @@ import os
 import pandas as pd
 
 
-folder = "STRONG-outcomes-n5"
+folder = "old-STRONG-outcomes-n5"
 threshold_values = [1]
 d = 100
 
