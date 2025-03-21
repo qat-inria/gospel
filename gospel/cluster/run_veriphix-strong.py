@@ -164,7 +164,7 @@ def for_each_round(
         strong_global_noise_model = GlobalNoiseModel(
             prob=rounds.parameters.p_err,
             nodes=range(rounds.client.initial_pattern.n_node),
-            target_rate=0.02
+            target_rate=0.5
         )
         # gentle_global_noise_model = GlobalNoiseModel(
         #     prob=rounds.parameters.p_err,
