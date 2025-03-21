@@ -54,7 +54,7 @@ done
 
 echo "DEPOLARIZING (UNCORRELATED)"
 # Depolarizing
-for p_err in 0.001 0.0025 ; do
+for p_err in 0.0025 0.004 0.006 0.0015 ; do
   PORT=24395
 
   # Print p and assigned port
