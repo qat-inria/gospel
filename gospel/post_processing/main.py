@@ -9,7 +9,7 @@ import os
 import pandas as pd
 
 
-folder = "UNCOR_DEPOL-outcomes-n5"
+folder = "STRONG-outcomes-n5"
 threshold_values = [1]
 d = 100
 
@@ -38,7 +38,7 @@ def find_prob(circuit_name):
 files_dict = {}
 for file in os.listdir(folder):
     file_path=os.path.join(folder, file)
-    if "raw" not in file_path:
+    if ".json" in file_path and "raw" not in file_path:
         prob = float(file.split(".json")[0].split("p")[1])
         files_dict[prob] = file_path
     
@@ -67,7 +67,7 @@ def get_failure_rate(threshold:float=1):
         # harold_table.index = df.index
         df["bqp_error"] = [find_prob(circuit) for circuit in df.index]
         df["expected_outcome"] = [find_correct_value(circuit) for circuit in df.index]
-        df["outcome"] = df["outcome_sum"].apply(lambda s : int(s>d/2))
+        df["majority vote outcome"] = df["outcome_sum"].apply(lambda s : int(s>d/2))
 
         test_lambda = lambda s, circuit : (d-s) if find_correct_value(circuit_name=circuit) else s
         wrong_decisions = [test_lambda(s=df.loc[circuit]["outcome_sum"], circuit=circuit) for circuit in df.index]
@@ -76,14 +76,14 @@ def get_failure_rate(threshold:float=1):
 
         # print(harold_table)
 
-        proportion_wrong_outcomes = len(df[df['outcome'] != df["expected_outcome"]])
+        proportion_wrong_outcomes = len(df[df['majority vote outcome'] != df["expected_outcome"]])
         print(f"p={prob} => {proportion_wrong_outcomes}/100 wrong decisions")
         if proportion_wrong_outcomes != 0:
             print("Incorrect decision dataframe")
-            print(df[df['outcome'] != df["expected_outcome"]])
+            print(df[df['majority vote outcome'] != df["expected_outcome"]])
             print("#######")
 
-        df.to_csv(f"summary-p{prob}.csv")
+        df.to_csv(f"{folder}/summary-p{prob}.csv")
         # print("Too fragile instances")
         # print(df[(df['bqp_error'] > 0.3) & (df['bqp_error'] < 0.7)])
             
@@ -92,7 +92,7 @@ def get_failure_rate(threshold:float=1):
 
 
 proportion_wrong_outcomes_dict, harold_table = get_failure_rate()
-harold_table.to_csv("harold.csv")
+harold_table.to_csv(f"{folder}/final-summary.csv")
 
 plt.figure()
 plt.xlabel("Prob. values")
