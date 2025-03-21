@@ -53,7 +53,7 @@ def perform_simulation(
     results_table = []
     n_failures = 0
 
-    for i in tqdm(range(shots)):
+    for i in tqdm(range(shots)):  # noqa: B007
         # reinitialise the backend!
         backend = StimBackend()
         # generate trappiefied canvas (input state is refreshed)
@@ -75,9 +75,10 @@ def perform_simulation(
         # Print pass/fail based on the sum of the trap outcomes
         if sum(trap_outcomes) != 0:
             n_failures += 1
-            print(f"Iteration {i}: ❌ Failed trap round", flush=True)
+            # print(f"Iteration {i}: ❌ Failed trap round", flush=True)
         else:
-            print(f"Iteration {i}: ✅ Trap round passed", flush=True)
+            pass
+            # print(f"Iteration {i}: ✅ Trap round passed", flush=True)
 
     # Final report after completing the test rounds
     print(
@@ -121,8 +122,9 @@ if __name__ == "__main__":
 
     # initialising pattern
     rng = np.random.default_rng(12345)
+    order = ConstructionOrder.Canonical  # ConstructionOrder.Deviant
     pattern = generate_random_pauli_pattern(
-        nqubits=nqubits, nlayers=nlayers, order=ConstructionOrder.Canonical, rng=rng
+        nqubits=nqubits, nlayers=nlayers, order=order, rng=rng
     )
     # Add measurement commands to the output nodes
     for onode in pattern.output_nodes:
@@ -138,12 +140,13 @@ if __name__ == "__main__":
     failure_probas = compute_failure_probabilities(results_table)
     print(f" final failure probas {failure_probas}")
 
-    print("Plotting the heatmap")
+    print("Plotting the heatmap...")
 
     # change this to save the figure
     directory_path = Path("simulation/results")
     # Create the directory
     directory_path.mkdir(parents=True, exist_ok=True)
 
-    target = "hotgate.svg"
+    target = "hotgate_deviant.svg"
     plot_heatmap(failure_probas, directory_path, target)
+    print("Done!")
