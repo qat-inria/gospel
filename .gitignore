@@ -2,7 +2,7 @@
 *~
 __pycache__/
 .vscode/settings.json
-/circuits
+/circuits**
 simulation/pic.svg
 simulation/pic2.svg
 /pages/index.html

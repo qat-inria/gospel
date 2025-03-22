@@ -3,7 +3,7 @@
 # rm -rf circuits
 # python -m gospel.sampling_circuits.experiments
 
-n_instances=100
+n_instances=30
 bqp_error=0.4
 # python -m gospel.cluster.generate_circuit_sample $n_instances $bqp_error
 
