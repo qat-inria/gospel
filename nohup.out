@@ -243,3 +243,20 @@ Consider loading the data with Dask directly
 See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
   warnings.warn(
 Loaded 100 circuits.
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 45855 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+Loaded 100 circuits.
