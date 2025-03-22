@@ -28,7 +28,7 @@ n_nodes=$n_instances
 
 echo "STRONG GLOBAL NOISE"
 # Strong global noise
-for p_err in 0.5 ; do
+for p_err in 0.6 0.7 0.8 0.9 1.0 ; do
   PORT=24395
 
   # Print p and assigned port
