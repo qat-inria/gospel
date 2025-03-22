@@ -368,7 +368,7 @@ if __name__ == "__main__":
     print("Starting simulations...")
     start = time.time()
     results_canonical, results_deviant = perform_simulation(
-        nqubits=nqubits, nlayers=nlayers, depol_prob=depol_prob, shots=int(1e2)
+        nqubits=nqubits, nlayers=nlayers, depol_prob=depol_prob, shots=int(1e6)
     )
 
     print(f"Simulation finished in {time.time() - start:.4f} seconds.")
