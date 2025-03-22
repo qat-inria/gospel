@@ -28,42 +28,42 @@ n_nodes=$n_instances
 
 echo "STRONG GLOBAL NOISE"
 # Strong global noise
-for p_err in 0.15 0.18 0.2 0.3 0.4 0.5 0.7 ; do
+for p_err in 0.5 ; do
   PORT=24395
 
   # Print p and assigned port
   echo "Running with p_err=$p_err, PORT=$PORT"
 
   # Run the process in the background
-  time python -m gospel.cluster.run_veriphix-strong $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
+  time python -m gospel.cluster.run_veriphix-strong $n_comp_run $n_test_run $n_instances $p_err $bqp_error --scale 16 #--walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
 
 done
 
-echo "DEPOLARIZING (CORRELATED)"
-# Depolarizing
-for p_err in 0.008 0.01 0.014 0.02 ; do
-  PORT=24395
+# echo "DEPOLARIZING (CORRELATED)"
+# # Depolarizing
+# for p_err in 0.008 0.01 0.014 0.02 ; do
+#   PORT=24395
 
-  # Print p and assigned port
-  echo "Running with p_err=$p_err, PORT=$PORT"
+#   # Print p and assigned port
+#   echo "Running with p_err=$p_err, PORT=$PORT"
 
-  # Run the process in the background
-  time python -m gospel.cluster.run_veriphix-depol $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
+#   # Run the process in the background
+#   time python -m gospel.cluster.run_veriphix-depol $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
 
-done
+# done
 
-echo "DEPOLARIZING (UNCORRELATED)"
-# Depolarizing
-for p_err in 0.03 ; do
-  PORT=24395
+# echo "DEPOLARIZING (UNCORRELATED)"
+# # Depolarizing
+# for p_err in 0.03 ; do
+#   PORT=24395
 
-  # Print p and assigned port
-  echo "Running with p_err=$p_err, PORT=$PORT"
+#   # Print p and assigned port
+#   echo "Running with p_err=$p_err, PORT=$PORT"
 
-  # Run the process in the background
-  time python -m gospel.cluster.run_veriphix-uncorr_depol $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
+#   # Run the process in the background
+#   time python -m gospel.cluster.run_veriphix-uncorr_depol $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
 
-done
+# done
 
 wait  # Ensure all background jobs complete
 

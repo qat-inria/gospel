@@ -1,0 +1,6 @@
+Test simulation
+- Generation of circuits
+- Strong noise simulation (added logging)
+- Post processing
+
+All the simulations performed correctly, but still a problem with the output: not enough wrong decisions.

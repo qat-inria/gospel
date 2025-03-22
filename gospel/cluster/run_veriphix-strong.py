@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 import enum
 import json
 import random
@@ -161,6 +163,7 @@ def for_each_round(
 ) -> ComputationResult:
     rounds, i = args
     try:
+        # logging.warning(f"{rounds.circuit_name}::{i}")
         strong_global_noise_model = GlobalNoiseModel(
             prob=rounds.parameters.p_err,
             nodes=range(rounds.client.initial_pattern.n_node),
@@ -192,7 +195,6 @@ def for_each_round(
             trap_outcomes = rounds.client.delegate_test_run(
                 run=run, backend=backend, noise_model=noise_model
             )
-
             # Record trap failure
             # A trap round fails if one of the single-qubit traps failed
             result = RoundResult(RoundKind.Test, bool(sum(trap_outcomes) != 0))
@@ -202,6 +204,7 @@ def for_each_round(
 
 
 def for_all_rounds(rounds: Rounds) -> tuple[str, list[ComputationResult]]:
+    logging.warning(rounds.circuit_name)
     return rounds.circuit_name, [for_each_round((rounds, i)) for i in rounds.rounds]
 
 
