@@ -1,0 +1,245 @@
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 33227 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 34957 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 41871 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 45269 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 34499 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 40845 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+2025-03-22 12:52:30,569 - distributed.dashboard.components.scheduler - ERROR - Circle(id='p9104', ...).radius doesn't have a value set
+Traceback (most recent call last):
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/utils.py", line 811, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/dashboard/components/scheduler.py", line 4802, in profile_doc
+    doc.add_root(prof.root)
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/document/document.py", line 321, in add_root
+    with self.models.freeze():
+  File "/usr/lib64/python3.11/contextlib.py", line 144, in __exit__
+    next(self.gen)
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/document/models.py", line 135, in freeze
+    self._pop_freeze()
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/document/models.py", line 288, in _pop_freeze
+    self.recompute()
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/document/models.py", line 215, in recompute
+    new_models |= mr.references()
+                  ^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/model/model.py", line 492, in references
+    return set(collect_models(self))
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/model/util.py", line 139, in collect_models
+    return collect_filtered_models(None, *input_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/model/util.py", line 119, in collect_filtered_models
+    visit_immediate_value_references(obj, queue_one)
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/model/util.py", line 185, in visit_immediate_value_references
+    child = getattr(value, attr)
+            ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/core/property/descriptors.py", line 282, in __get__
+    raise UnsetValueError(f"{obj}.{self.name} doesn't have a value set")
+bokeh.core.property.descriptors.UnsetValueError: Circle(id='p9104', ...).radius doesn't have a value set
+2025-03-22 12:52:30,570 - tornado.application - ERROR - Uncaught exception GET /profile (127.0.0.1)
+HTTPServerRequest(protocol='http', host='localhost:8787', method='GET', uri='/profile', version='HTTP/1.1', remote_ip='127.0.0.1')
+Traceback (most recent call last):
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/tornado/web.py", line 1790, in _execute
+    result = await result
+             ^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/server/views/doc_handler.py", line 54, in get
+    session = await self.get_session()
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/server/views/session_handler.py", line 145, in get_session
+    session = await self.application_context.create_session_if_needed(session_id, self.request, token)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/server/contexts.py", line 240, in create_session_if_needed
+    self._application.initialize_document(doc)
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/application/application.py", line 190, in initialize_document
+    h.modify_document(doc)
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/application/handlers/function.py", line 140, in modify_document
+    self._func(doc)
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/utils.py", line 811, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/dashboard/components/scheduler.py", line 4802, in profile_doc
+    doc.add_root(prof.root)
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/document/document.py", line 321, in add_root
+    with self.models.freeze():
+  File "/usr/lib64/python3.11/contextlib.py", line 144, in __exit__
+    next(self.gen)
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/document/models.py", line 135, in freeze
+    self._pop_freeze()
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/document/models.py", line 288, in _pop_freeze
+    self.recompute()
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/document/models.py", line 215, in recompute
+    new_models |= mr.references()
+                  ^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/model/model.py", line 492, in references
+    return set(collect_models(self))
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/model/util.py", line 139, in collect_models
+    return collect_filtered_models(None, *input_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/model/util.py", line 119, in collect_filtered_models
+    visit_immediate_value_references(obj, queue_one)
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/model/util.py", line 185, in visit_immediate_value_references
+    child = getattr(value, attr)
+            ^^^^^^^^^^^^^^^^^^^^
+  File "/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/bokeh/core/property/descriptors.py", line 282, in __get__
+    raise UnsetValueError(f"{obj}.{self.name} doesn't have a value set")
+bokeh.core.property.descriptors.UnsetValueError: Circle(id='p9104', ...).radius doesn't have a value set
+Loaded 100 circuits.
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 36363 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+Loaded 100 circuits.
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 38383 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+Loaded 100 circuits.
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 40535 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+Loaded 100 circuits.
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:57: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:39: UserWarning: Couldn't import `kahypar` - skipping from default hyper optimizer and using basic `labels` method instead.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/cotengra/hyperoptimizers/hyper.py:76: UserWarning: Couldn't find `optuna`, `cmaes`, or `nevergrad` so will use completely random sampling in place of hyper-optimization.
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/node.py:187: UserWarning: Port 24395 is already in use.
+Perhaps you already have a cluster running?
+Hosting the HTTP server on port 38035 instead
+  warnings.warn(
+/home/hollivie/gospel/.venv/lib64/python3.11/site-packages/distributed/client.py:3370: UserWarning: Sending large graph of size 18.64 MiB.
+This may cause some slowdown.
+Consider loading the data with Dask directly
+ or using futures or delayed objects to embed the data into the graph without repetition.
+See also https://docs.dask.org/en/stable/best-practices.html#load-data-with-dask for more information.
+  warnings.warn(
+Loaded 100 circuits.
