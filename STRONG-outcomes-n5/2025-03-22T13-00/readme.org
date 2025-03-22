@@ -1,0 +1,67 @@
+* Circuits
+These circuits have been generated with the following gospel commit hash: 629616845598b2c8b932a9014798d0b6989caede
+
+To reproduce these samples, you may run the following command:
+```
+git clone https://github.com/qat-inria/gospel.git
+git checkout 629616845598b2c8b932a9014798d0b6989caede
+python -m gospel.sampling_circuits.sampling_circuits --ncircuits 1000 --nqubits 5 --depth 30 --p-gate 0.5 --p-cnot 0.25 --p-cnot-flip 0.5 --p-rx 0.5 --seed 1729 --target circuits
+```
+* Parameters
+p_err = 0.05, 0.1, 0.2, 0.3, 0.4, 0.5
+* Analysis
+** Data
+We have
+| $p_{\mathrm{err}}$ | # Incorrect |
+|--------------------+-------------|
+|               0.05 |           0 |
+|               0.10 |           1 |
+|               0.20 |           1 |
+|               0.30 |           3 |
+|               0.40 |           4 |
+|               0.50 |           4 |
+
+** The problem?
+We are (I am) complaining that there are not enough wrong decisions taken as the noise strength goes up. Ok, but what would we expect? 
+
+Indeed, we are adding noise which means that individual rounds have their apparent BQP error getting closer to \(1/2\). In that matter, the worse that we could do would be to have noise that is specifically flipping the output qubit with 50-50 probability. In that case, the outcome of a computation round is perfectly random, and we should see 50% of wrong decisions. 
+
+But this is not what we do. We didn't want to be that dumb—but unfortunately that didn't mean we were smart. The problem is we decided not to attack some rounds (i.e a fraction \(1-p_{\mathrm{err}}\) to be precise). In that case, the distribution of the outcomes for the output qubit is a convex combination of \(\mathcal{B}(1-p_{\mathrm{BQP}})\) with weight \(1-p_{\mathrm{err}}\) and \(\mathcal{B}\frac{1}{2}\) with weight \(p_{\mathrm{err}}\), \(\mathcal{B}(x)\) being the Bernouilli distribution with probability \(x\) to obtain \(1\) (and \(1-x\) to get 0)—Indeed that the distribution of the correct decision for a given round, 1 denoting correct decision, 0 incorrect. 
+
+If we go for \(p_{\mathrm{err}} = 0.5\) then we will still have half the rounds that will have a BQP error bounded by 0.4. Therefore we expect on average: 
+| Event                  |  # |
+|------------------------+----|
+| No noise AND correct   | 30 |
+| No noise AND incorrect | 20 |
+| Noise AND correct      | 25 |
+| Noise AND incorrect    | 25 |
+|------------------------+----|
+| Correct                | 55 |
+
+And we have of course Hoeffding: 
+\(P[ (#Incorrect - 45) > \delta ] \leq \exp(-2\delta^2 / 100)\) 
+
+so 
+|                     | Less than |
+|---------------------+-----------|
+| P[#Incorrect >= 46] |       .98 |
+| >= 47               |       .92 |
+| >= 48               |       .83 |
+| >= 49               |       .72 |
+| >= 50               |       .60 |
+| > 50                |       .48 |
+
+The upper bound on the probability seems to be quite lose when we compare to our situation, but what I'm saying is the probability of taking a wrong decision is upper bounded by something smaller than 1/2. 
+
+** The problem!
+I think the main flaw in our approach was to mix noise and maliciousness. Indeed, if the effect of the noise—could be any of the model we tried—amounts to flipping the outcome of the computation with a probability that is at most 1/2, then a sufficiently large majority vote will always manage to error correct the result. 
+
+What we would want to show is that a malicious attack does not manage to flip the result (below some value) and manages to do it above. 
+
+** Next steps
+- I think I will start doing the silly stuff that we discussed with Dominik: attack only the last qubit and deterministically flip it. And do a parameter sweep on \(p_{\mathrm{err}}\) to show that when the amount of seen failed test rounds is above \((1-2c)/(4-4c)\) we can start flipping the instances with the largest \(BQP\) error.
+- For the other simulations: lets try to have everything with W=5, D=30 bricks (DEPOL, UNCOR DEPOL, GENTLE GLOBAL). I took care of STRONG GLOBAL and of the new MALICIOUS model.
+
+** Next Next steps (after the conference)
+- Rethinking the circuit sampling to see if we can get nicer looking historgrams for shorter depth
+- What would be the best noise models to simulate 
