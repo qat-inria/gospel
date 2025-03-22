@@ -403,7 +403,7 @@ if __name__ == "__main__":
     
     print("Calculating the lambdas...")
     X = np.exp(log_params)  # Convert log values back to original variables
-    lamba_initial = 1 - ((4/3) * depol_prob)
+    lamba_initial = 1 - depol_prob
     X_diff = [(dif - lamba_initial) for dif in X]
     
     print("Plotting the result...")
