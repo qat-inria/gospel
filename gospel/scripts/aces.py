@@ -1,6 +1,8 @@
 import time
 import sympy as sp
 import seaborn as sns
+import numpy as np
+import matplotlib as plt
 from graphix import command
 from numpy.random import PCG64, Generator
 from tqdm import tqdm
@@ -129,25 +131,25 @@ def compute_failure_probabilities_can(
     return [abs(orig - inv) for orig, inv in zip(failure_proba_can_array, failure_proba_can_inverted)]
 
 def compute_failure_probabilities_dev(
-    failure_proba_dev_result: list[dict[int, float]],
+    failure_proba_dev_result: list[dict[int, float]], n_qubits, max_index
 ) -> list[float]:
     required_indices = []
-    start = 8
-    max_index = (nqubits * ((4 * nlayers) + 1) - 1)
+    start = n_qubits
+    max_index = max_index - 1
 
     while start <= max_index:
-        for offset in [0, 2, 4, 6]:
+        for offset in range(0, n_qubits, 2):
             current_index = start + offset
             if current_index > max_index:
                 break
             required_indices.append((current_index,))  # Note the comma to create tuple
-        start += 16
+        start += 2 * n_qubits
 
 
     failure_proba_dev_final = {
-        idx: failure_proba_dev_all[idx] 
+        idx: failure_proba_dev_result[idx] 
         for idx in required_indices 
-        if idx in failure_proba_dev_all
+        if idx in failure_proba_dev_result
     }
 
 
@@ -360,11 +362,13 @@ if __name__ == "__main__":
 
     nqubits = 5
     nlayers = 10
+    node = nqubits * ((4 * nlayers) + 1)
+    depol_prob=0.001
 
     print("Starting simulations...")
     start = time.time()
     results_canonical, results_deviant = perform_simulation(
-        nqubits=nqubits, nlayers=nlayers, depol_prob=0.001, shots=int(1e6)
+        nqubits=nqubits, nlayers=nlayers, depol_prob=depol_prob, shots=int(1e2)
     )
 
     print(f"Simulation finished in {time.time() - start:.4f} seconds.")
@@ -373,19 +377,25 @@ if __name__ == "__main__":
     failure_proba_can_final = compute_failure_probabilities(results_canonical)
     failure_proba_dev_all = compute_failure_probabilities(results_deviant)
     failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final)
-    failure_proba_dev = compute_failure_probabilities_dev(failure_proba_dev_all)
+    failure_proba_dev = compute_failure_probabilities_dev(failure_proba_dev_all, nqubits, node)
     failure_proba_can = np.array(failure_proba_can, dtype=np.float64)
+    print(failure_proba_can.shape)
     failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)
+    print(failure_proba_dev.shape)
 
     print("Setting up ACES...")
     qubit_edge_matrix, qubit_map, edge_map = generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
     qubit_edge_matrix_dev, qubit_map_dev, edge_map_dev = generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)
     qubit_edge_matrix = np.array(qubit_edge_matrix, dtype=np.float64)
     qubit_edge_matrix_dev = np.array(qubit_edge_matrix_dev, dtype=np.float64)
+    print(qubit_edge_matrix.shape)
+    print(qubit_edge_matrix_dev.shape)
 
     # Stack the matrices together to form a single system
     lhs = np.vstack((qubit_edge_matrix, qubit_edge_matrix_dev))  # Combine coefficient matrices
     rhs = np.concatenate((failure_proba_can, failure_proba_dev))  # Combine constant vectors
+    print(lhs.shape)
+    print(rhs.shape)
 
     log_rhs = np.log(rhs)  # log constant vectors
 
@@ -437,5 +447,7 @@ if __name__ == "__main__":
              bbox=dict(facecolor='white', alpha=0.9))
 
     plt.tight_layout()
-    plt.show()
+    #plt.show()
+    plt.savefig("plot.png")
     print("Done!")
+
