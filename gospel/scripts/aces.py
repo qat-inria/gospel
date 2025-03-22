@@ -2,7 +2,7 @@ import time
 import sympy as sp
 import seaborn as sns
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 from graphix import command
 from numpy.random import PCG64, Generator
 from tqdm import tqdm
