@@ -163,7 +163,7 @@ def for_each_round(
 ) -> ComputationResult:
     rounds, i = args
     try:
-        # logging.warning(f"{rounds.circuit_name}::{i}")
+        logging.warning(f"{rounds.circuit_name}::{i}")
         strong_global_noise_model = GlobalNoiseModel(
             prob=rounds.parameters.p_err,
             nodes=range(rounds.client.initial_pattern.n_node),

@@ -34,8 +34,11 @@ for p_err in 0.5 ; do
   # Print p and assigned port
   echo "Running with p_err=$p_err, PORT=$PORT"
 
-  # Run the process in the background
-  time python -m gospel.cluster.run_veriphix-strong $n_comp_run $n_test_run $n_instances $p_err $bqp_error --scale 16 #--walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
+  # Run the process in the background locally
+  time python -m gospel.cluster.run_veriphix-strong $n_comp_run $n_test_run $n_instances $p_err $bqp_error --scale $n_nodes
+
+  # Run the process in the background on the cluster
+  #time python -m gospel.cluster.run_veriphix-strong $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
 
 done
 
