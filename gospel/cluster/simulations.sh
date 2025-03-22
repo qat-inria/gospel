@@ -48,7 +48,7 @@ for p_err in 0.03 ; do
   echo "Running with p_err=$p_err, PORT=$PORT"
 
   # Run the process in the background
-  time python -m gospel.cluster.run_veriphix-depol $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
+  (time python -m gospel.cluster.run_veriphix-depol $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes) 2>> exec_times.log
 
 done
 
@@ -76,7 +76,7 @@ echo "Starting to generate circuits for 30 bricks now"
 #!/bin/bash
 
 rm -rf circuits
-python -m gospel.sampling_circuits.experiments
+(time python -m gospel.sampling_circuits.experiments) 2>> exec_times.log
 
 n_instances=100
 bqp_error=0.4
@@ -110,7 +110,7 @@ for p_err in 0.5 ; do
   echo "Running with p_err=$p_err, PORT=$PORT"
 
   # Run the process in the background
-  time python -m gospel.cluster.run_veriphix-strong $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
+  (time python -m gospel.cluster.run_veriphix-strong $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes) 2>> exec_times.log
 
 done
 
@@ -136,7 +136,7 @@ for p_err in 0.006 ; do
   echo "Running with p_err=$p_err, PORT=$PORT"
 
   # Run the process in the background
-  time python -m gospel.cluster.run_veriphix-uncorr_depol $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes
+  (time python -m gospel.cluster.run_veriphix-uncorr_depol $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes) 2>> exec_times.log
 
 done
 
