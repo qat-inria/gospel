@@ -9,7 +9,7 @@ import os
 import pandas as pd
 
 
-folder = "STRONG-outcomes-n5-d30"
+folder = "UNCOR_DEPOL-outcomes-n5-d30"
 threshold_values = [1]
 d = 100
 
