@@ -31,8 +31,9 @@ class FaultyCZNoiseModel(NoiseModel):
 
     def __init__(
         self,
-        edges: set[tuple[int, int]],
-        chosen_edges: list[tuple[int, int]] | None = None,
+        edges: frozenset[frozenset[int]],
+        chosen_edges: frozenset[frozenset[int]] | None = None,
+        edge_count: int | None = None,
         prepare_error_prob: float = 0.0,
         x_error_prob: float = 0.0,
         z_error_prob: float = 0.0,
@@ -58,11 +59,19 @@ class FaultyCZNoiseModel(NoiseModel):
         print(f"chosen edges {chosen_edges}")
 
         if chosen_edges is not None:
+            if edge_count is not None:
+                raise ValueError(
+                    "`chosen_edges` and `edge_count` are mutually exclusive"
+                )
             self.chosen_edges = chosen_edges
-        elif chosen_edges is None:
-            self.chosen_edges = [
-                list(self.edges)[i] for i in self.rng.integers(len(self.edges), size=6)
-            ]
+        else:
+            edge_list = list(self.edges)
+            if edge_count is None:
+                edge_count = min(6, len(edge_list))
+            selected_indices = self.rng.choice(
+                range(len(edge_list)), size=edge_count, replace=False
+            )
+            self.chosen_edges = frozenset(edge_list[i] for i in selected_indices)
 
             # list(self.edges)[[self.rng.integers(len(self.edges), size=6)] # [*self.rng.choice(list(self.edges), size=6).tolist()]
 
@@ -84,7 +93,7 @@ class FaultyCZNoiseModel(NoiseModel):
             ]
         if cmd.kind == CommandKind.E:
             if (
-                cmd.nodes in self.chosen_edges or cmd.nodes[::-1] in self.chosen_edges
+                frozenset(cmd.nodes) in self.chosen_edges
             ):  # need symmetrisation since edges are directed
                 u, v = cmd.nodes
                 return [

@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 def perform_simulation(
     pattern: Pattern,
     depol_prob: float = 0.0,
-    chosen_edges: list[tuple[int, int]] | None = None,
+    chosen_edges: frozenset[frozenset[int]] | None = None,
     shots: int = 1,
     rng: Generator | None = None,
 ) -> list[dict[int, int]]:
@@ -63,7 +63,7 @@ def perform_simulation(
 
     noise_model = FaultyCZNoiseModel(
         entanglement_error_prob=depol_prob,
-        edges=set(pattern.get_graph()[1]),
+        edges=pattern.edges,
         chosen_edges=chosen_edges,
     )
 
@@ -158,7 +158,10 @@ def cli(
         pattern.add(command.M(node=onode))
 
     # specific for nqubits = 7 and nlayers = 2
-    # chosen_edges = [(0, 7), (9, 16), (18, 19), (43, 50), (39, 46), (48, 55)]
+    # chosen_edges = frozenset(
+    #     frozenset(edge)
+    #     for edge in [(0, 7), (9, 16), (18, 19), (43, 50), (39, 46), (48, 55)]
+    # )
 
     print("Starting simulation...")
     start = time.time()
