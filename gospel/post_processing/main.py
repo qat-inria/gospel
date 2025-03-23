@@ -8,9 +8,14 @@ import json
 import os
 import pandas as pd
 
+<<<<<<< HEAD
 folder = "MALICIOUS-outcomes-n5"
 # folder = "STRONG-outcomes-n5"
 # folder = "UNCOR_DEPOL-outcomes-n5"
+=======
+
+folder = "DEPOL-outcomes-n5-d30"
+>>>>>>> simulation-results
 threshold_values = [1]
 d = 100
 
@@ -72,13 +77,15 @@ def get_failure_rate(threshold:float=1):
 
         test_lambda = lambda s, circuit : (d-s) if find_correct_value(circuit_name=circuit) else s
         wrong_decisions = [test_lambda(s=df.loc[circuit]["outcome_sum"], circuit=circuit) for circuit in df.index]
+        average_wrong_decisions = sum(wrong_decisions)/len(wrong_decisions)
+        print(f"p={prob} gave on average {average_wrong_decisions}% wrong decisions")
         harold_table[f"# wrong decisions p{prob}"] = wrong_decisions
         # df["outcome_sum"].apply(lambda s: s if find_correct_value(circuit_name=) else (d-s))
 
         # print(harold_table)
 
         proportion_wrong_outcomes = len(df[df['majority vote outcome'] != df["expected_outcome"]])
-        print(f"p={prob} => {proportion_wrong_outcomes}/100 wrong decisions")
+        print(f"p={prob} => {proportion_wrong_outcomes} instances /100 gave more than 50% wrong decisions")
         if proportion_wrong_outcomes != 0:
             print("Incorrect decision dataframe")
             print(df[df['majority vote outcome'] != df["expected_outcome"]])
