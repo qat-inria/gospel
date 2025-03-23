@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 def perform_simulation(
     pattern: Pattern,
     depol_prob: float = 0.0,
+    chosen_edges: list[tuple[int, int]] | None = None,
     shots: int = 1,
     rng: Generator | None = None,
 ) -> list[dict[int, int]]:
@@ -58,9 +59,14 @@ def perform_simulation(
 
     # noise_model = UncorrelatedDepolarisingNoiseModel(entanglement_error_prob=depol_prob)
 
+    # specific to 7 qubits and brick depth 2 instance
+
     noise_model = FaultyCZNoiseModel(
-        entanglement_error_prob=depol_prob, edges=set(pattern.get_graph()[1])
+        entanglement_error_prob=depol_prob,
+        edges=set(pattern.get_graph()[1]),
+        chosen_edges=chosen_edges,
     )
+
     # noise_model = DepolarisingNoiseModel(entanglement_error_prob = 0.001)
 
     results_table = []
@@ -121,9 +127,14 @@ def compute_failure_probabilities(
     return {q: occurences_one[q] / occurences[q] for q in occurences}
 
 
-def plot_heatmap(pattern: Pattern, data: dict[int, float], target: Path) -> None:
+def plot_heatmap(
+    pattern: Pattern,
+    data: dict[int, float],
+    target: Path,
+    heavy_edges: set[tuple[int, int]] | None = None,
+) -> None:
     draw_brickwork_state_colormap_from_pattern(
-        pattern=pattern, target=target, failure_probas=data
+        pattern=pattern, target=target, failure_probas=data, heavy_edges=heavy_edges
     )
 
 
@@ -138,6 +149,7 @@ def cli(
 ) -> None:
     # initialising pattern
     rng = np.random.default_rng(seed)
+
     pattern = generate_random_pauli_pattern(
         nqubits=nqubits, nlayers=nlayers, order=order, rng=rng
     )
@@ -145,9 +157,14 @@ def cli(
     for onode in pattern.output_nodes:
         pattern.add(command.M(node=onode))
 
+    # specific for nqubits = 7 and nlayers = 2
+    # chosen_edges = [(0, 7), (9, 16), (18, 19), (43, 50), (39, 46), (48, 55)]
+
     print("Starting simulation...")
     start = time.time()
-    results_table = perform_simulation(pattern, depol_prob=depol_prob, shots=shots)
+    results_table = perform_simulation(
+        pattern, depol_prob=depol_prob, shots=shots
+    )  # chosen_edges=chosen_edges,
 
     print(f"Simulation finished in {time.time() - start:.4f} seconds.")
 
@@ -160,7 +177,7 @@ def cli(
     # Create the directory
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    plot_heatmap(pattern, failure_probas, target)
+    plot_heatmap(pattern, failure_probas, target)  # ,heavy_edges=set(chosen_edges)
     print("Done!")
 
 

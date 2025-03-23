@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import json
 import math
 from fractions import Fraction
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import networkx as nx
-from graphix import Circuit, Pattern
 from graphix.opengraph import OpenGraph
 from tqdm import tqdm
 
@@ -16,6 +18,9 @@ from gospel.brickwork_state_transpiler import (
     transpile_to_layers,
 )
 from gospel.scripts.qasm_parser import read_qasm
+
+if TYPE_CHECKING:
+    from graphix import Circuit, Pattern
 
 
 def format_angle(angle: float) -> str:
@@ -113,7 +118,10 @@ def draw_brickwork_state_colormap(
 
 
 def draw_brickwork_state_colormap_from_pattern(
-    pattern: Pattern, target: Path, failure_probas: dict[int, float]
+    pattern: Pattern,
+    target: Path,
+    failure_probas: dict[int, float],
+    heavy_edges: set[tuple[int, int]] | None = None,
 ) -> None:
     """Draw the brickwork state with trap failure probability drawn as the node color.
     Heavily redundant since we have already gone through the transpilation step.
@@ -136,7 +144,20 @@ def draw_brickwork_state_colormap_from_pattern(
     plt.figure(
         figsize=(max(x for x, y in pos.values()), max(y for x, y in pos.values()))
     )
+
     nx.draw_networkx_edges(graph.inside, pos, edge_color="black")
+
+    # heavy edge overlay if provided
+    if heavy_edges is not None:
+        filtered_nodes: set[int] = set()
+
+        for edge in heavy_edges:
+            filtered_nodes.update(edge)  # should work
+        filtered_pos = {i: j for i, j in pos.items() if i in filtered_nodes}
+
+        heavy_graph = nx.Graph(heavy_edges)
+
+        nx.draw_networkx_edges(heavy_graph, filtered_pos, edge_color="red", width=5)
     # false error: Argument "node_color" to "draw_networkx_nodes" has incompatible type "list[float]"; expected "str"  [arg-type]
     # false error: Module has no attribute "jet"  [attr-defined]
     nc = nx.draw_networkx_nodes(

@@ -32,6 +32,7 @@ class FaultyCZNoiseModel(NoiseModel):
     def __init__(
         self,
         edges: set[tuple[int, int]],
+        chosen_edges: list[tuple[int, int]] | None = None,
         prepare_error_prob: float = 0.0,
         x_error_prob: float = 0.0,
         z_error_prob: float = 0.0,
@@ -54,8 +55,18 @@ class FaultyCZNoiseModel(NoiseModel):
         # need the list type even for a single edge for the test
         # self.chosen_edges = [*self.rng.choice(list(self.edges), size=1).tolist()]
 
-        # specific to 7 qubits and brick depth 2 instance
-        self.chosen_edges = [(0, 7), (9, 16), (18, 19), (43, 50), (39, 46), (48, 55)]
+        print(f"chosen edges {chosen_edges}")
+
+        if chosen_edges is not None:
+            self.chosen_edges = chosen_edges
+        elif chosen_edges is None:
+            self.chosen_edges = [
+                list(self.edges)[i] for i in self.rng.integers(len(self.edges), size=6)
+            ]
+
+            # list(self.edges)[[self.rng.integers(len(self.edges), size=6)] # [*self.rng.choice(list(self.edges), size=6).tolist()]
+
+        print(f"chosen edges after {self.chosen_edges}")
 
     def input_nodes(self, nodes: list[int]) -> NoiseCommands:
         """Return the noise to apply to input nodes."""
