@@ -49,7 +49,7 @@ for p_err in 0.0002 0.005 0.008 0.01 ; do
   echo $(date +"%H:%M:%S:%3N")
 
   # Run the process in the background
-  (time python -m gospel.cluster.run_veriphix-depol $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 3 --memory 4 --cores 4 --port $PORT --scale $n_nodes) 2>> exec_times.log
+  (time python -m gospel.cluster.run_veriphix-depol $n_comp_run $n_test_run $n_instances $p_err $bqp_error --walltime 10 --memory 4 --cores 4 --port $PORT --scale $n_nodes) 2>> exec_times.log
 done
 
 echo "DEPOLARIZING (UNCORRELATED)"
