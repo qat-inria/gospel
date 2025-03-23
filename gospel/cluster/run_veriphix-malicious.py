@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import logging
-
 import enum
 import json
+import logging
 import random
 import socket
 from dataclasses import dataclass
@@ -13,12 +12,9 @@ from typing import TYPE_CHECKING, assert_never
 
 import dask.distributed
 import typer
-from dask_jobqueue import SLURMCluster  # type: ignore[attr-defined]
-from graphix.fundamentals import IXYZ, Plane
+from dask_jobqueue import SLURMCluster
 from graphix import command
-from graphix.states import BasicStates
-from graphix.noise_models import DepolarisingNoiseModel, NoiseModel
-from gospel.noise_models.uncorrelated_depolarising_noise_model import UncorrelatedDepolarisingNoiseModel
+from graphix.noise_models import NoiseModel
 from graphix.rng import ensure_rng
 from graphix.sim.density_matrix import DensityMatrixBackend
 from veriphix.client import Client, Secrets
@@ -54,7 +50,6 @@ def load_pattern_from_circuit(circuit_label: str) -> tuple[Pattern, list[int]]:
         # correct since the pattern is transpiled from a circuit and hence has a causal flow
         pattern.minimize_space()
     return pattern, classical_output
-
 
 
 """Global noise model."""
@@ -100,6 +95,7 @@ class MaliciousModel(NoiseModel):
         if cmd.node in self.nodes and self.attack:
             return not result
         return result
+
 
 @dataclass
 class Parameters:
@@ -163,8 +159,7 @@ def for_each_round(
     try:
         logging.warning(f"{rounds.circuit_name}::{i}")
         malicious_model = MaliciousModel(
-            prob=rounds.parameters.p_err,
-            nodes=[rounds.onodes[0]]
+            prob=rounds.parameters.p_err, nodes=[rounds.onodes[0]]
         )
         # gentle_global_noise_model = GlobalNoiseModel(
         #     prob=rounds.parameters.p_err,
@@ -184,7 +179,8 @@ def for_each_round(
             rounds.client.delegate_pattern(backend=backend, noise_model=noise_model)
             result: RoundResultOrException = RoundResult(
                 ## TODO: vérifier que onodes[0] est bien le qubit qu'on recherche
-                RoundKind.Computation, bool(rounds.client.results[rounds.onodes[0]])
+                RoundKind.Computation,
+                bool(rounds.client.results[rounds.onodes[0]]),
             )
         else:
             # Test round
@@ -210,7 +206,7 @@ def run(
     t: int,
     num_instances: int,
     p_err: float,
-    bqp_error:float,
+    bqp_error: float,
     walltime: int | None = None,
     memory: int | None = None,
     cores: int | None = None,
@@ -218,7 +214,7 @@ def run(
     scale: int | None = None,
 ) -> None:
     if walltime is None and memory is None and cores is None and port is None:
-        cluster = dask.distributed.LocalCluster()  # type: ignore[no-untyped-call]
+        cluster = dask.distributed.LocalCluster()
     else:
         if walltime is None:
             raise ValueError("--walltime <hours> is required for running on cleps")
@@ -230,7 +226,7 @@ def run(
             raise ValueError("--port <N> is required for running on cleps")
         if scale is None:
             raise ValueError("--scale <N> is required for running on cleps")
-        cluster = SLURMCluster(  # type: ignore[assignment]
+        cluster = SLURMCluster(
             account="inria",
             queue="cpu_devel",
             cores=cores,
@@ -239,29 +235,25 @@ def run(
             scheduler_options={"dashboard_address": f":{port}"},
         )
     if scale is not None:
-        cluster.scale(scale)  # type: ignore[no-untyped-call]
+        cluster.scale(scale)
 
-   # Load circuits list from the text file
+    # Load circuits list from the text file
     with Path("gospel/cluster/sampled_circuits.txt").open() as f:
         circuits = json.load(f)
 
     print(f"Loaded {len(circuits)} circuits.")
 
-    parameters = Parameters(
-        d=d, t=t, N=d + t, num_instances=num_instances, p_err=p_err
-    )
+    parameters = Parameters(d=d, t=t, N=d + t, num_instances=num_instances, p_err=p_err)
 
     # Recording info
 
-    all_rounds = [
-        get_rounds(parameters, circuit_name) for circuit_name in circuits
-    ]
+    all_rounds = [get_rounds(parameters, circuit_name) for circuit_name in circuits]
 
     n_failed_trap_rounds = 0
 
-    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
+    dask_client = dask.distributed.Client(cluster)
     outcome_circuits = dict(
-        dask_client.gather(  # type: ignore[no-untyped-call]
+        dask_client.gather(
             dask_client.map(
                 for_all_rounds,
                 all_rounds,
@@ -288,8 +280,10 @@ def run(
             else:
                 assert_never(result.kind)
 
-        outcomes_dict[circuit_name]={"outcome_sum":outcome_sum, 
-                                     "n_failed_trap_rounds": n_failed_trap_rounds}
+        outcomes_dict[circuit_name] = {
+            "outcome_sum": outcome_sum,
+            "n_failed_trap_rounds": n_failed_trap_rounds,
+        }
 
     with open(f"MALICIOUS-p{p_err}.json", "w") as file:
         json.dump(outcomes_dict, file, indent=4)

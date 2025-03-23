@@ -11,6 +11,7 @@ from graphix.sim.base_backend import (
     FixedBranchSelector,
     RandomBranchSelector,
 )
+from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod
 from graphix.states import BasicStates
 from numpy.random import PCG64, Generator
@@ -148,6 +149,7 @@ def simulate_with_noise_model_to_density_matrix(
     pattern.simulate_pattern(backend=backend, noise_model=noise_model)
     second_pattern = backend.to_pattern([], pattern.output_nodes)
     state = second_pattern.simulate_pattern()
+    assert isinstance(state, Statevec)
     return np.outer(state.psi, state.psi.conj())
 
 

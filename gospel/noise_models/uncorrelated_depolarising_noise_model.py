@@ -73,7 +73,7 @@ class UncorrelatedDepolarisingNoiseModel(NoiseModel):
         entanglement_error_prob: float = 0.0,
         measure_channel_prob: float = 0.0,
         measure_error_prob: float = 0.0,
-        rng: Generator = None,
+        rng: Generator | None = None,
     ) -> None:
         self.prepare_error_prob = prepare_error_prob
         self.x_error_prob = x_error_prob
