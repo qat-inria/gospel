@@ -115,7 +115,7 @@ for circuit in instances:
     # Instanciate Client and create Test runs
     client = Client(pattern=pattern, secrets=Secrets(a=False, r=False, theta=False))
 
-    outcomes_sum_all_onodes = {onode: 0 for onode in onodes}
+    outcomes_sum_all_onodes = dict.fromkeys(onodes, 0)
     noise_model = GlobalNoiseModel(prob=p_err, nodes=range(pattern.n_node))
     for _i in range(d):
         # print("new round")

@@ -1,8 +1,8 @@
 import time
-import sympy as sp
-import seaborn as sns
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
 from graphix import command
 from numpy.random import PCG64, Generator
 from tqdm import tqdm
@@ -123,12 +123,19 @@ def compute_failure_probabilities(
 
     return {q: occurences_one[q] / occurences[q] for q in occurences}
 
+
 def compute_failure_probabilities_can(
     failure_proba_can_result: list[dict[int, float]],
 ) -> list[float]:
-    failure_proba_can_array = [v for k, v in sorted(failure_proba_can_result.items(), key=lambda x: x[0][0])]
+    failure_proba_can_array = [
+        v for k, v in sorted(failure_proba_can_result.items(), key=lambda x: x[0][0])
+    ]
     failure_proba_can_inverted = [1 - x for x in failure_proba_can_array]
-    return [abs(orig - inv) for orig, inv in zip(failure_proba_can_array, failure_proba_can_inverted)]
+    return [
+        abs(orig - inv)
+        for orig, inv in zip(failure_proba_can_array, failure_proba_can_inverted)
+    ]
+
 
 def compute_failure_probabilities_dev(
     failure_proba_dev_result: list[dict[int, float]], n_qubits, max_index
@@ -145,23 +152,27 @@ def compute_failure_probabilities_dev(
             required_indices.append((current_index,))  # Note the comma to create tuple
         start += 2 * n_qubits
 
-
     failure_proba_dev_final = {
-        idx: failure_proba_dev_result[idx] 
-        for idx in required_indices 
+        idx: failure_proba_dev_result[idx]
+        for idx in required_indices
         if idx in failure_proba_dev_result
     }
 
-
-    failure_proba_dev_array = [v for k, v in sorted(failure_proba_dev_final.items(), key=lambda x: x[0][0])]
+    failure_proba_dev_array = [
+        v for k, v in sorted(failure_proba_dev_final.items(), key=lambda x: x[0][0])
+    ]
     failure_proba_dev_inverted = [1 - x for x in failure_proba_dev_array]
-    return [abs(origi - inve) for origi, inve in zip(failure_proba_dev_array, failure_proba_dev_inverted)]
+    return [
+        abs(origi - inve)
+        for origi, inve in zip(failure_proba_dev_array, failure_proba_dev_inverted)
+    ]
 
-def generate_qubit_edge_matrix_with_unknowns_can(Nqubits, Nlayers):
-    n = Nqubits
-    m = 4 * Nlayers + 1
+
+def generate_qubit_edge_matrix_with_unknowns_can(n_qubits, n_layers):
+    n = n_qubits
+    m = 4 * n_layers + 1
     qubits = {}  # Mapping from (i, j) to qubit index
-    edges = {}   # Mapping from edge (start, end) to edge index
+    edges = {}  # Mapping from edge (start, end) to edge index
     edge_index = 0
     qubit_index = 0
 
@@ -180,59 +191,84 @@ def generate_qubit_edge_matrix_with_unknowns_can(Nqubits, Nlayers):
 
     for i in range(n - 1):
         for j in range(m):
-            if ((j + 1) % 8 == 3 and (i + 1) % 2 != 0):  # Column j ≡ 3 (mod 8) and odd row i
-                if j + 3 < m:  # Ensure we don't go out of bounds
-                    edge = ((i, j), (i + 1, j))
-                    edges[edge] = edge_index
-                    edge_index += 1
-                    edge = ((i, j + 2), (i + 1, j + 2))
-                    edges[edge] = edge_index
-                    edge_index += 1
-            if ((j + 1) % 8 == 7 and (i + 1) % 2 == 0):  # Column j ≡ 7 (mod 8) and even row i
-                if j + 3 < m:  # Ensure we don't go out of bounds
-                    edge = ((i, j), (i + 1, j))
-                    edges[edge] = edge_index
-                    edge_index += 1
-                    edge = ((i, j + 2), (i + 1, j + 2))
-                    edges[edge] = edge_index
-                    edge_index += 1
+            if (
+                (j + 1) % 8 == 3 and (i + 1) % 2 != 0 and j + 3 < m
+            ):  # Column j ≡ 3 (mod 8) and odd row i
+                edge = ((i, j), (i + 1, j))
+                edges[edge] = edge_index
+                edge_index += 1
+                edge = ((i, j + 2), (i + 1, j + 2))
+                edges[edge] = edge_index
+                edge_index += 1
+            if (
+                (j + 1) % 8 == 7 and (i + 1) % 2 == 0 and j + 3 < m
+            ):  # Column j ≡ 7 (mod 8) and even row i
+                edge = ((i, j), (i + 1, j))
+                edges[edge] = edge_index
+                edge_index += 1
+                edge = ((i, j + 2), (i + 1, j + 2))
+                edges[edge] = edge_index
+                edge_index += 1
 
     # Create the symbolic matrix (qubits × edges)
     matrix = np.zeros((len(qubits), len(edges)), dtype=object)
 
     # Create symbolic variables for edges
-    #edge_symbols = [sp.symbols(f'x{i}') for i in range(len(edges))]
+    # edge_symbols = [sp.symbols(f'x{i}') for i in range(len(edges))]
 
     # Apply special conditions for qubits
     conditions = [
-        (lambda i, j: ((i % 2 == 0 and (j % 8 == 0 or j % 8 == 6)) or (i % 2 == 1 and (j % 8 == 2 or j % 8 == 4)), [
-            ((i, j - 2), (i, j - 1)),
-            ((i, j - 1), (i, j)),
-            ((i - 1, j - 1), (i - 1, j)),
-            ((i - 1, j), (i, j)),
-            ((i, j), (i, j + 1))
-        ])),
-        (lambda i, j: ((i % 2 == 1 and (j % 8 == 0 or j % 8 == 6)) or (i % 2 == 0 and (j % 8 == 2 or j % 8 == 4)), [
-            ((i, j - 2), (i, j - 1)),
-            ((i, j - 1), (i, j)),
-            ((i + 1, j - 1), (i + 1, j)),
-            ((i, j), (i + 1, j)),
-             ((i, j), (i, j + 1))
-        ])),
-        (lambda i, j: ((i % 2 == 0 and (j % 8 == 1 or j % 8 == 7)) or (i % 2 == 1 and (j % 8 == 3 or j % 8 == 5)), [
-            ((i, j - 2), (i, j - 1)),
-            ((i - 1, j - 1), (i, j - 1)),
-            ((i, j - 1), (i, j)),
-            ((i, j), (i, j + 1))
-        ])),
-        (lambda i, j: ((i % 2 == 1 and (j % 8 == 1 or j % 8 == 7)) or (i % 2 == 0 and (j % 8 == 3 or j % 8 == 5)), [
-            ((i, j - 2), (i, j - 1)),
-            ((i, j - 1), (i + 1, j)),
-            ((i, j - 1), (i, j)),
-            ((i, j), (i, j + 1))
-        ]))
+        (
+            lambda i, j: (
+                (i % 2 == 0 and (j % 8 == 0 or j % 8 == 6))
+                or (i % 2 == 1 and (j % 8 == 2 or j % 8 == 4)),
+                [
+                    ((i, j - 2), (i, j - 1)),
+                    ((i, j - 1), (i, j)),
+                    ((i - 1, j - 1), (i - 1, j)),
+                    ((i - 1, j), (i, j)),
+                    ((i, j), (i, j + 1)),
+                ],
+            )
+        ),
+        (
+            lambda i, j: (
+                (i % 2 == 1 and (j % 8 == 0 or j % 8 == 6))
+                or (i % 2 == 0 and (j % 8 == 2 or j % 8 == 4)),
+                [
+                    ((i, j - 2), (i, j - 1)),
+                    ((i, j - 1), (i, j)),
+                    ((i + 1, j - 1), (i + 1, j)),
+                    ((i, j), (i + 1, j)),
+                    ((i, j), (i, j + 1)),
+                ],
+            )
+        ),
+        (
+            lambda i, j: (
+                (i % 2 == 0 and (j % 8 == 1 or j % 8 == 7))
+                or (i % 2 == 1 and (j % 8 == 3 or j % 8 == 5)),
+                [
+                    ((i, j - 2), (i, j - 1)),
+                    ((i - 1, j - 1), (i, j - 1)),
+                    ((i, j - 1), (i, j)),
+                    ((i, j), (i, j + 1)),
+                ],
+            )
+        ),
+        (
+            lambda i, j: (
+                (i % 2 == 1 and (j % 8 == 1 or j % 8 == 7))
+                or (i % 2 == 0 and (j % 8 == 3 or j % 8 == 5)),
+                [
+                    ((i, j - 2), (i, j - 1)),
+                    ((i, j - 1), (i + 1, j)),
+                    ((i, j - 1), (i, j)),
+                    ((i, j), (i, j + 1)),
+                ],
+            )
+        ),
     ]
-
 
     for f in conditions:
         for i in range(n):
@@ -248,25 +284,26 @@ def generate_qubit_edge_matrix_with_unknowns_can(Nqubits, Nlayers):
                             e_idx = edges[edge]
                             q_idx = qubits[(i, j)]
                             # Use symbolic variables for edges
-                            #matrix[q_idx, e_idx] = edge_symbols[e_idx]
+                            # matrix[q_idx, e_idx] = edge_symbols[e_idx]
                             matrix[q_idx, e_idx] = 1
 
     # Return matrix with symbolic edge variables
     return matrix, qubits, edges
 
-def generate_qubit_edge_matrix_with_unknowns_dev(Noqubits, Nolayers):
-    #assert n % 2 == 0, "The number of rows (n) must be even."
-    n = Noqubits
-    m = 4 * Nolayers + 1
+
+def generate_qubit_edge_matrix_with_unknowns_dev(noqubits, nolayers):
+    # assert n % 2 == 0, "The number of rows (n) must be even."
+    n = noqubits
+    m = 4 * nolayers + 1
     qubits_dev = {}  # Mapping from (i, j) to qubit index
-    edges_dev = {}   # Mapping from edge (start, end) to edge index
+    edges_dev = {}  # Mapping from edge (start, end) to edge index
     edge_index_dev = 0
     qubit_index_dev = 0
 
     # Assign an index to each qubit (i, j)
     for j in range(m):
         for i in range(n):
-            if(i % 2 == 0 and (j % 8 == 1 or j % 8 == 3 or j % 8 == 5 or j % 8 == 7)):
+            if i % 2 == 0 and (j % 8 == 1 or j % 8 == 3 or j % 8 == 5 or j % 8 == 7):
                 qubits_dev[(i, j)] = qubit_index_dev
                 qubit_index_dev += 1
 
@@ -279,67 +316,90 @@ def generate_qubit_edge_matrix_with_unknowns_dev(Noqubits, Nolayers):
 
     for i in range(n - 1):
         for j in range(m):
-            if ((j + 1) % 8 == 3 and (i + 1) % 2 != 0):  # Column j ≡ 3 (mod 8) and odd row i
-                if j + 3 < m:  # Ensure we don't go out of bounds
-                    edge_dev = ((i, j), (i + 1, j))
-                    edges_dev[edge_dev] = edge_index_dev
-                    edge_index_dev += 1
-                    edge_dev = ((i, j + 2), (i + 1, j + 2))
-                    edges_dev[edge_dev] = edge_index_dev
-                    edge_index_dev += 1
-            if ((j + 1) % 8 == 7 and (i + 1) % 2 == 0):  # Column j ≡ 7 (mod 8) and even row i
-                if j + 3 < m:  # Ensure we don't go out of bounds
-                    edge_dev = ((i, j), (i + 1, j))
-                    edges_dev[edge_dev] = edge_index_dev
-                    edge_index_dev += 1
-                    edge_dev = ((i, j + 2), (i + 1, j + 2))
-                    edges_dev[edge_dev] = edge_index_dev
-                    edge_index_dev += 1
+            if (
+                (j + 1) % 8 == 3 and (i + 1) % 2 != 0 and j + 3 < m
+            ):  # Column j ≡ 3 (mod 8) and odd row i
+                edge_dev = ((i, j), (i + 1, j))
+                edges_dev[edge_dev] = edge_index_dev
+                edge_index_dev += 1
+                edge_dev = ((i, j + 2), (i + 1, j + 2))
+                edges_dev[edge_dev] = edge_index_dev
+                edge_index_dev += 1
+            if (
+                (j + 1) % 8 == 7 and (i + 1) % 2 == 0 and j + 3 < m
+            ):  # Column j ≡ 7 (mod 8) and even row i
+                edge_dev = ((i, j), (i + 1, j))
+                edges_dev[edge_dev] = edge_index_dev
+                edge_index_dev += 1
+                edge_dev = ((i, j + 2), (i + 1, j + 2))
+                edges_dev[edge_dev] = edge_index_dev
+                edge_index_dev += 1
 
     # Create the symbolic matrix (qubits × edges)
     matrix_dev = np.zeros((len(qubits_dev), len(edges_dev)), dtype=object)
 
     # Create symbolic variables for edges
-    #edge_symbols_dev = [sp.symbols(f'x{i}') for i in range(len(edges_dev))]
+    # edge_symbols_dev = [sp.symbols(f'x{i}') for i in range(len(edges_dev))]
 
     # Apply special conditions for qubits
     conditions_dev = [
-        (lambda i, j: ((i % 2 == 0 and j % 8 == 1), [
-            ((i, j - 2), (i, j - 1)),
-            ((i - 1, j - 1), (i, j - 1)),
-            ((i, j - 1), (i, j)),
-            ((i, j), (i, j + 1)),
-            ((i, j + 1), (i + 1, j + 1))
-        ])),
-        (lambda i, j: ((i % 2 == 0 and j % 8 == 3), [
-            ((i, j - 2), (i, j - 1)),
-            ((i, j - 1), (i + 1, j - 1)),
-            ((i, j - 1), (i, j)),
-            ((i, j), (i, j + 1)),
-             ((i, j + 1), (i + 1, j + 1))
-        ])),
-        (lambda i, j: ((i % 2 == 0 and j % 8 == 5), [
-            ((i, j - 2), (i, j - 1)),
-            ((i, j - 1), (i + 1, j - 1)),
-            ((i, j - 1), (i, j)),
-            ((i, j), (i, j + 1)),
-            ((i - 1, j + 1), (i, j + 1))
-        ])),
-        (lambda i, j: ((i % 2 == 0 and j % 8 == 7), [
-            ((i, j - 2), (i, j - 1)),
-            ((i - 1, j - 1), (i, j - 1)),
-            ((i, j - 1), (i, j)),
-            ((i, j), (i, j + 1)),
-            ((i - 1, j + 1), (i, j + 1))
-        ]))
+        (
+            lambda i, j: (
+                (i % 2 == 0 and j % 8 == 1),
+                [
+                    ((i, j - 2), (i, j - 1)),
+                    ((i - 1, j - 1), (i, j - 1)),
+                    ((i, j - 1), (i, j)),
+                    ((i, j), (i, j + 1)),
+                    ((i, j + 1), (i + 1, j + 1)),
+                ],
+            )
+        ),
+        (
+            lambda i, j: (
+                (i % 2 == 0 and j % 8 == 3),
+                [
+                    ((i, j - 2), (i, j - 1)),
+                    ((i, j - 1), (i + 1, j - 1)),
+                    ((i, j - 1), (i, j)),
+                    ((i, j), (i, j + 1)),
+                    ((i, j + 1), (i + 1, j + 1)),
+                ],
+            )
+        ),
+        (
+            lambda i, j: (
+                (i % 2 == 0 and j % 8 == 5),
+                [
+                    ((i, j - 2), (i, j - 1)),
+                    ((i, j - 1), (i + 1, j - 1)),
+                    ((i, j - 1), (i, j)),
+                    ((i, j), (i, j + 1)),
+                    ((i - 1, j + 1), (i, j + 1)),
+                ],
+            )
+        ),
+        (
+            lambda i, j: (
+                (i % 2 == 0 and j % 8 == 7),
+                [
+                    ((i, j - 2), (i, j - 1)),
+                    ((i - 1, j - 1), (i, j - 1)),
+                    ((i, j - 1), (i, j)),
+                    ((i, j), (i, j + 1)),
+                    ((i - 1, j + 1), (i, j + 1)),
+                ],
+            )
+        ),
     ]
 
-
-    #print(edges_dev)
+    # print(edges_dev)
     for f in conditions_dev:
         for i in range(n):
             for j in range(m):
-                if(i % 2 == 0 and (j % 8 == 1 or j % 8 == 3 or j % 8 == 5 or j % 8 == 7)):
+                if i % 2 == 0 and (
+                    j % 8 == 1 or j % 8 == 3 or j % 8 == 5 or j % 8 == 7
+                ):
                     condition_dev, special_edges_dev = f(i, j)
                     if condition_dev:
                         for (rel_i1, rel_j1), (rel_i2, rel_j2) in special_edges_dev:
@@ -351,10 +411,10 @@ def generate_qubit_edge_matrix_with_unknowns_dev(Noqubits, Nolayers):
                                 e_idx_dev = edges_dev[edge_dev]
                                 q_idx_dev = qubits_dev[(i, j)]
                                 # Use symbolic variables for edges
-                                #matrix_dev[q_idx_dev, e_idx_dev] = edge_symbols_dev[e_idx_dev]
+                                # matrix_dev[q_idx_dev, e_idx_dev] = edge_symbols_dev[e_idx_dev]
                                 matrix_dev[q_idx_dev, e_idx_dev] = 1
     # Return matrix with symbolic edge variables
-    return matrix_dev, qubits_dev, edges_dev   
+    return matrix_dev, qubits_dev, edges_dev
 
 
 if __name__ == "__main__":
@@ -363,7 +423,7 @@ if __name__ == "__main__":
     nqubits = 5
     nlayers = 10
     node = nqubits * ((4 * nlayers) + 1)
-    depol_prob=0.001
+    depol_prob = 0.001
 
     print("Starting simulations...")
     start = time.time()
@@ -377,77 +437,111 @@ if __name__ == "__main__":
     failure_proba_can_final = compute_failure_probabilities(results_canonical)
     failure_proba_dev_all = compute_failure_probabilities(results_deviant)
     failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final)
-    failure_proba_dev = compute_failure_probabilities_dev(failure_proba_dev_all, nqubits, node)
+    failure_proba_dev = compute_failure_probabilities_dev(
+        failure_proba_dev_all, nqubits, node
+    )
     failure_proba_can = np.array(failure_proba_can, dtype=np.float64)
     print(failure_proba_can.shape)
     failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)
     print(failure_proba_dev.shape)
 
     print("Setting up ACES...")
-    qubit_edge_matrix, qubit_map, edge_map = generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
-    qubit_edge_matrix_dev, qubit_map_dev, edge_map_dev = generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)
+    qubit_edge_matrix, qubit_map, edge_map = (
+        generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
+    )
+    qubit_edge_matrix_dev, qubit_map_dev, edge_map_dev = (
+        generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)
+    )
     qubit_edge_matrix = np.array(qubit_edge_matrix, dtype=np.float64)
     qubit_edge_matrix_dev = np.array(qubit_edge_matrix_dev, dtype=np.float64)
     print(qubit_edge_matrix.shape)
     print(qubit_edge_matrix_dev.shape)
 
     # Stack the matrices together to form a single system
-    lhs = np.vstack((qubit_edge_matrix, qubit_edge_matrix_dev))  # Combine coefficient matrices
-    rhs = np.concatenate((failure_proba_can, failure_proba_dev))  # Combine constant vectors
+    lhs = np.vstack(
+        (qubit_edge_matrix, qubit_edge_matrix_dev)
+    )  # Combine coefficient matrices
+    rhs = np.concatenate(
+        (failure_proba_can, failure_proba_dev)
+    )  # Combine constant vectors
     print(lhs.shape)
     print(rhs.shape)
 
     log_rhs = np.log(rhs)  # log constant vectors
 
-    log_params, residuals, rank, singular_values = np.linalg.lstsq(lhs, log_rhs, rcond=None)
-    
+    log_params, residuals, rank, singular_values = np.linalg.lstsq(
+        lhs, log_rhs, rcond=None
+    )
+
     print("Calculating the lambdas...")
     X = np.exp(log_params)  # Convert log values back to original variables
     lamba_initial = 1 - depol_prob
     X_diff = [(dif - lamba_initial) for dif in X]
-    
+
     print("Plotting the result...")
 
     plt.figure(figsize=(10, 6))
 
     # Create histogram with density curve
-    n, bins, patches = plt.hist(X_diff, 
-                            bins='auto', 
-                            color='#2ecc71',
-                            edgecolor='#27ae60',
-                            alpha=0.7,
-                            density=True)
+    n, bins, patches = plt.hist(
+        X_diff,
+        bins="auto",
+        color="#2ecc71",
+        edgecolor="#27ae60",
+        alpha=0.7,
+        density=True,
+    )
 
     # Add KDE plot
-    sns.kdeplot(X_diff, color='#34495e', linewidth=2, label='Density of $\lambda(diff)_{\mathrm{edge}}$')
+    sns.kdeplot(
+        X_diff,
+        color="#34495e",
+        linewidth=2,
+        label=r"Density of $\lambda(diff)_{\mathrm{edge}}$",
+    )
 
     # Add reference lines
-    plt.axvline(0.0, color='red', linestyle='--', linewidth=1.5, label='(λ(diff)=0.0)')
-    plt.axvline(np.mean(X_diff), color='#3498db', linestyle='-', 
-                linewidth=1.5, label=f'Mean ({np.mean(X_diff):.2f})')
-    plt.axvline(np.median(X_diff), color='#9b59b6', linestyle='-', 
-                linewidth=1.5, label=f'Median ({np.median(X_diff):.2f})')
+    plt.axvline(0.0, color="red", linestyle="--", linewidth=1.5, label="(λ(diff)=0.0)")
+    plt.axvline(
+        np.mean(X_diff),
+        color="#3498db",
+        linestyle="-",
+        linewidth=1.5,
+        label=f"Mean ({np.mean(X_diff):.2f})",
+    )
+    plt.axvline(
+        np.median(X_diff),
+        color="#9b59b6",
+        linestyle="-",
+        linewidth=1.5,
+        label=f"Median ({np.median(X_diff):.2f})",
+    )
 
     # Formatting
-    plt.title(r'ACES', fontsize=14)
-    plt.xlabel(r'$\lambda(diff)_{\mathrm{edge}}$', fontsize=12)
-    plt.ylabel('Density', fontsize=12)
+    plt.title(r"ACES", fontsize=14)
+    plt.xlabel(r"$\lambda(diff)_{\mathrm{edge}}$", fontsize=12)
+    plt.ylabel("Density", fontsize=12)
     plt.legend()
     plt.grid(alpha=0.3)
     sns.despine()
 
     # Add statistical annotations
-    stats_text = (f'Total edges: {len(X_diff)}\n'
-                  f'Min: {np.min(X_diff):.2f}\n'
-                  f'Max: {np.max(X_diff):.2f}\n'
-                  f'Std: {np.std(X_diff):.2f}')
-    plt.text(0.75, 0.95, stats_text, 
-             transform=plt.gca().transAxes,
-             verticalalignment='top',
-             bbox=dict(facecolor='white', alpha=0.9))
+    stats_text = (
+        f"Total edges: {len(X_diff)}\n"
+        f"Min: {np.min(X_diff):.2f}\n"
+        f"Max: {np.max(X_diff):.2f}\n"
+        f"Std: {np.std(X_diff):.2f}"
+    )
+    plt.text(
+        0.75,
+        0.95,
+        stats_text,
+        transform=plt.gca().transAxes,
+        verticalalignment="top",
+        bbox={"facecolor": "white", "alpha": 0.9},
+    )
 
     plt.tight_layout()
-    #plt.show()
+    # plt.show()
     plt.savefig("plot.png")
     print("Done!")
-
