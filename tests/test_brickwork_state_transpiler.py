@@ -14,7 +14,7 @@ from gospel.brickwork_state_transpiler import (
     SingleQubitPair,
     generate_random_pauli_pattern,
     get_bipartite_coloring,
-    get_brickwork_state_pattern_width,
+    get_hot_traps_of_faulty_gate,
     get_node_positions,
     layers_to_circuit,
     transpile,
@@ -71,7 +71,6 @@ def test_transpile_to_layers_cnot_rx_cnot_rx() -> None:
             False,
             [
                 SingleQubitPair(SingleQubit(rx=math.pi / 4), SingleQubit()),
-                SingleQubitPair(SingleQubit(), SingleQubit()),
             ],
         ),
         Layer(True, [CNOT(target_above=False)]),
@@ -79,7 +78,12 @@ def test_transpile_to_layers_cnot_rx_cnot_rx() -> None:
             False,
             [
                 CNOT(target_above=True),
-                SingleQubitPair(SingleQubit(rx=math.pi / 4), SingleQubit()),
+            ],
+        ),
+        Layer(
+            True,
+            [
+                SingleQubitPair(SingleQubit(), SingleQubit(rx=math.pi / 4)),
             ],
         ),
     ]
@@ -140,7 +144,7 @@ def test_transpile_to_layers_four_cnots() -> None:
 
 
 def check_order(pattern: Pattern, order: ConstructionOrder) -> None:
-    width = get_brickwork_state_pattern_width(pattern)
+    width = len(pattern.input_nodes)
     positions = get_node_positions(pattern)
     has_horizontal_bar = set()
     for cmd in pattern:
@@ -260,3 +264,33 @@ def test_layers_to_circuit(fx_bg: PCG64, jumps: int) -> None:
     sv1 = circuit.simulate_statevector().statevec
     sv2 = circuit2.simulate_statevector().statevec
     assert compare_backend_results(sv1, sv2) == pytest.approx(1)
+
+
+def test_get_hot_traps_of_faulty_gate() -> None:
+    nqubits = 7
+    # Map between a gate and the "kind" of hot traps
+    #
+    # *+*-*-o-o
+    #     |   |
+    # o-o-o-o-o-o-*+*-*
+    #             |   |
+    # o-*+*-*-o-o-o-o-o
+    #     |   |
+    # o-o-*-o-o-o-o-o-o
+    #             |   |
+    # o-o-*-*-o-*+*-*-o
+    #     +   |
+    # o-o-*-*-o-o-o-o-o
+    #             |   |
+    #         o-o-*+*-*
+    faulty_gates = {
+        (0, 7): (0, {0, 7, 14}),
+        (9, 16): (1, {9, 16, 17, 23}),
+        (18, 19): (2, {18, 19, 25, 26}),
+        (43, 50): (3, {43, 50, 57}),
+        (39, 46): (4, {39, 46, 53}),
+        (48, 55): (5, {48, 55, 62}),
+        (1, 8): (None, set()),
+    }
+    for faulty_gate, expected_answer in faulty_gates.items():
+        assert get_hot_traps_of_faulty_gate(nqubits, faulty_gate) == expected_answer

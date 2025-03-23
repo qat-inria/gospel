@@ -112,6 +112,50 @@ def draw_brickwork_state_colormap(
     plt.close()
 
 
+def draw_brickwork_state_colormap_from_pattern(
+    pattern: Pattern, target: Path, failure_probas: dict[int, float]
+) -> None:
+    """Draw the brickwork state with trap failure probability drawn as the node color.
+    Heavily redundant since we have already gone through the transpilation step.
+
+    Parameters
+    ----------
+    circuit : Circuit
+
+    target : Path
+        where to save the figure
+    failure_probas : dict[int, float]
+        dictionary of failure probability (value) by node (key)
+    """
+
+    graph = OpenGraph.from_pattern(pattern)
+    pos = get_node_positions(pattern, reverse_qubit_order=True)
+    labels = {node: node for node in graph.inside.nodes()}
+    colors = [failure_probas[node] for node in graph.inside.nodes()]
+
+    plt.figure(
+        figsize=(max(x for x, y in pos.values()), max(y for x, y in pos.values()))
+    )
+    nx.draw_networkx_edges(graph.inside, pos, edge_color="black")
+    # false error: Argument "node_color" to "draw_networkx_nodes" has incompatible type "list[float]"; expected "str"  [arg-type]
+    # false error: Module has no attribute "jet"  [attr-defined]
+    nc = nx.draw_networkx_nodes(
+        graph.inside,
+        pos,
+        nodelist=graph.inside.nodes,
+        label=labels,
+        node_color=colors,  # type: ignore[arg-type]
+        node_size=1000,
+        cmap=plt.cm.jet,  # type: ignore[attr-defined]
+        vmin=0,
+        vmax=1,
+    )
+    plt.colorbar(nc)
+    plt.axis("off")
+    plt.savefig(target, format="svg")
+    plt.close()
+
+
 def convert_circuit_directory_to_brickwork_state_svg(
     path_circuits: Path, path_brickwork_state_svg: Path
 ) -> None:

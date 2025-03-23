@@ -135,7 +135,7 @@ class Layer:
 def __get_layer(width: int, layers: list[Layer], depth: int) -> Layer:
     for i in range(len(layers), depth + 1):
         odd = bool(i % 2)
-        layer_size = (width - 1) // 2 if odd else (width + 1) // 2
+        layer_size = (width - 1) // 2 if odd else max(width // 2, 1)
         layers.append(
             Layer(
                 odd,
@@ -162,8 +162,8 @@ def __insert_rotation(
                 return
         else:
             assert isinstance(brick, CNOT)
-    if target_depth % 2 and (
-        instr.target == 0 or (width % 2 == 0 and instr.target == width - 1)
+    if (instr.target == 0 and target_depth % 2) or (
+        width >= 2 and instr.target == width - 1 and target_depth % 2 != width % 2
     ):
         target_depth += 1
     layer = __get_layer(width, layers, target_depth)
@@ -233,14 +233,26 @@ def j_commands(
 
 
 class ConstructionOrder(Enum):
-    Canonical = enum.auto()
-    Deviant = enum.auto()
-    DeviantRight = enum.auto()
+    # Values are used by `typer` in the command-line interface
+    Canonical = "canonical"
+    Deviant = "deviant"
+    DeviantRight = "deviant-right"
+
+
+def nqubits_from_layers(layers: list[Layer]) -> int:
+    if len(layers) == 0:
+        raise ValueError("Layer list should not be empty")
+    if len(layers) == 1:
+        return 2 * len(layers[0].bricks)
+    even_brick_count = len(layers[0].bricks)
+    odd_brick_count = len(layers[1].bricks)
+    return even_brick_count * 2 + int(even_brick_count == odd_brick_count)
 
 
 def layers_to_measurement_table(layers: list[Layer]) -> list[list[float]]:
+    nqubits = nqubits_from_layers(layers)
     table = []
-    for layer in layers:
+    for layer_index, layer in enumerate(layers):
         all_brick_measures = [brick.measures() for brick in layer.bricks]
         for column_index in range(4):
             column: list[float] = []
@@ -251,7 +263,7 @@ def layers_to_measurement_table(layers: list[Layer]) -> list[list[float]]:
                 for measures in all_brick_measures
                 for i in (0, 1)
             )
-            if layer.odd:
+            if layer_index % 2 != nqubits % 2:
                 column.append(0)
             table.append(column)
     return table
@@ -264,11 +276,6 @@ def measurement_table_to_pattern(
     pattern = Pattern(input_nodes)
     nodes = input_nodes
     node_generator = NodeGenerator(width)
-    if width % 2:
-        nodes.append(node_generator.fresh(pattern))
-        last_qubit = width
-    else:
-        last_qubit = width - 1
     for time, column in enumerate(table):
         postponed = None  # for deviant order
         for qubit, angle in enumerate(column):
@@ -277,13 +284,13 @@ def measurement_table_to_pattern(
                 brick_layer = (time - 1) // 4
                 match order:
                     case ConstructionOrder.Canonical:
-                        if qubit % 2 == brick_layer % 2 and qubit != last_qubit:
+                        if qubit % 2 == brick_layer % 2 and qubit != width - 1:
                             pattern.add(
                                 command.E(nodes=(nodes[qubit], nodes[qubit + 1]))
                             )
                         pattern.extend(commands)
                     case ConstructionOrder.DeviantRight:
-                        if qubit % 2 == brick_layer % 2 and qubit != last_qubit:
+                        if qubit % 2 == brick_layer % 2 and qubit != width - 1:
                             pattern.extend(commands[:2])
                             postponed = (nodes[qubit], commands[2:])
                         elif postponed is None:
@@ -297,7 +304,7 @@ def measurement_table_to_pattern(
                             pattern.extend(commands[2:])
             elif time % 4 in {1, 3} and order == ConstructionOrder.Deviant:
                 brick_layer = time // 4
-                if qubit % 2 == brick_layer % 2 and qubit != last_qubit:
+                if qubit % 2 == brick_layer % 2 and qubit != width - 1:
                     pattern.add(commands[0])
                     postponed = (nodes[qubit], commands[1:])
                 elif postponed is None:
@@ -320,10 +327,8 @@ def measurement_table_to_pattern(
             nodes[qubit] = next_node
     if order != ConstructionOrder.Deviant:
         last_brick_layer = (len(table) - 1) // 4
-        for qubit in range(last_brick_layer % 2, last_qubit, 2):
+        for qubit in range(last_brick_layer % 2, width - 1, 2):
             pattern.add(command.E(nodes=(nodes[qubit], nodes[qubit + 1])))
-    if width % 2:
-        pattern.add(command.M(node=nodes[last_qubit], angle=0))
     return pattern
 
 
@@ -343,20 +348,11 @@ def transpile(
     return layers_to_pattern(circuit.width, layers, order)
 
 
-def get_brickwork_state_pattern_width(pattern: Pattern) -> int:
-    width = len(pattern.input_nodes)
-    if width % 2:
-        width = width + 1
-    if pattern.n_node % width != 0:
-        raise ValueError("Unexpected node count in a brickwork state pattern")
-    return width
-
-
 def get_node_positions(
     pattern: Pattern, scale: float = 1, reverse_qubit_order: bool = False
 ) -> dict[int, array[int]]:
     """Return node positions in a grid layout."""
-    width = get_brickwork_state_pattern_width(pattern)
+    width = len(pattern.input_nodes)
     return {
         node: array(
             "i",
@@ -396,7 +392,6 @@ def random_pauli_measurement_angle(rng: Generator) -> float:
 def generate_random_pauli_measurement_table(
     nqubits: int, nlayers: int, rng: Generator
 ) -> list[list[float]]:
-    assert nqubits % 2 == 0
     return [
         [random_pauli_measurement_angle(rng) for _ in range(nqubits)]
         for _ in range(nlayers * 4)
@@ -415,7 +410,7 @@ def generate_random_pauli_pattern(
 
 
 def layers_to_circuit(layers: list[Layer]) -> Circuit:
-    width = 2 * len(layers[0].bricks)
+    width = nqubits_from_layers(layers)
     circuit = Circuit(width)
     for layer in layers:
         nqubit = int(layer.odd)
@@ -423,3 +418,63 @@ def layers_to_circuit(layers: list[Layer]) -> Circuit:
             brick.to_circuit(circuit, nqubit)
             nqubit += 2
     return circuit
+
+
+def get_hot_traps_of_faulty_gate(
+    nqubits: int, edge: tuple[int, int]
+) -> tuple[int | None, set[int]]:
+    """
+    For an edge `(u, v)`, return the "kind" of hot traps and the set of hot traps.
+    This function raises an exception of `edge` does not belong to the brickwork state graph,
+    and returns `(None, [])` if it is not a faulty gate.
+
+    Hot trap kinds are (`+` is the faulty gate, `*` are hot traps):
+    - 0: *+*-*-o-o
+             |   |
+         o-o-o-o-o
+
+    - 1: o-*+*-*-o
+             |   |
+         o-o-*-o-o
+
+    - 2: o-o-*-*-o
+             +   |
+         o-o-*-*-o
+
+    - 3: o-o-*+*-*
+             |   |
+         o-o-o-o-o
+
+    - 4: o-o-o-o-o
+             |   |
+         o-*+*-*-o
+
+    - 5: o-o-o-o-o
+             |   |
+         o-o-*+*-*
+    """
+    u, v = sorted(edge)
+    uy = u % nqubits
+    ux = u // nqubits
+    vy = v % nqubits
+    vx = v // nqubits
+    horizontal = uy == vy
+    u_on_top_of_brick = (ux // 4) % 2 == uy % 2
+    if (horizontal and vx != ux + 1) or (
+        not horizontal
+        and (not u_on_top_of_brick or vy != uy + 1 or ux == 0 or ux % 4 not in {0, 2})
+    ):
+        raise ValueError("Not an edge")
+    if horizontal and ux % 4 == 0 and u_on_top_of_brick:
+        return 0, {u, v, v + nqubits}
+    if horizontal and ux % 4 == 1 and u_on_top_of_brick:
+        return 1, {u, v, v + 1, v + nqubits}
+    if not horizontal and ux % 4 == 2 and u_on_top_of_brick:
+        return 2, {u, v, u + nqubits, v + nqubits}
+    if horizontal and ux % 4 == 2 and u_on_top_of_brick:
+        return 3, {u, v, v + nqubits}
+    if horizontal and ux % 4 == 1 and not u_on_top_of_brick:
+        return 4, {u, v, v + nqubits}
+    if horizontal and ux % 4 == 2 and not u_on_top_of_brick:
+        return 5, {u, v, v + nqubits}
+    return None, set()

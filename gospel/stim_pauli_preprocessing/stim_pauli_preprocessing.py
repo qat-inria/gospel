@@ -260,7 +260,7 @@ class StimBackend(Backend):
                 (q0, q1) = nodes
                 self.sim.depolarize2(q0, q1, p=prob)
             case _:
-                raise ValueError(f"Unsupported noise: {noise}")
+                raise ValueError(f"Unsupported noise: {noise} and {nodes}")
 
     def finalize(self, output_nodes: list[int]) -> None:
         pass

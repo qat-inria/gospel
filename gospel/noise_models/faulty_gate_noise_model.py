@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 import typing_extensions
 from graphix.command import BaseM, CommandKind
-from graphix.noise_models.depolarising_noise_model import DepolarisingNoise
 from graphix.noise_models.noise_model import (
     A,
     CommandOrNoise,
@@ -19,17 +18,20 @@ if TYPE_CHECKING:
     from numpy.random import Generator
 
 
-class UncorrelatedDepolarisingNoiseModel(NoiseModel):
-    """Depolarising noise model.
+from graphix.noise_models.depolarising_noise_model import DepolarisingNoise
 
-    Only return the identity channel.
 
+class FaultyCZNoiseModel(NoiseModel):
+    """Uncorrelated depolarising noise model. with fixed gate.
+
+    edges: list of possible edges to draw from
     :param NoiseModel: Parent abstract class class:`graphix.noise_model.NoiseModel`
     :type NoiseModel: class
     """
 
     def __init__(
         self,
+        edges: set[tuple[int, int]],
         prepare_error_prob: float = 0.0,
         x_error_prob: float = 0.0,
         z_error_prob: float = 0.0,
@@ -38,6 +40,7 @@ class UncorrelatedDepolarisingNoiseModel(NoiseModel):
         measure_error_prob: float = 0.0,
         rng: Generator | None = None,
     ) -> None:
+        self.edges = edges
         self.prepare_error_prob = prepare_error_prob
         self.x_error_prob = x_error_prob
         self.z_error_prob = z_error_prob
@@ -45,6 +48,14 @@ class UncorrelatedDepolarisingNoiseModel(NoiseModel):
         self.measure_error_prob = measure_error_prob
         self.measure_channel_prob = measure_channel_prob
         self.rng = ensure_rng(rng)
+
+        # choose the target faulty gate
+        # random for now
+        # need the list type even for a single edge for the test
+        # self.chosen_edges = [*self.rng.choice(list(self.edges), size=1).tolist()]
+
+        # specific to 7 qubits and brick depth 2 instance
+        self.chosen_edges = [(0, 7), (9, 16), (18, 19), (43, 50), (39, 46), (48, 55)]
 
     def input_nodes(self, nodes: list[int]) -> NoiseCommands:
         """Return the noise to apply to input nodes."""
@@ -61,18 +72,23 @@ class UncorrelatedDepolarisingNoiseModel(NoiseModel):
                 A(noise=DepolarisingNoise(self.prepare_error_prob), nodes=[cmd.node]),
             ]
         if cmd.kind == CommandKind.E:
-            u, v = cmd.nodes
-            return [
-                cmd,
-                A(
-                    noise=DepolarisingNoise(self.entanglement_error_prob),
-                    nodes=[u],
-                ),
-                A(
-                    noise=DepolarisingNoise(self.entanglement_error_prob),
-                    nodes=[v],
-                ),
-            ]
+            if (
+                cmd.nodes in self.chosen_edges or cmd.nodes[::-1] in self.chosen_edges
+            ):  # need symmetrisation since edges are directed
+                u, v = cmd.nodes
+                return [
+                    cmd,
+                    A(
+                        noise=DepolarisingNoise(self.entanglement_error_prob),
+                        nodes=[u],
+                    ),
+                    A(
+                        noise=DepolarisingNoise(self.entanglement_error_prob),
+                        nodes=[v],
+                    ),
+                ]
+            return [cmd]
+
         if cmd.kind == CommandKind.M:
             return [
                 A(noise=DepolarisingNoise(self.measure_channel_prob), nodes=[cmd.node]),
