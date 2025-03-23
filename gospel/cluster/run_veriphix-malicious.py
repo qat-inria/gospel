@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 import json
+import logging
 import random
 import socket
 from dataclasses import dataclass
@@ -40,6 +41,7 @@ def load_pattern_from_circuit(circuit_label: str) -> tuple[Pattern, list[int]]:
 
         ## Measure output nodes, to have classical output
         classical_output = pattern.output_nodes
+        print(classical_output)
         for onode in classical_output:
             pattern.add(command.M(node=onode))
 
@@ -50,11 +52,6 @@ def load_pattern_from_circuit(circuit_label: str) -> tuple[Pattern, list[int]]:
     return pattern, classical_output
 
 
-with Path("circuits/table.json").open() as f:
-    table = json.load(f)
-    circuits = [name for name, prob in table.items() if prob < 0.4]
-    print(len(circuits))
-
 """Global noise model."""
 
 
@@ -62,10 +59,10 @@ if TYPE_CHECKING:
     from numpy.random import Generator
 
 
-class GlobalNoiseModel(NoiseModel):
-    """Global noise model.
-
-    :param NoiseModel: Parent abstract class class:`graphix.noise_model.NoiseModel`
+class MaliciousModel(NoiseModel):
+    """Malicous model
+    Attacks specific qubits by flipping all of them
+    This happens with a given probability prob
     :type NoiseModel: class
     """
 
@@ -73,17 +70,16 @@ class GlobalNoiseModel(NoiseModel):
         self,
         nodes: Iterable[int],
         prob: float = 0.0,
-        target_rate: float = 0.02,
         rng: Generator | None = None,
     ) -> None:
         self.prob = prob
         self.nodes = list(nodes)
-        self.n_targets = int(len(self.nodes) * target_rate)
         self.rng = ensure_rng(rng)
         self.refresh_randomness()
 
     def refresh_randomness(self) -> None:
-        self.target_nodes = random.sample(self.nodes, self.n_targets)
+        # self.node = random.choice(self.nodes)
+        # self.target_nodes = random.sample(self.nodes, self.n_targets)
         self.attack = int(self.rng.uniform() < self.prob)
 
     def input_nodes(self, nodes: list[int]) -> NoiseCommands:
@@ -96,7 +92,7 @@ class GlobalNoiseModel(NoiseModel):
 
     def confuse_result(self, cmd: BaseM, result: bool) -> bool:
         """Assign wrong measurement result cmd = "M"."""
-        if cmd.node in self.target_nodes and self.attack:
+        if cmd.node in self.nodes and self.attack:
             return not result
         return result
 
@@ -107,7 +103,6 @@ class Parameters:
     t: int
     N: int
     num_instances: int
-    threshold: float
     p_err: float
 
 
@@ -162,17 +157,20 @@ def for_each_round(
 ) -> ComputationResult:
     rounds, i = args
     try:
-        # strong_global_noise_model = GlobalNoiseModel(
+        logging.warning(f"{rounds.circuit_name}::{i}")
+        malicious_model = MaliciousModel(
+            prob=rounds.parameters.p_err, nodes=[rounds.onodes[0]]
+        )
+        # gentle_global_noise_model = GlobalNoiseModel(
         #     prob=rounds.parameters.p_err,
         #     nodes=range(rounds.client.initial_pattern.n_node),
-        #     target_rate=0.02
+        #     target_rate=1/rounds.client.initial_pattern.n_node
         # )
-        gentle_global_noise_model = GlobalNoiseModel(
-            prob=rounds.parameters.p_err,
-            nodes=range(rounds.client.initial_pattern.n_node),
-            target_rate=1 / rounds.client.initial_pattern.n_node,
-        )
-        noise_model = gentle_global_noise_model
+
+        # depolarizing_noise_model = DepolarisingNoiseModel(entanglement_error_prob=rounds.parameters.p_err)
+        # uncorrelated_depolarizing_noise_model = UncorrelatedDepolarisingNoiseModel(entanglement_error_prob=rounds.parameters.p_err)
+
+        noise_model = malicious_model
 
         backend = DensityMatrixBackend()
 
@@ -190,7 +188,6 @@ def for_each_round(
             trap_outcomes = rounds.client.delegate_test_run(
                 run=run, backend=backend, noise_model=noise_model
             )
-
             # Record trap failure
             # A trap round fails if one of the single-qubit traps failed
             result = RoundResult(RoundKind.Test, bool(sum(trap_outcomes) != 0))
@@ -200,6 +197,7 @@ def for_each_round(
 
 
 def for_all_rounds(rounds: Rounds) -> tuple[str, list[ComputationResult]]:
+    logging.warning(rounds.circuit_name)
     return rounds.circuit_name, [for_each_round((rounds, i)) for i in rounds.rounds]
 
 
@@ -207,8 +205,8 @@ def run(
     d: int,
     t: int,
     num_instances: int,
-    threshold: float,
     p_err: float,
+    bqp_error: float,
     walltime: int | None = None,
     memory: int | None = None,
     cores: int | None = None,
@@ -239,19 +237,19 @@ def run(
     if scale is not None:
         cluster.scale(scale)
 
-    parameters = Parameters(
-        d=d, t=t, N=d + t, num_instances=num_instances, threshold=threshold, p_err=p_err
-    )
+    # Load circuits list from the text file
+    with Path("gospel/cluster/sampled_circuits.txt").open() as f:
+        circuits = json.load(f)
+
+    print(f"Loaded {len(circuits)} circuits.")
+
+    parameters = Parameters(d=d, t=t, N=d + t, num_instances=num_instances, p_err=p_err)
 
     # Recording info
-    circuit_names = random.sample(circuits, parameters.num_instances)
 
-    all_rounds = [
-        get_rounds(parameters, circuit_name) for circuit_name in circuit_names
-    ]
+    all_rounds = [get_rounds(parameters, circuit_name) for circuit_name in circuits]
 
     n_failed_trap_rounds = 0
-    # n_tolerated_failures = parameters.threshold * parameters.t
 
     dask_client = dask.distributed.Client(cluster)
     outcome_circuits = dict(
@@ -263,7 +261,7 @@ def run(
         )
     )
 
-    with open(f"w{parameters.threshold}-p{p_err}-raw.json", "w") as file:
+    with open(f"MALICIOUS-p{p_err}-raw.json", "w") as file:
         file.write(str(outcome_circuits))
 
     outcomes_dict = {}
@@ -281,23 +279,13 @@ def run(
                 n_failed_trap_rounds += result.value
             else:
                 assert_never(result.kind)
-        failure_rate = n_failed_trap_rounds / parameters.t
-        decision = (
-            failure_rate > parameters.threshold
-        )  # True if the instance is accepted, False if rejected
-        if outcome_sum == parameters.d / 2:
-            outcome: str | int = "Ambig."
-        else:
-            outcome = int(outcome_sum > parameters.d / 2)
+
         outcomes_dict[circuit_name] = {
             "outcome_sum": outcome_sum,
             "n_failed_trap_rounds": n_failed_trap_rounds,
-            "decision": decision,
-            "outcome": outcome,
-            "failure_rate": failure_rate,
         }
 
-    with open(f"w{parameters.threshold}-p{p_err}.json", "w") as file:
+    with open(f"MALICIOUS-p{p_err}.json", "w") as file:
         json.dump(outcomes_dict, file, indent=4)
 
 

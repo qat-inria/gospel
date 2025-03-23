@@ -20,6 +20,9 @@ from veriphix.client import Client, Secrets
 from veriphix.trappifiedCanvas import TrappifiedCanvas, TrapStabilizers
 
 import gospel.brickwork_state_transpiler
+from gospel.noise_models.uncorrelated_depolarising_noise_model import (
+    UncorrelatedDepolarisingNoiseModel,
+)
 from gospel.scripts.qasm_parser import read_qasm
 
 if TYPE_CHECKING:
@@ -50,11 +53,6 @@ def load_pattern_from_circuit(circuit_label: str) -> tuple[Pattern, list[int]]:
     return pattern, classical_output
 
 
-with Path("circuits/table.json").open() as f:
-    table = json.load(f)
-    circuits = [name for name, prob in table.items() if prob < 0.4]
-    print(len(circuits))
-
 """Global noise model."""
 
 
@@ -83,6 +81,7 @@ class GlobalNoiseModel(NoiseModel):
         self.refresh_randomness()
 
     def refresh_randomness(self) -> None:
+        # self.node = random.choice(self.nodes)
         self.target_nodes = random.sample(self.nodes, self.n_targets)
         self.attack = int(self.rng.uniform() < self.prob)
 
@@ -107,7 +106,6 @@ class Parameters:
     t: int
     N: int
     num_instances: int
-    threshold: float
     p_err: float
 
 
@@ -167,12 +165,18 @@ def for_each_round(
         #     nodes=range(rounds.client.initial_pattern.n_node),
         #     target_rate=0.02
         # )
-        gentle_global_noise_model = GlobalNoiseModel(
-            prob=rounds.parameters.p_err,
-            nodes=range(rounds.client.initial_pattern.n_node),
-            target_rate=1 / rounds.client.initial_pattern.n_node,
+        # gentle_global_noise_model = GlobalNoiseModel(
+        #     prob=rounds.parameters.p_err,
+        #     nodes=range(rounds.client.initial_pattern.n_node),
+        #     target_rate=1/rounds.client.initial_pattern.n_node
+        # )
+
+        # depolarizing_noise_model = DepolarisingNoiseModel(entanglement_error_prob=rounds.parameters.p_err)
+        uncorrelated_depolarizing_noise_model = UncorrelatedDepolarisingNoiseModel(
+            entanglement_error_prob=rounds.parameters.p_err
         )
-        noise_model = gentle_global_noise_model
+
+        noise_model = uncorrelated_depolarizing_noise_model
 
         backend = DensityMatrixBackend()
 
@@ -207,8 +211,8 @@ def run(
     d: int,
     t: int,
     num_instances: int,
-    threshold: float,
     p_err: float,
+    bqp_error: float,
     walltime: int | None = None,
     memory: int | None = None,
     cores: int | None = None,
@@ -239,19 +243,19 @@ def run(
     if scale is not None:
         cluster.scale(scale)
 
-    parameters = Parameters(
-        d=d, t=t, N=d + t, num_instances=num_instances, threshold=threshold, p_err=p_err
-    )
+    # Load circuits list from the text file
+    with Path("gospel/cluster/sampled_circuits.txt").open() as f:
+        circuits = json.load(f)
+
+    print(f"Loaded {len(circuits)} circuits.")
+
+    parameters = Parameters(d=d, t=t, N=d + t, num_instances=num_instances, p_err=p_err)
 
     # Recording info
-    circuit_names = random.sample(circuits, parameters.num_instances)
 
-    all_rounds = [
-        get_rounds(parameters, circuit_name) for circuit_name in circuit_names
-    ]
+    all_rounds = [get_rounds(parameters, circuit_name) for circuit_name in circuits]
 
     n_failed_trap_rounds = 0
-    # n_tolerated_failures = parameters.threshold * parameters.t
 
     dask_client = dask.distributed.Client(cluster)
     outcome_circuits = dict(
@@ -263,7 +267,7 @@ def run(
         )
     )
 
-    with open(f"w{parameters.threshold}-p{p_err}-raw.json", "w") as file:
+    with open(f"UNCOR_DEPOL-p{p_err}-raw.json", "w") as file:
         file.write(str(outcome_circuits))
 
     outcomes_dict = {}
@@ -281,23 +285,13 @@ def run(
                 n_failed_trap_rounds += result.value
             else:
                 assert_never(result.kind)
-        failure_rate = n_failed_trap_rounds / parameters.t
-        decision = (
-            failure_rate > parameters.threshold
-        )  # True if the instance is accepted, False if rejected
-        if outcome_sum == parameters.d / 2:
-            outcome: str | int = "Ambig."
-        else:
-            outcome = int(outcome_sum > parameters.d / 2)
+
         outcomes_dict[circuit_name] = {
             "outcome_sum": outcome_sum,
             "n_failed_trap_rounds": n_failed_trap_rounds,
-            "decision": decision,
-            "outcome": outcome,
-            "failure_rate": failure_rate,
         }
 
-    with open(f"w{parameters.threshold}-p{p_err}.json", "w") as file:
+    with open(f"UNCOR_DEPOL-p{p_err}.json", "w") as file:
         json.dump(outcomes_dict, file, indent=4)
 
 
