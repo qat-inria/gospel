@@ -8,8 +8,9 @@ import json
 import os
 import pandas as pd
 
-
-folder = "STRONG-outcomes-n5" #"UNCOR_DEPOL-outcomes-n5"
+folder = "MALICIOUS-outcomes-n5"
+# folder = "STRONG-outcomes-n5"
+# folder = "UNCOR_DEPOL-outcomes-n5"
 threshold_values = [1]
 d = 100
 
