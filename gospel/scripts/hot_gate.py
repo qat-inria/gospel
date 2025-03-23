@@ -67,7 +67,7 @@ def perform_simulation(
 
         # Create a result dictionary (trap -> outcome)
         result = {
-            tuple(trap): outcome for trap, outcome in zip(run.traps_list, trap_outcomes)
+            trap: outcome for (trap,), outcome in zip(run.traps_list, trap_outcomes)
         }
 
         results_table.append(result)

@@ -131,7 +131,7 @@ def draw_brickwork_state_colormap_from_pattern(
     graph = OpenGraph.from_pattern(pattern)
     pos = get_node_positions(pattern, reverse_qubit_order=True)
     labels = {node: node for node in graph.inside.nodes()}
-    colors = [failure_probas[(node,)] for node in graph.inside.nodes()]
+    colors = [failure_probas[node] for node in graph.inside.nodes()]
 
     plt.figure(
         figsize=(max(x for x, y in pos.values()), max(y for x, y in pos.values()))

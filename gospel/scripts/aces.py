@@ -1,7 +1,9 @@
 import time
+from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 import seaborn as sns
 import typer
 from graphix import command
@@ -83,8 +85,7 @@ def perform_simulation(
 
             # Create a result dictionary (trap -> outcome)
             result = {
-                tuple(trap): outcome
-                for trap, outcome in zip(run.traps_list, trap_outcomes)
+                trap: outcome for (trap,), outcome in zip(run.traps_list, trap_outcomes)
             }
 
             test_outcome_table.append(result)
@@ -126,10 +127,10 @@ def compute_failure_probabilities(
 
 
 def compute_failure_probabilities_can(
-    failure_proba_can_result: list[dict[int, float]],
+    failure_proba_can_result: dict[int, float],
 ) -> list[float]:
     failure_proba_can_array = [
-        v for k, v in sorted(failure_proba_can_result.items(), key=lambda x: x[0][0])
+        v for k, v in sorted(failure_proba_can_result.items(), key=lambda x: x[0])
     ]
     failure_proba_can_inverted = [1 - x for x in failure_proba_can_array]
     return [
@@ -139,7 +140,7 @@ def compute_failure_probabilities_can(
 
 
 def compute_failure_probabilities_dev(
-    failure_proba_dev_result: list[dict[int, float]], n_qubits, max_index
+    failure_proba_dev_result: dict[int, float], n_qubits: int, max_index: int
 ) -> list[float]:
     required_indices = []
     start = n_qubits
@@ -150,7 +151,7 @@ def compute_failure_probabilities_dev(
             current_index = start + offset
             if current_index > max_index:
                 break
-            required_indices.append((current_index,))  # Note the comma to create tuple
+            required_indices.append(current_index)  # Note the comma to create tuple
         start += 2 * n_qubits
 
     failure_proba_dev_final = {
@@ -160,7 +161,7 @@ def compute_failure_probabilities_dev(
     }
 
     failure_proba_dev_array = [
-        v for k, v in sorted(failure_proba_dev_final.items(), key=lambda x: x[0][0])
+        v for k, v in sorted(failure_proba_dev_final.items(), key=lambda x: x[0])
     ]
     failure_proba_dev_inverted = [1 - x for x in failure_proba_dev_array]
     return [
@@ -169,7 +170,19 @@ def compute_failure_probabilities_dev(
     ]
 
 
-def generate_qubit_edge_matrix_with_unknowns_can(n_qubits, n_layers):
+Coords2D = tuple[int, int]
+Edge = tuple[Coords2D, Coords2D]
+MatrixAndMaps = tuple[
+    npt.NDArray[np.int64],
+    dict[Coords2D, int],
+    dict[Edge, int],
+]
+Conditions = list[Callable[[int, int], tuple[bool, list[Edge]]]]
+
+
+def generate_qubit_edge_matrix_with_unknowns_can(
+    n_qubits: int, n_layers: int
+) -> MatrixAndMaps:
     n = n_qubits
     m = 4 * n_layers + 1
     qubits = {}  # Mapping from (i, j) to qubit index
@@ -218,7 +231,7 @@ def generate_qubit_edge_matrix_with_unknowns_can(n_qubits, n_layers):
     # edge_symbols = [sp.symbols(f'x{i}') for i in range(len(edges))]
 
     # Apply special conditions for qubits
-    conditions = [
+    conditions: Conditions = [
         (
             lambda i, j: (
                 (i % 2 == 0 and (j % 8 == 0 or j % 8 == 6))
@@ -292,7 +305,9 @@ def generate_qubit_edge_matrix_with_unknowns_can(n_qubits, n_layers):
     return matrix, qubits, edges
 
 
-def generate_qubit_edge_matrix_with_unknowns_dev(noqubits, nolayers):
+def generate_qubit_edge_matrix_with_unknowns_dev(
+    noqubits: int, nolayers: int
+) -> MatrixAndMaps:
     # assert n % 2 == 0, "The number of rows (n) must be even."
     n = noqubits
     m = 4 * nolayers + 1
@@ -343,7 +358,7 @@ def generate_qubit_edge_matrix_with_unknowns_dev(noqubits, nolayers):
     # edge_symbols_dev = [sp.symbols(f'x{i}') for i in range(len(edges_dev))]
 
     # Apply special conditions for qubits
-    conditions_dev = [
+    conditions_dev: Conditions = [
         (
             lambda i, j: (
                 (i % 2 == 0 and j % 8 == 1),
@@ -434,14 +449,15 @@ def cli(
     print("Computing failure probabilities...")
     failure_proba_can_final = compute_failure_probabilities(results_canonical)
     failure_proba_dev_all = compute_failure_probabilities(results_deviant)
+
     failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final)
     failure_proba_dev = compute_failure_probabilities_dev(
         failure_proba_dev_all, nqubits, node
     )
-    failure_proba_can = np.array(failure_proba_can, dtype=np.float64)
-    print(failure_proba_can.shape)
-    failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)
-    print(failure_proba_dev.shape)
+    py_failure_proba_can = np.array(failure_proba_can, dtype=np.float64)
+    print(py_failure_proba_can.shape)
+    py_failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)
+    print(py_failure_proba_dev.shape)
 
     print("Setting up ACES...")
     qubit_edge_matrix, qubit_map, edge_map = (
@@ -460,7 +476,7 @@ def cli(
         (qubit_edge_matrix, qubit_edge_matrix_dev)
     )  # Combine coefficient matrices
     rhs = np.concatenate(
-        (failure_proba_can, failure_proba_dev)
+        (py_failure_proba_can, py_failure_proba_dev)
     )  # Combine constant vectors
     print(lhs.shape)
     print(rhs.shape)
@@ -521,7 +537,7 @@ def cli(
     plt.ylabel("Density", fontsize=12)
     plt.legend()
     plt.grid(alpha=0.3)
-    sns.despine()
+    sns.despine()  # type: ignore[no-untyped-call]
 
     # Add statistical annotations
     stats_text = (

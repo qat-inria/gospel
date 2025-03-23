@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, assert_never
 
 import dask.distributed
 import typer
-from dask_jobqueue import SLURMCluster  # type: ignore[attr-defined]
+from dask_jobqueue import SLURMCluster
 from graphix import command
 from graphix.noise_models import NoiseModel
 from graphix.rng import ensure_rng
@@ -204,7 +204,7 @@ def run(
     scale: int | None = None,
 ) -> None:
     if walltime is None and memory is None and cores is None and port is None:
-        cluster = dask.distributed.LocalCluster()  # type: ignore[no-untyped-call]
+        cluster = dask.distributed.LocalCluster()
     else:
         if walltime is None:
             raise ValueError("--walltime <hours> is required for running on cleps")
@@ -216,7 +216,7 @@ def run(
             raise ValueError("--port <N> is required for running on cleps")
         if scale is None:
             raise ValueError("--scale <N> is required for running on cleps")
-        cluster = SLURMCluster(  # type: ignore[assignment]
+        cluster = SLURMCluster(
             account="inria",
             queue="cpu_devel",
             cores=cores,
@@ -225,7 +225,7 @@ def run(
             scheduler_options={"dashboard_address": f":{port}"},
         )
     if scale is not None:
-        cluster.scale(scale)  # type: ignore[no-untyped-call]
+        cluster.scale(scale)
 
     parameters = Parameters(
         d=d, t=t, N=d + t, num_instances=num_instances, threshold=threshold, p_err=p_err
@@ -241,9 +241,9 @@ def run(
     n_failed_trap_rounds = 0
     # n_tolerated_failures = parameters.threshold * parameters.t
 
-    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
+    dask_client = dask.distributed.Client(cluster)
     outcome_circuits = dict(
-        dask_client.gather(  # type: ignore[no-untyped-call]
+        dask_client.gather(
             dask_client.map(
                 for_all_rounds,
                 all_rounds,
