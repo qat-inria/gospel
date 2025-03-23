@@ -3,6 +3,7 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import typer
 from graphix import command
 from numpy.random import PCG64, Generator
 from tqdm import tqdm
@@ -417,18 +418,15 @@ def generate_qubit_edge_matrix_with_unknowns_dev(noqubits, nolayers):
     return matrix_dev, qubits_dev, edges_dev
 
 
-if __name__ == "__main__":
-    # TODO do cli with typer!
-
-    nqubits = 5
-    nlayers = 10
+def cli(
+    nqubits: int = 5, nlayers: int = 10, depol_prob: float = 0.001, shots: int = 1000000
+) -> None:
     node = nqubits * ((4 * nlayers) + 1)
-    depol_prob = 0.001
 
     print("Starting simulations...")
     start = time.time()
     results_canonical, results_deviant = perform_simulation(
-        nqubits=nqubits, nlayers=nlayers, depol_prob=depol_prob, shots=int(1e6)
+        nqubits=nqubits, nlayers=nlayers, depol_prob=depol_prob, shots=shots
     )
 
     print(f"Simulation finished in {time.time() - start:.4f} seconds.")
@@ -474,9 +472,9 @@ if __name__ == "__main__":
     )
 
     print("Calculating the lambdas...")
-    X = np.exp(log_params)  # Convert log values back to original variables
+    x = np.exp(log_params)  # Convert log values back to original variables
     lamba_initial = 1 - depol_prob
-    X_diff = [(dif - lamba_initial) for dif in X]
+    x_diff = [(dif - lamba_initial) for dif in x]
 
     print("Plotting the result...")
 
@@ -484,7 +482,7 @@ if __name__ == "__main__":
 
     # Create histogram with density curve
     n, bins, patches = plt.hist(
-        X_diff,
+        x_diff,
         bins="auto",
         color="#2ecc71",
         edgecolor="#27ae60",
@@ -493,8 +491,8 @@ if __name__ == "__main__":
     )
 
     # Add KDE plot
-    sns.kdeplot(
-        X_diff,
+    sns.kdeplot(  # type: ignore[no-untyped-call]
+        x_diff,
         color="#34495e",
         linewidth=2,
         label=r"Density of $\lambda(diff)_{\mathrm{edge}}$",
@@ -503,18 +501,18 @@ if __name__ == "__main__":
     # Add reference lines
     plt.axvline(0.0, color="red", linestyle="--", linewidth=1.5, label="(λ(diff)=0.0)")
     plt.axvline(
-        np.mean(X_diff),
+        np.mean(x_diff),
         color="#3498db",
         linestyle="-",
         linewidth=1.5,
-        label=f"Mean ({np.mean(X_diff):.2f})",
+        label=f"Mean ({np.mean(x_diff):.2f})",
     )
     plt.axvline(
-        np.median(X_diff),
+        np.median(x_diff),
         color="#9b59b6",
         linestyle="-",
         linewidth=1.5,
-        label=f"Median ({np.median(X_diff):.2f})",
+        label=f"Median ({np.median(x_diff):.2f})",
     )
 
     # Formatting
@@ -527,10 +525,10 @@ if __name__ == "__main__":
 
     # Add statistical annotations
     stats_text = (
-        f"Total edges: {len(X_diff)}\n"
-        f"Min: {np.min(X_diff):.2f}\n"
-        f"Max: {np.max(X_diff):.2f}\n"
-        f"Std: {np.std(X_diff):.2f}"
+        f"Total edges: {len(x_diff)}\n"
+        f"Min: {np.min(x_diff):.2f}\n"
+        f"Max: {np.max(x_diff):.2f}\n"
+        f"Std: {np.std(x_diff):.2f}"
     )
     plt.text(
         0.75,
@@ -545,3 +543,7 @@ if __name__ == "__main__":
     # plt.show()
     plt.savefig("plot.png")
     print("Done!")
+
+
+if __name__ == "__main__":
+    typer.run(cli)
