@@ -92,9 +92,7 @@ class FaultyCZNoiseModel(NoiseModel):
                 A(noise=DepolarisingNoise(self.prepare_error_prob), nodes=[cmd.node]),
             ]
         if cmd.kind == CommandKind.E:
-            if (
-                frozenset(cmd.nodes) in self.chosen_edges
-            ):  # need symmetrisation since edges are directed
+            if frozenset(cmd.nodes) in self.chosen_edges:
                 u, v = cmd.nodes
                 return [
                     cmd,
