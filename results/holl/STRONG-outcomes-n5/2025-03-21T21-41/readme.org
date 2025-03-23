@@ -1,4 +1,0 @@
-Sami's simulations that were done when creating the branch
-
-Circuits: 428b2be8c158040d84d37871d3b4df800b8e3ed8
-python -m gospel.sampling_circuits.sampling_circuits --ncircuits 1000 --nqubits 5 --depth 10 --p-gate 0.5 --p-cnot 0.25 --p-cnot-flip 0.5 --p-rx 0.5 --seed 1729 --target circuits
