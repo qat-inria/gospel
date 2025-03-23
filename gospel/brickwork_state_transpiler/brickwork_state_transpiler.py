@@ -233,9 +233,10 @@ def j_commands(
 
 
 class ConstructionOrder(Enum):
-    Canonical = enum.auto()
-    Deviant = enum.auto()
-    DeviantRight = enum.auto()
+    # Values are used by `typer` in the command-line interface
+    Canonical = "canonical"
+    Deviant = "deviant"
+    DeviantRight = "deviant-right"
 
 
 def nqubits_from_layers(layers: list[Layer]) -> int:

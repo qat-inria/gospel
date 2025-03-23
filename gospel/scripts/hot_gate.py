@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
+from pathlib import Path  # noqa: TC003
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -121,15 +121,15 @@ def compute_failure_probabilities(
     return {q: occurences_one[q] / occurences[q] for q in occurences}
 
 
-def plot_heatmap(
-    pattern: Pattern, data: dict[int, float], path: Path, target: str
-) -> None:
+def plot_heatmap(pattern: Pattern, data: dict[int, float], target: Path) -> None:
     draw_brickwork_state_colormap_from_pattern(
-        pattern=pattern, target=path / target, failure_probas=data
+        pattern=pattern, target=target, failure_probas=data
     )
 
 
 def cli(
+    order: ConstructionOrder,
+    target: Path,
     nqubits: int = 7,
     nlayers: int = 2,
     seed: int = 12345,
@@ -137,7 +137,7 @@ def cli(
     shots: int = 1000,
 ) -> None:
     # initialising pattern
-    rng = np.random.default_rng(12345)
+    rng = np.random.default_rng(seed)
     order = ConstructionOrder.Deviant  # ConstructionOrder.Deviant
     pattern = generate_random_pauli_pattern(
         nqubits=nqubits, nlayers=nlayers, order=order, rng=rng
@@ -148,7 +148,7 @@ def cli(
 
     print("Starting simulation...")
     start = time.time()
-    results_table = perform_simulation(pattern, depol_prob=0.5, shots=shots)
+    results_table = perform_simulation(pattern, depol_prob=depol_prob, shots=shots)
 
     print(f"Simulation finished in {time.time() - start:.4f} seconds.")
 
@@ -158,13 +158,10 @@ def cli(
 
     print("Plotting the heatmap...")
 
-    # change this to save the figure
-    directory_path = Path("simulation/results")
     # Create the directory
-    directory_path.mkdir(parents=True, exist_ok=True)
+    target.parent.mkdir(parents=True, exist_ok=True)
 
-    target = "hotgate_deviant.svg"
-    plot_heatmap(pattern, failure_probas, directory_path, target)
+    plot_heatmap(pattern, failure_probas, target)
     print("Done!")
 
 
