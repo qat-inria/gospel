@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
+import typer
 from graphix import command
-from graphix.pattern import Pattern
+from graphix.rng import ensure_rng
 from tqdm import tqdm
 from veriphix.client import Client, Secrets
 from veriphix.trappifiedCanvas import TrappifiedCanvas
@@ -21,11 +25,20 @@ from gospel.stim_pauli_preprocessing import (
     StimBackend,
 )
 
+if TYPE_CHECKING:
+    from graphix.pattern import Pattern
+    from numpy.random import Generator
+
 
 def perform_simulation(
-    pattern: Pattern, depol_prob: float = 0.0, shots: int = 1
+    pattern: Pattern,
+    depol_prob: float = 0.0,
+    shots: int = 1,
+    rng: Generator | None = None,
 ) -> list[dict[int, int]]:
     # NOTE data validation? nqubits, nlayers larger than 0, p between 0 and 1,n shots int >0
+
+    rng = ensure_rng(rng)
 
     # for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant):
 
@@ -108,18 +121,21 @@ def compute_failure_probabilities(
     return {q: occurences_one[q] / occurences[q] for q in occurences}
 
 
-def plot_heatmap(data: dict[int, float], path: Path, target: str) -> None:
+def plot_heatmap(
+    pattern: Pattern, data: dict[int, float], path: Path, target: str
+) -> None:
     draw_brickwork_state_colormap_from_pattern(
         pattern=pattern, target=path / target, failure_probas=data
     )
 
 
-if __name__ == "__main__":
-    # TODO do cli with typer!
-
-    nqubits = 7
-    nlayers = 2
-
+def cli(
+    nqubits: int = 7,
+    nlayers: int = 2,
+    seed: int = 12345,
+    depol_prob: float = 0.5,
+    shots: int = 1000,
+) -> None:
     # initialising pattern
     rng = np.random.default_rng(12345)
     order = ConstructionOrder.Deviant  # ConstructionOrder.Deviant
@@ -132,7 +148,7 @@ if __name__ == "__main__":
 
     print("Starting simulation...")
     start = time.time()
-    results_table = perform_simulation(pattern, depol_prob=0.5, shots=int(1e3))
+    results_table = perform_simulation(pattern, depol_prob=0.5, shots=shots)
 
     print(f"Simulation finished in {time.time() - start:.4f} seconds.")
 
@@ -148,5 +164,9 @@ if __name__ == "__main__":
     directory_path.mkdir(parents=True, exist_ok=True)
 
     target = "hotgate_deviant.svg"
-    plot_heatmap(failure_probas, directory_path, target)
+    plot_heatmap(pattern, failure_probas, directory_path, target)
     print("Done!")
+
+
+if __name__ == "__main__":
+    typer.run(cli)
