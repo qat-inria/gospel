@@ -138,7 +138,6 @@ def cli(
 ) -> None:
     # initialising pattern
     rng = np.random.default_rng(seed)
-    order = ConstructionOrder.Deviant  # ConstructionOrder.Deviant
     pattern = generate_random_pauli_pattern(
         nqubits=nqubits, nlayers=nlayers, order=order, rng=rng
     )
