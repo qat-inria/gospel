@@ -11,8 +11,8 @@ from gospel.sampling_circuits.sampling_circuits import (
 ncircuits = 10000
 nqubits = 7
 depth = 10
-p_gate = 0.5
-p_cnot = 0.25
+p_gate = 0.7
+p_cnot = 0.1
 p_cnot_flip = 0.5
 p_rx = 0.5
 seed = 1729

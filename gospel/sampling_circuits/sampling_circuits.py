@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 def sample_angle(rng: np.random.Generator) -> float:
     # return rng.random() * math.pi * 2
-    return (1 + rng.integers(7)) * np.pi / 4
+    return (rng.integers(low=1, high=32)) * np.pi / 16
 
 
 def sample_circuit(
@@ -123,7 +123,7 @@ def sample_circuit(
     return circuit
 
 
-def sample_truncated_circuit(
+def _sample_truncated_circuit(
     nqubits: int,
     depth: int,
     rng: np.random.Generator,
@@ -268,7 +268,7 @@ def sample_brickwork_state_graph(
         for j in range(layer_size):
             if j == last_cnot_index:
                 bricks.append(CNOT(target_above=rng.random() < p_cnot_flip))
-            elif j < last_cnot_index and rng.random() < p_gate:
+            elif j < last_cnot_index:
                 if rng.random() < p_cnot:
                     bricks.append(CNOT(target_above=rng.random() < p_cnot_flip))
                 else:
@@ -281,6 +281,21 @@ def sample_brickwork_state_graph(
         layer = Layer(odd, bricks=bricks)
         layers.append(layer)
     return layers
+
+
+def sample_truncated_circuit(
+    nqubits: int,
+    depth: int,
+    rng: np.random.Generator,
+    p_gate: float = 0.5,
+    p_cnot: float = 0.5,
+    p_cnot_flip: float = 0.5,
+    p_rx: float = 0.5,
+) -> Circuit:
+    brickwork_state = sample_brickwork_state_graph(
+        nqubits, depth, rng, p_cnot, p_cnot_flip
+    )
+    return layers_to_circuit(brickwork_state)
 
 
 def add_hadamard_on_inputs(qc: QuantumCircuit) -> None:
