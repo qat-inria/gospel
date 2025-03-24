@@ -25,12 +25,26 @@ from graphix.states import BasicState, BasicStates, State
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from graphix.noise_models.noise_model import Noise, NoiseModel
+    from graphix.noise_models.noise_model import Noise, NoiseCommands, NoiseModel
 
 if TYPE_CHECKING:
     GraphType = nx.Graph[int]
 else:
     GraphType = nx.Graph
+
+
+BASIC_STATE_TO_CLIFFORD = {
+    BasicState.ZERO: [Clifford.Z],
+    BasicState.ONE: [Clifford.X],
+    BasicState.PLUS: [Clifford.H],
+    BasicState.MINUS: [Clifford.H, Clifford.Z],
+    BasicState.PLUS_I: [Clifford.H, Clifford.S],
+    BasicState.MINUS_I: [Clifford.H, Clifford.S, Clifford.Z],
+}
+
+
+def basic_state_to_clifford_gates(basic_state: BasicState) -> list[Clifford]:
+    return BASIC_STATE_TO_CLIFFORD[basic_state]
 
 
 def get_stabilizers(graph: GraphType) -> list[stim.PauliString]:
@@ -75,6 +89,26 @@ def apply_clifford(sim: stim.TableauSimulator, node: int, clifford: Clifford) ->
                         raise ValueError("Unreachable")
 
 
+def pauli_measurement_to_clifford_gates(
+    measurement: PauliMeasurement,
+) -> list[Clifford]:
+    match measurement.sign, measurement.axis:
+        case Sign.PLUS, Axis.X:
+            return [Clifford.H]
+        case Sign.MINUS, Axis.X:
+            return [Clifford.H, Clifford.Z]
+        case Sign.PLUS, Axis.Y:
+            return [Clifford.H, Clifford.S]
+        case Sign.MINUS, Axis.Y:
+            return [Clifford.H, Clifford.S, Clifford.Z]
+        case Sign.PLUS, Axis.Z:
+            return []
+        case Sign.MINUS, Axis.Z:
+            return [Clifford.X]
+        case _:
+            raise ValueError("unreachable")
+
+
 def apply_pauli_measurement(
     sim: stim.TableauSimulator,
     node: int,
@@ -89,21 +123,7 @@ def apply_pauli_measurement(
         sim.h(node)
     if t_signal:
         sim.z(node)
-    match measurement.sign, measurement.axis:
-        case Sign.PLUS, Axis.X:
-            cliffords = [Clifford.H]
-        case Sign.MINUS, Axis.X:
-            cliffords = [Clifford.H, Clifford.Z]
-        case Sign.PLUS, Axis.Y:
-            cliffords = [Clifford.H, Clifford.S]
-        case Sign.MINUS, Axis.Y:
-            cliffords = [Clifford.H, Clifford.S, Clifford.Z]
-        case Sign.PLUS, Axis.Z:
-            cliffords = []
-        case Sign.MINUS, Axis.Z:
-            cliffords = [Clifford.X]
-        case _:
-            raise ValueError("unreachable")
+    cliffords = pauli_measurement_to_clifford_gates(measurement)
     for clifford in reversed(cliffords):
         apply_clifford(sim, node, clifford.conj)
     branch_result = None if branch is None else branch.get(node)
@@ -269,6 +289,78 @@ class StimBackend(Backend):
         tableau = self.sim.current_inverse_tableau().inverse()
         circuit = tableau.to_circuit("graph_state")
         return graph_state_to_pattern(circuit, input_nodes, output_nodes)
+
+
+def pattern_to_stim_circuit(
+    pattern: Pattern,
+    noise_model: NoiseModel | None = None,
+    input_state: dict[int, BasicState] | BasicState = BasicState.PLUS,
+) -> tuple[stim.Circuit, dict[int, int]]:
+    circuit = stim.Circuit()
+    for node in pattern.input_nodes:
+        basic_state = (
+            input_state if isinstance(input_state, BasicState) else input_state[node]
+        )
+        for clifford in basic_state_to_clifford_gates(basic_state):
+            circuit.append(str(clifford), targets=[node])  # type: ignore[call-overload]
+    if noise_model is None:
+        actual_pattern: NoiseCommands = list(pattern)
+    else:
+        actual_pattern = noise_model.input_nodes(pattern.input_nodes)
+        actual_pattern.extend(noise_model.transpile(list(pattern)))
+    measure_count = 0
+    measure_indices: dict[int, int] = {}
+
+    def get_target(node: int) -> stim.GateTarget:
+        return stim.target_rec(measure_indices[node] - measure_count)
+
+    for cmd in actual_pattern:
+        if cmd.kind == CommandKind.N:
+            basic_state_or_none = BasicState.try_from_statevector(
+                Statevec(cmd.state).psi
+            )
+            if basic_state_or_none is None:
+                raise ValueError(f"Non-Pauli preparation: {cmd}")
+            for clifford in basic_state_to_clifford_gates(basic_state_or_none):
+                circuit.append(str(clifford), [cmd.node])  # type: ignore[call-overload]
+        elif cmd.kind == CommandKind.E:
+            circuit.append("CZ", cmd.nodes)  # type: ignore[call-overload]
+        elif cmd.kind == CommandKind.M:
+            for node in cmd.s_domain:
+                circuit.append("CX", [get_target(node), cmd.node])  # type: ignore[call-overload]
+            for node in cmd.t_domain:
+                circuit.append("CZ", [get_target(node), cmd.node])  # type: ignore[call-overload]
+            measurement = PauliMeasurement.try_from(cmd.plane, cmd.angle)
+            if measurement is None:
+                raise ValueError(f"Non-Pauli measurement: {cmd}")
+            cliffords = pauli_measurement_to_clifford_gates(measurement)
+            for clifford in reversed(cliffords):
+                circuit.append(str(clifford), [cmd.node])  # type: ignore[call-overload]
+            circuit.append("M", [cmd.node])  # type: ignore[call-overload]
+            for clifford in cliffords:
+                circuit.append(str(clifford), [cmd.node])  # type: ignore[call-overload]
+            measure_indices[cmd.node] = measure_count
+            measure_count += 1
+        elif cmd.kind == CommandKind.X:
+            for node in cmd.domain:
+                circuit.append("CX", [get_target(node), cmd.node])  # type: ignore[call-overload]
+        elif cmd.kind == CommandKind.Z:
+            for node in cmd.domain:
+                circuit.append("CZ", [get_target(node), cmd.node])  # type: ignore[call-overload]
+        elif cmd.kind == CommandKind.C:
+            circuit.append(str(cmd.clifford), [cmd.node])  # type: ignore[call-overload]
+        elif cmd.kind == CommandKind.A:
+            match cmd.noise:
+                case DepolarisingNoise(prob=prob):
+                    (q,) = cmd.nodes
+                    circuit.append("DEPOLARIZE1", [q], prob)
+                case TwoQubitDepolarisingNoise(prob=prob):
+                    (q0, q1) = cmd.nodes
+                    circuit.append("DEPOLARIZE2", [q0, q1], prob)
+                case _:
+                    raise ValueError(f"Unsupported noise: {cmd.noise} and {cmd.nodes}")
+
+    return circuit, measure_indices
 
 
 def simulate_pauli(

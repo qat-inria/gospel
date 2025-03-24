@@ -13,7 +13,7 @@ from graphix.sim.base_backend import (
 )
 from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod
-from graphix.states import BasicStates
+from graphix.states import BasicState, BasicStates
 from numpy.random import PCG64, Generator
 from veriphix.client import Client, Secrets
 from veriphix.trappifiedCanvas import TrappifiedCanvas
@@ -27,6 +27,7 @@ from gospel.scripts import compare_backend_results
 from gospel.stim_pauli_preprocessing import (
     StimBackend,
     cut_pattern,
+    pattern_to_stim_circuit,
     preprocess_pauli,
     simulate_pauli,
 )
@@ -226,22 +227,48 @@ def test_simulation_test_round_simple(fx_bg: PCG64, jumps: int) -> None:
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
-def test_simulation_test_brickwork_state(fx_bg: PCG64, jumps: int) -> None:
-    for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant):
-        rng = Generator(fx_bg.jumped(jumps))
-        pattern = generate_random_pauli_pattern(
-            nqubits=8, nlayers=10, order=order, rng=rng
-        )
-        for onode in pattern.output_nodes:
-            pattern.add(command.M(node=onode))
+@pytest.mark.parametrize("order", list(ConstructionOrder))
+def test_simulation_test_brickwork_state(
+    fx_bg: PCG64, jumps: int, order: ConstructionOrder
+) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+    pattern = generate_random_pauli_pattern(nqubits=8, nlayers=10, order=order, rng=rng)
+    for onode in pattern.output_nodes:
+        pattern.add(command.M(node=onode))
 
-        secrets = Secrets(r=False, a=False, theta=False)
-        client = Client(pattern=pattern, secrets=secrets)
-        colours = get_bipartite_coloring(pattern)
-        test_runs = client.create_test_runs(manual_colouring=colours)
+    secrets = Secrets(r=False, a=False, theta=False)
+    client = Client(pattern=pattern, secrets=secrets)
+    colours = get_bipartite_coloring(pattern)
+    test_runs = client.create_test_runs(manual_colouring=colours)
 
-        backend = StimBackend()
-        run = TrappifiedCanvas(test_runs[rng.integers(len(test_runs))], rng=rng)
+    backend = StimBackend()
+    run = TrappifiedCanvas(test_runs[rng.integers(len(test_runs))], rng=rng)
 
-        noise_model = DepolarisingNoiseModel(entanglement_error_prob=0.1)
-        client.delegate_test_run(backend=backend, run=run, noise_model=noise_model)
+    noise_model = DepolarisingNoiseModel(entanglement_error_prob=0.1)
+    client.delegate_test_run(backend=backend, run=run, noise_model=noise_model)
+
+
+def test_pattern_to_stim_circuit(fx_rng: Generator) -> None:
+    nodes = 50
+    planes = [Plane(p) for p in fx_rng.integers(low=1, high=4, size=nodes)]
+    expected_results = [fx_rng.integers(2) == 1 for _ in range(nodes)]
+
+    def get_input_state(node: int) -> BasicState:
+        if planes[node] == Plane.XY:
+            if expected_results[node]:
+                return BasicState.MINUS
+            return BasicState.PLUS
+        if expected_results[node]:
+            return BasicState.ONE
+        return BasicState.ZERO
+
+    pattern = Pattern(input_nodes=list(range(nodes)))
+    for node in fx_rng.choice(range(nodes), size=nodes, replace=False):
+        pattern.add(command.M(node, plane=planes[node], angle=0))
+    circuit, measure_indices = pattern_to_stim_circuit(
+        pattern,
+        input_state={node: get_input_state(node) for node in range(nodes)},
+    )
+    sample = circuit.compile_sampler().sample(shots=1000000)
+    for shot in sample:
+        assert [shot[measure_indices[i]] for i in range(nodes)] == expected_results
