@@ -8,3 +8,4 @@ simulation/pic2.svg
 /pages/circuits-*/
 /pages/circuits-*.tar.gz
 /pages/brickwork-state-table-*/
+simulation/.DS_Store
