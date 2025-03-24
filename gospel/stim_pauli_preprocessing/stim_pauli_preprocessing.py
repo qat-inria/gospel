@@ -316,11 +316,16 @@ def pattern_to_stim_circuit(
 
     for cmd in actual_pattern:
         if cmd.kind == CommandKind.N:
-            basic_state_or_none = BasicState.try_from_statevector(
-                Statevec(cmd.state).psi
-            )
+            if isinstance(input_state, dict):
+                basic_state_or_none = input_state.get(cmd.node)
+            else:
+                basic_state_or_none = None
             if basic_state_or_none is None:
-                raise ValueError(f"Non-Pauli preparation: {cmd}")
+                basic_state_or_none = BasicState.try_from_statevector(
+                    Statevec(cmd.state).psi
+                )
+                if basic_state_or_none is None:
+                    raise ValueError(f"Non-Pauli preparation: {cmd}")
             for clifford in basic_state_to_clifford_gates(basic_state_or_none):
                 circuit.append(str(clifford), [cmd.node])  # type: ignore[call-overload]
         elif cmd.kind == CommandKind.E:
