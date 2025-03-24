@@ -316,12 +316,10 @@ def pattern_to_stim_circuit(
 
     for cmd in actual_pattern:
         if cmd.kind == CommandKind.N:
-            # if isinstance(input_state, dict):
-            #    basic_state_or_none = input_state.get(cmd.node)
-            # else:
-            #    basic_state_or_none = None
-
-            basic_state_or_none = None
+            if isinstance(input_state, dict):
+                basic_state_or_none = input_state.get(cmd.node)
+            else:
+                basic_state_or_none = None
             if basic_state_or_none is None:
                 basic_state_or_none = BasicState.try_from_statevector(
                     Statevec(cmd.state).psi

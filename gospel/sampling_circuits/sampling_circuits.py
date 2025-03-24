@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import math
+
+# Needed by typer
+from pathlib import Path  # noqa: TC003
 from typing import TYPE_CHECKING
 
 import git
@@ -18,9 +21,12 @@ from qiskit_aer.primitives import SamplerV2  # type: ignore[attr-defined]
 from tqdm import tqdm
 
 from gospel.brickwork_state_transpiler import (
+    CNOT,
     XZ,
     Brick,
     Layer,
+    SingleQubit,
+    SingleQubitPair,
     identity,
     layers_to_circuit,
     transpile_to_layers,
@@ -28,7 +34,6 @@ from gospel.brickwork_state_transpiler import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from pathlib import Path
 
 
 def sample_angle(rng: np.random.Generator) -> float:
@@ -233,6 +238,49 @@ def strip_circuit(circuit: Circuit) -> None:
     new_instructions.reverse()
     # Replace the original instruction list with the new, stripped list.
     circuit.instruction = new_instructions
+
+
+def random_single_qubit(rng: np.random.Generator, p_gate: float = 0.5) -> SingleQubit:
+    result = SingleQubit()
+    if rng.random() < p_gate:
+        result.rz0 = sample_angle(rng)
+    if rng.random() < p_gate:
+        result.rx = sample_angle(rng)
+    if rng.random() < p_gate:
+        result.rz1 = sample_angle(rng)
+    return result
+
+
+def sample_brickwork_state_graph(
+    nqubits: int,
+    nlayers: int,
+    rng: np.random.Generator,
+    p_gate: float = 0.5,
+    p_cnot: float = 0.5,
+    p_cnot_flip: float = 0.5,
+) -> list[Layer]:
+    layers = []
+    for i in range(nlayers):
+        odd = bool(i % 2)
+        layer_size = (nqubits - 1) // 2 if odd else max(nqubits // 2, 1)
+        bricks: list[Brick] = []
+        last_cnot_index = (nlayers - i - 2 - nlayers % 2) // 2
+        for j in range(layer_size):
+            if j == last_cnot_index:
+                bricks.append(CNOT(target_above=rng.random() < p_cnot_flip))
+            elif j < last_cnot_index and rng.random() < p_gate:
+                if rng.random() < p_cnot:
+                    bricks.append(CNOT(target_above=rng.random() < p_cnot_flip))
+                else:
+                    pair = SingleQubitPair(
+                        random_single_qubit(rng), random_single_qubit(rng)
+                    )
+                    bricks.append(pair)
+            else:
+                bricks.append(identity())
+        layer = Layer(odd, bricks=bricks)
+        layers.append(layer)
+    return layers
 
 
 def add_hadamard_on_inputs(qc: QuantumCircuit) -> None:

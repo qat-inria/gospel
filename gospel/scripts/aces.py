@@ -6,9 +6,9 @@ import numpy as np
 import numpy.typing as npt
 import seaborn as sns
 import typer
-from graphix import command
+from graphix import Pattern, command
 from graphix.sim.statevec import Statevec
-from graphix.states import BasicState
+from graphix.states import BasicState, State
 from numpy.random import PCG64, Generator
 from tqdm import tqdm
 from veriphix.client import Client, Secrets
@@ -23,6 +23,13 @@ from gospel.noise_models.uncorrelated_depolarising_noise_model import (
     UncorrelatedDepolarisingNoiseModel,
 )
 from gospel.stim_pauli_preprocessing import pattern_to_stim_circuit
+
+
+def state_to_basic_state(state: State) -> BasicState:
+    bs = BasicState.try_from_statevector(Statevec(state).psi)
+    if bs is None:
+        raise ValueError(f"Not a basic state: {state}")
+    return bs
 
 
 def perform_simulation(
@@ -70,15 +77,21 @@ def perform_simulation(
             # all nodes have to be prepared for test runs
             # don't reinitialise them since we don't care for blindness right now
             input_state = {
-                i: BasicState.try_from_statevector(Statevec(state).psi)
-                for i, state in enumerate(run.states)
+                i: state_to_basic_state(state) for i, state in enumerate(run.states)
             }
 
             print(f"len input ste {len(input_state)}")
             print(f"input ste {input_state}")
 
+            client_pattern = Pattern(input_nodes=pattern.input_nodes)
+            for cmd in pattern:
+                if isinstance(cmd, command.M):
+                    client_pattern.add(command.M(node=cmd.node))
+                else:
+                    client_pattern.add(cmd)
+
             circuit, measure_indices = pattern_to_stim_circuit(
-                pattern,
+                client_pattern,
                 input_state=input_state,
                 noise_model=noise_model,
             )

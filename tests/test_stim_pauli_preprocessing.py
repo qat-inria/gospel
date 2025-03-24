@@ -291,3 +291,38 @@ def test_pattern_to_stim_circuit_hadamard(fx_rng: Generator) -> None:
     for s in sample:
         assert not s[measure_indices[node0]]
         assert s[measure_indices[node1]]
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
+def test_pattern_to_stim_circuit_round_brickwork(fx_bg: PCG64, jumps: int) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+    order = ConstructionOrder.Canonical
+    pattern = generate_random_pauli_pattern(nqubits=8, nlayers=10, order=order, rng=rng)
+    for onode in pattern.output_nodes:
+        pattern.add(command.M(node=onode))
+    colors = get_bipartite_coloring(pattern)
+    secrets = Secrets(r=False, a=False, theta=False)
+    client = Client(pattern=pattern, secrets=secrets)
+    test_runs = client.create_test_runs(manual_colouring=colors)
+    for col in test_runs:
+        run = TrappifiedCanvas(col)
+        input_state = {
+            i: BasicState.try_from_statevector(Statevec(state).psi)
+            for i, state in enumerate(run.states)
+        }
+        client_pattern = Pattern(input_nodes=pattern.input_nodes)
+        for cmd in pattern:
+            if isinstance(cmd, command.M):
+                client_pattern.add(command.M(node=cmd.node))
+            else:
+                client_pattern.add(cmd)
+        stim_circuit, measure_indices = pattern_to_stim_circuit(
+            client_pattern,
+            input_state=input_state,  # type: ignore[arg-type]
+        )
+        sample = stim_circuit.compile_sampler().sample(shots=1000)
+        for s in sample:
+            for trap in run.traps_list:
+                outcomes = [s[measure_indices[node]] for node in trap]
+                trap_outcome = sum(outcomes) % 2
+                assert trap_outcome == 0
