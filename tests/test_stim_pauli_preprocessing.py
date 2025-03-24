@@ -272,3 +272,22 @@ def test_pattern_to_stim_circuit(fx_rng: Generator) -> None:
     sample = circuit.compile_sampler().sample(shots=1000000)
     for shot in sample:
         assert [shot[measure_indices[i]] for i in range(nodes)] == expected_results
+
+
+def test_pattern_to_stim_circuit_hadamard(fx_rng: Generator) -> None:
+    circuit = Circuit(2)
+    circuit.h(0)
+    circuit.h(1)
+    pattern = circuit.transpile().pattern
+    node0 = pattern.output_nodes[0]
+    node1 = pattern.output_nodes[1]
+    pattern.add(command.M(node0, plane=Plane.XY))
+    pattern.add(command.M(node1, plane=Plane.XY))
+    stim_circuit, measure_indices = pattern_to_stim_circuit(
+        pattern,
+        input_state={0: BasicState.ZERO, 1: BasicState.ONE},
+    )
+    sample = stim_circuit.compile_sampler().sample(shots=1000)
+    for s in sample:
+        assert not s[measure_indices[node0]]
+        assert s[measure_indices[node1]]
