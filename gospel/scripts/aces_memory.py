@@ -7,8 +7,6 @@ import numpy.typing as npt
 import seaborn as sns
 import typer
 from graphix import command
-from graphix.sim.statevec import Statevec
-from graphix.states import BasicState
 from numpy.random import PCG64, Generator
 from tqdm import tqdm
 from veriphix.client import Client, Secrets
@@ -22,7 +20,9 @@ from gospel.brickwork_state_transpiler import (
 from gospel.noise_models.uncorrelated_depolarising_noise_model import (
     UncorrelatedDepolarisingNoiseModel,
 )
-from gospel.stim_pauli_preprocessing import pattern_to_stim_circuit
+from gospel.stim_pauli_preprocessing import (
+    StimBackend,
+)
 
 
 def perform_simulation(
@@ -36,11 +36,9 @@ def perform_simulation(
     # Define separate outcome tables for Canonical and Deviant
     test_outcome_table_canonical: list[dict[int, int]] = []
     test_outcome_table_deviant: list[dict[int, int]] = []
-    test_outcome_table: dict[tuple[ConstructionOrder, bool], list[dict[int, int]]] = {}
 
-    noise_model = UncorrelatedDepolarisingNoiseModel(entanglement_error_prob=depol_prob)
     # Loop over Construction Orders
-    for order in tqdm((ConstructionOrder.Canonical, ConstructionOrder.Deviant)):
+    for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant):
         rng = Generator(fx_bg.jumped(jumps))  # Use the jumped rng
 
         # TODO not really needed
@@ -60,70 +58,52 @@ def perform_simulation(
         colours = get_bipartite_coloring(pattern)
         test_runs = client.create_test_runs(manual_colouring=colours)
 
-        for i, col in enumerate(test_runs):
-            # Define noise model
+        # Define noise model
+        noise_model = UncorrelatedDepolarisingNoiseModel(
+            entanglement_error_prob=depol_prob
+        )
 
-            # generate trappified canvas (input state is refreshed)
+        n_failures = 0
 
-            run = TrappifiedCanvas(col)
+        # Choose the correct outcome table based on order
+        if order == ConstructionOrder.Canonical:
+            test_outcome_table = test_outcome_table_canonical
+        else:
+            test_outcome_table = test_outcome_table_deviant
 
-            # all nodes have to be prepared for test runs
-            # don't reinitialise them since we don't care for blindness right now
-            input_state = {
-                i: BasicState.try_from_statevector(Statevec(state).psi)
-                for i, state in enumerate(run.states)
-            }
+        for i in tqdm(range(shots)):  # noqa: B007
+            # reinitialise the backend!
+            backend = StimBackend()
+            # generate trappiefied canvas (input state is refreshed)
 
-            print(f"len input ste {len(input_state)}")
-            print(f"input ste {input_state}")
+            run = TrappifiedCanvas(test_runs[rng.integers(len(test_runs))], rng=rng)
 
-            circuit, measure_indices = pattern_to_stim_circuit(
-                pattern,
-                input_state=input_state,
-                noise_model=noise_model,
+            # Delegate the test run to the client
+            trap_outcomes = client.delegate_test_run(  # no noise model, things go wrong
+                backend=backend, run=run, noise_model=noise_model
             )
 
-            sample = circuit.compile_sampler().sample(shots=shots // 2)
+            # Create a result dictionary (trap -> outcome)
+            result = {
+                trap: outcome for (trap,), outcome in zip(run.traps_list, trap_outcomes)
+            }
 
-            # Choose the correct outcome table based on order
+            test_outcome_table.append(result)
 
-            test_outcome_table[(order, bool(i))] = [
-                {trap: s[measure_indices[trap]] for (trap,) in run.traps_list}
-                for s in sample
-            ]
+            # Print pass/fail based on the sum of the trap outcomes
+            if sum(trap_outcomes) != 0:
+                n_failures += 1
+                # print(f"Iteration {i}: ❌ Trap round failed", flush=True)
+            else:
+                pass
+                # print(f"Iteration {i}: ✅ Trap round passed", flush=True)
 
-    test_outcome_table_canonical = (
-        test_outcome_table[(ConstructionOrder.Canonical, False)]
-        + test_outcome_table[(ConstructionOrder.Canonical, True)]
-    )
-    test_outcome_table_deviant = (
-        test_outcome_table[(ConstructionOrder.Deviant, False)]
-        + test_outcome_table[(ConstructionOrder.Deviant, True)]
-    )
-    print(f"LEN {test_outcome_table_canonical}")
-    # convert to old format
-    # Create a result dictionary (trap -> outcome)
-    # result = {
-    #     trap: outcome for (trap,), outcome in zip(run.traps_list, trap_outcomes)
-    # }
-
-    # test_outcome_table.append(result)
-
-    # Print pass/fail based on the sum of the trap outcomes
-    # if sum(trap_outcomes) != 0:
-    #     n_failures += 1
-    #     # print(f"Iteration {i}: ❌ Trap round failed", flush=True)
-    # else:
-    #     pass
-    #     # print(f"Iteration {i}: ✅ Trap round passed", flush=True)
-
-    # # Final report after completing the test rounds
-    # print(
-    #     f"Final result: {n_failures}/{shots} failed rounds",
-    #     flush=True,
-    # )
-    print("-" * 50, flush=True)
-
+        # Final report after completing the test rounds
+        print(
+            f"Final result: {n_failures}/{shots} failed rounds",
+            flush=True,
+        )
+        print("-" * 50, flush=True)
     return test_outcome_table_canonical, test_outcome_table_deviant
 
 
@@ -454,7 +434,7 @@ def generate_qubit_edge_matrix_with_unknowns_dev(
 
 
 def cli(
-    nqubits: int = 5, nlayers: int = 10, depol_prob: float = 0.001, shots: int = 10
+    nqubits: int = 5, nlayers: int = 10, depol_prob: float = 0.001, shots: int = 1000000
 ) -> None:
     node = nqubits * ((4 * nlayers) + 1)
 
@@ -474,9 +454,6 @@ def cli(
     failure_proba_dev = compute_failure_probabilities_dev(
         failure_proba_dev_all, nqubits, node
     )
-
-    print(f"failute proba canonical {failure_proba_can}")
-    print(f"failute proba deviant {failure_proba_dev}")
     py_failure_proba_can = np.array(failure_proba_can, dtype=np.float64)
     print(py_failure_proba_can.shape)
     py_failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)
@@ -501,21 +478,20 @@ def cli(
     rhs = np.concatenate(
         (py_failure_proba_can, py_failure_proba_dev)
     )  # Combine constant vectors
-    print(lhs.shape, lhs)
-    print(rhs.shape, rhs)
+    print(lhs.shape)
+    print(rhs.shape)
 
     log_rhs = np.log(rhs)  # log constant vectors
 
-    log_params, *_ = np.linalg.lstsq(lhs, log_rhs, rcond=None)
-
-    print(f"log {log_params}")
+    log_params, residuals, rank, singular_values = np.linalg.lstsq(
+        lhs, log_rhs, rcond=None
+    )
 
     print("Calculating the lambdas...")
     x = np.exp(log_params)  # Convert log values back to original variables
     lamba_initial = 1 - depol_prob
     x_diff = [(dif - lamba_initial) for dif in x]
 
-    print(f"X {x}")
     print("Plotting the result...")
 
     plt.figure(figsize=(10, 6))
