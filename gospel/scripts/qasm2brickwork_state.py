@@ -43,10 +43,10 @@ def format_angle(angle: float) -> str:
     if den == 1:
         if num == 1:
             return f"{sign}π"
-        return f"{sign}{num}·π"
+        return f"{sign}{num}π"
     if num == 1:
         return f"{sign}π/{den}"
-    return f"{sign}{num}·π/{den}"
+    return f"{sign}{num}π/{den}"
 
 
 def draw_brickwork_state_pattern(pattern: Pattern, target: Path) -> None:

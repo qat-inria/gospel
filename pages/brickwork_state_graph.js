@@ -1,11 +1,11 @@
 export default function createBrickworkStateGraph(data) {
     const svgNS = "http://www.w3.org/2000/svg";
     // Configuration for node appearance and spacing.
-    const nodeRadius = 22;
-    const spacingX = 55;
-    const spacingY = 55;
-    const offsetX = 24;
-    const offsetY = 24;
+    const nodeRadius = 27;
+    const spacingX = 64;
+    const spacingY = 64;
+    const offsetX = 28;
+    const offsetY = 28;
   
     const numRows = data[0].length;
     const numCols = data.length;
