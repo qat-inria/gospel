@@ -42,7 +42,10 @@ function renderTable(circuits_dirname, brickwork_state_table_dirname) {
                 const json_filename = circuit.replace(/\.\w+$/, ".json");
                 const circuit_div = document.createElement("div");
                 download(circuit_url, function (circuit_file) {
-                    drawQASMCircuit(circuit_file, circuit_div);
+                    const qreg_regexp = /qreg (q[0-9]+)\[/;
+                    const match = circuit_file.match(qreg_regexp);
+                    const circuit = circuit_file + `\nc0 = measure ${match[1]}[0];`;
+                    drawQASMCircuit(circuit, circuit_div);
                 });
                 contents.appendChild(createFigure(circuit_div, "Circuit"));
                 const brickwork_div = document.createElement("div");
