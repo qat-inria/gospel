@@ -1,6 +1,11 @@
-import time
-from typing import Callable
+from __future__ import annotations
 
+import logging
+import time
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Callable
+
+import dask.distributed
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -8,9 +13,9 @@ import seaborn as sns
 import typer
 from graphix import Pattern, command
 from graphix.sim.statevec import Statevec
+from graphix.simulator import DefaultMeasureMethod, PrepareMethod
 from graphix.states import BasicState, State
 from numpy.random import PCG64, Generator
-from tqdm import tqdm
 from veriphix.client import Client, Secrets
 from veriphix.trappifiedCanvas import TrappifiedCanvas
 
@@ -19,10 +24,17 @@ from gospel.brickwork_state_transpiler import (
     generate_random_pauli_pattern,
     get_bipartite_coloring,
 )
+from gospel.cluster.dask_interface import get_cluster
 from gospel.noise_models.uncorrelated_depolarising_noise_model import (
     UncorrelatedDepolarisingNoiseModel,
 )
-from gospel.stim_pauli_preprocessing import pattern_to_stim_circuit
+from gospel.stim_pauli_preprocessing import StimBackend
+
+if TYPE_CHECKING:
+    from graphix.command import BaseN
+    from graphix.sim.base_backend import Backend
+
+logger = logging.getLogger(__name__)
 
 
 def state_to_basic_state(state: State) -> BasicState:
@@ -32,56 +44,76 @@ def state_to_basic_state(state: State) -> BasicState:
     return bs
 
 
-def perform_simulation(
-    nqubits: int, nlayers: int, depol_prob: float = 0.0, shots: int = 1
-) -> tuple[list[dict[int, int]], list[dict[int, int]]]:
-    # Initialization
+@dataclass
+class SingleSimulation:
+    order: ConstructionOrder
+    nqubits: int
+    nlayers: int
+    depol_prob: float
+    nshots: int
+    manual_shots: bool
+
+
+@dataclass
+class FixedPrepareMethod(PrepareMethod):
+    states: dict[int, State]
+
+    def prepare(self, backend: Backend, cmd: BaseN) -> None:
+        backend.add_nodes(nodes=[cmd.node], data=self.states[cmd.node])
+
+
+def perform_single_simulation(
+    params: SingleSimulation,
+) -> list[tuple[ConstructionOrder, bool, list[dict[int, int]]]]:
     fx_bg = PCG64(42)
     jumps = 5
-    # Number of test iterations
 
-    # Define separate outcome tables for Canonical and Deviant
-    test_outcome_table_canonical: list[dict[int, int]] = []
-    test_outcome_table_deviant: list[dict[int, int]] = []
-    test_outcome_table: dict[tuple[ConstructionOrder, bool], list[dict[int, int]]] = {}
+    noise_model = UncorrelatedDepolarisingNoiseModel(
+        entanglement_error_prob=params.depol_prob
+    )
+    rng = Generator(fx_bg.jumped(jumps))  # Use the jumped rng
 
-    noise_model = UncorrelatedDepolarisingNoiseModel(entanglement_error_prob=depol_prob)
-    # Loop over Construction Orders
-    for order in tqdm((ConstructionOrder.Canonical, ConstructionOrder.Deviant)):
-        rng = Generator(fx_bg.jumped(jumps))  # Use the jumped rng
+    pattern = generate_random_pauli_pattern(
+        nqubits=params.nqubits, nlayers=params.nlayers, order=params.order, rng=rng
+    )
 
-        # TODO not really needed
-        # just two patterns are enough...
-        pattern = generate_random_pauli_pattern(
-            nqubits=nqubits, nlayers=nlayers, order=order, rng=rng
-        )
+    # Add measurement commands to the output nodes
+    for onode in pattern.output_nodes:
+        pattern.add(command.M(node=onode))
 
-        # Add measurement commands to the output nodes
-        for onode in pattern.output_nodes:
-            pattern.add(command.M(node=onode))
+    secrets = Secrets(r=False, a=False, theta=False)
+    client = Client(pattern=pattern, secrets=secrets)
 
-        secrets = Secrets(r=False, a=False, theta=False)
-        client = Client(pattern=pattern, secrets=secrets)
+    # Get bipartite coloring and create test runs
+    colours = get_bipartite_coloring(pattern)
+    test_runs = client.create_test_runs(manual_colouring=colours)
 
-        # Get bipartite coloring and create test runs
-        colours = get_bipartite_coloring(pattern)
-        test_runs = client.create_test_runs(manual_colouring=colours)
+    outcomes = []
 
-        for i, col in enumerate(test_runs):
-            # Define noise model
+    for i, col in enumerate(test_runs):
+        # Define noise model
 
-            # generate trappified canvas (input state is refreshed)
+        # generate trappified canvas (input state is refreshed)
 
-            run = TrappifiedCanvas(col)
+        run = TrappifiedCanvas(col)
 
+        if params.nshots == 1 and params.manual_shots:
+            backend = StimBackend()
+            trap_outcomes = client.delegate_test_run(  # no noise model, things go wrong
+                backend=backend, run=run, noise_model=noise_model
+            )
+            results = [
+                {
+                    int(trap): outcome
+                    for (trap,), outcome in zip(run.traps_list, trap_outcomes)
+                }
+            ]
+        else:
             # all nodes have to be prepared for test runs
             # don't reinitialise them since we don't care for blindness right now
-            input_state = {
-                i: state_to_basic_state(state) for i, state in enumerate(run.states)
-            }
 
-            print(f"len input ste {len(input_state)}")
-            print(f"input ste {input_state}")
+            # print(f"len input ste {len(input_state)}")
+            # print(f"input ste {input_state}")
 
             client_pattern = Pattern(input_nodes=pattern.input_nodes)
             for cmd in pattern:
@@ -90,89 +122,72 @@ def perform_simulation(
                 else:
                     client_pattern.add(cmd)
 
-            circuit, measure_indices = pattern_to_stim_circuit(
-                client_pattern,
+            measure_method = DefaultMeasureMethod()
+
+            prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
+            input_state = [run.states[i] for i in client_pattern.input_nodes]
+            client_pattern.simulate_pattern(
                 input_state=input_state,
-                noise_model=noise_model,
+                prepare_method=prepare_method,
+                measure_method=measure_method,
             )
-
-            sample = circuit.compile_sampler().sample(shots=shots // 2)
-
-            # Choose the correct outcome table based on order
-
-            test_outcome_table[(order, bool(i))] = [
-                {trap: s[measure_indices[trap]] for (trap,) in run.traps_list}
-                for s in sample
+            results = [
+                {int(trap): measure_method.results[trap] for (trap,) in run.traps_list}
             ]
+            # input_state = {
+            #    i: state_to_basic_state(state) for i, state in enumerate(run.states)
+            # }
+            # circuit, measure_indices = pattern_to_stim_circuit(
+            #     client_pattern,
+            #     input_state=input_state,
+            #     noise_model=noise_model,
+            # )
+            # sample = circuit.compile_sampler().sample(shots=nshots)
+            # results = [
+            #     {trap: s[measure_indices[trap]] for (trap,) in run.traps_list}
+            #     for s in sample
+            # ]
 
-    test_outcome_table_canonical = (
-        test_outcome_table[(ConstructionOrder.Canonical, False)]
-        + test_outcome_table[(ConstructionOrder.Canonical, True)]
-    )
-    separate_binary_lists_can = [[0 if v == np.False_ else 1 for v in d.values()] for d in test_outcome_table_canonical]
-    n_failures = 0
-    total_rows = len(separate_binary_lists_can)
-    print("For canonical order:")
-    for row_idx, row in enumerate(separate_binary_lists_can):
-        row_sum = sum(row)
-        if row_sum != 0:
-            n_failures += 1
-            #print(f"Iteration {row_idx}: ❌ Trap round failed", flush=True)
-        else:
-            pass
-            #print(f"Iteration {row_idx}: ✅ Trap round passed", flush=True)
+        # Choose the correct outcome table based on order
 
-    print(
-            f"Final result: {n_failures}/{total_rows} failed rounds",
-            flush=True,
+        outcomes.append((params.order, bool(i), results))
+    return outcomes
+
+
+def perform_simulation(
+    nqubits: int,
+    nlayers: int,
+    depol_prob: float,
+    shots: int,
+    ncircuits: int,
+    manual_shots: bool,
+    dask_client: dask.distributed.Client,
+) -> tuple[list[dict[int, int]], list[dict[int, int]]]:
+    nshots = max(1, shots // 2 // ncircuits)
+    jobs = [
+        SingleSimulation(
+            order=order,
+            nqubits=nqubits,
+            nlayers=nlayers,
+            depol_prob=depol_prob,
+            nshots=nshots,
+            manual_shots=manual_shots,
         )
-    
-    test_outcome_table_deviant = (
-        test_outcome_table[(ConstructionOrder.Deviant, False)]
-        + test_outcome_table[(ConstructionOrder.Deviant, True)]
-    )
-    separate_binary_lists_dev = [[0 if v == np.False_ else 1 for v in d.values()] for d in test_outcome_table_deviant]
-    n_failures_dev = 0
-    total_rows_dev = len(separate_binary_lists_can)
-    print("-" * 50, flush=True)
-    print("For deviant order:")
-    for row_idx, row in enumerate(separate_binary_lists_dev):
-        row_sum_dev = sum(row)
-        if row_sum_dev != 0:
-            n_failures_dev += 1
-            #print(f"Iteration {row_idx}: ❌ Trap round failed", flush=True)
-        else:
-            pass
-            #print(f"Iteration {row_idx}: ✅ Trap round passed", flush=True)
+        for _circuit in range(ncircuits)
+        for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant)
+    ]
 
-    print(
-            f"Final result: {n_failures_dev}/{total_rows_dev} failed rounds",
-            flush=True,
-        )
-    
-    #print(f"LEN {test_outcome_table_canonical}")
-    # convert to old format
-    # Create a result dictionary (trap -> outcome)
-    # result = {
-    #     trap: outcome for (trap,), outcome in zip(run.traps_list, trap_outcomes)
-    # }
+    outcomes = dask_client.gather(dask_client.map(perform_single_simulation, jobs))  # type: ignore[no-untyped-call]
 
-    # test_outcome_table.append(result)
+    test_outcome_table_canonical = []
+    test_outcome_table_deviant = []
 
-    # Print pass/fail based on the sum of the trap outcomes
-    # if sum(trap_outcomes) != 0:
-    #     n_failures += 1
-    #     # print(f"Iteration {i}: ❌ Trap round failed", flush=True)
-    # else:
-    #     pass
-    #     # print(f"Iteration {i}: ✅ Trap round passed", flush=True)
-
-    # # Final report after completing the test rounds
-    # print(
-    #     f"Final result: {n_failures}/{shots} failed rounds",
-    #     flush=True,
-    # )
-    print("-" * 50, flush=True)
+    for outcome in outcomes:
+        for order, _col, results in outcome:
+            if order == ConstructionOrder.Canonical:
+                test_outcome_table_canonical.extend(results)
+            elif order == ConstructionOrder.Deviant:
+                test_outcome_table_deviant.extend(results)
 
     return test_outcome_table_canonical, test_outcome_table_deviant
 
@@ -504,19 +519,46 @@ def generate_qubit_edge_matrix_with_unknowns_dev(
 
 
 def cli(
-    nqubits: int = 5, nlayers: int = 10, depol_prob: float = 0.001, shots: int = 10
+    nqubits: int = 5,
+    nlayers: int = 10,
+    depol_prob: float = 0.001,
+    shots: int = 10,
+    ncircuits: int = 10,
+    verbose: bool = False,
+    manual_shots: bool = False,
+    walltime: int | None = None,
+    memory: int | None = None,
+    cores: int | None = None,
+    port: int | None = None,
+    scale: int | None = None,
 ) -> None:
-    node = nqubits * ((4 * nlayers) + 1)
-
-    print("Starting simulations...")
-    start = time.time()
-    results_canonical, results_deviant = perform_simulation(
-        nqubits=nqubits, nlayers=nlayers, depol_prob=depol_prob, shots=shots
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)-8s %(message)s",
+        level=level,
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    print(f"Simulation finished in {time.time() - start:.4f} seconds.")
+    cluster = get_cluster(walltime, memory, cores, port, scale)
+    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
 
-    print("Computing failure probabilities...")
+    node = nqubits * ((4 * nlayers) + 1)
+
+    logger.info("Starting simulations...")
+    start = time.time()
+    results_canonical, results_deviant = perform_simulation(
+        nqubits=nqubits,
+        nlayers=nlayers,
+        depol_prob=depol_prob,
+        shots=shots,
+        ncircuits=ncircuits,
+        manual_shots=manual_shots,
+        dask_client=dask_client,
+    )
+
+    logger.info(f"Simulation finished in {time.time() - start:.4f} seconds.")
+
+    logger.info("Computing failure probabilities...")
     failure_proba_can_final = compute_failure_probabilities(results_canonical)
     failure_proba_dev_all = compute_failure_probabilities(results_deviant)
 
@@ -525,14 +567,14 @@ def cli(
         failure_proba_dev_all, nqubits, node
     )
 
-    print(f"failute proba canonical {failure_proba_can}")
-    print(f"failute proba deviant {failure_proba_dev}")
+    logger.debug(f"failute proba canonical {failure_proba_can}")
+    logger.debug(f"failute proba deviant {failure_proba_dev}")
     py_failure_proba_can = np.array(failure_proba_can, dtype=np.float64)
-    print(py_failure_proba_can.shape)
+    logger.debug(py_failure_proba_can.shape)
     py_failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)
-    print(py_failure_proba_dev.shape)
+    logger.debug(py_failure_proba_dev.shape)
 
-    print("Setting up ACES...")
+    logger.info("Setting up ACES...")
     qubit_edge_matrix, qubit_map, edge_map = (
         generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
     )
@@ -541,8 +583,8 @@ def cli(
     )
     qubit_edge_matrix = np.array(qubit_edge_matrix, dtype=np.float64)
     qubit_edge_matrix_dev = np.array(qubit_edge_matrix_dev, dtype=np.float64)
-    print(qubit_edge_matrix.shape)
-    print(qubit_edge_matrix_dev.shape)
+    logger.debug(qubit_edge_matrix.shape)
+    logger.debug(qubit_edge_matrix_dev.shape)
 
     # Stack the matrices together to form a single system
     lhs = np.vstack(
@@ -551,22 +593,22 @@ def cli(
     rhs = np.concatenate(
         (py_failure_proba_can, py_failure_proba_dev)
     )  # Combine constant vectors
-    print(lhs.shape, lhs)
-    print(rhs.shape, rhs)
+    logger.debug(lhs.shape, lhs)
+    logger.debug(rhs.shape, rhs)
 
     log_rhs = np.log(rhs)  # log constant vectors
 
     log_params, *_ = np.linalg.lstsq(lhs, log_rhs, rcond=None)
 
-    print(f"log {log_params}")
+    logger.debug(f"log {log_params}")
 
-    print("Calculating the lambdas...")
+    logger.info("Calculating the lambdas...")
     x = np.exp(log_params)  # Convert log values back to original variables
-    lamba_initial = 1 - (4/3) * depol_prob
-    x_diff = [(dif - lamba_initial) for dif in x]
+    lambda_initial = 1 - 4 / 3 * depol_prob
+    x_diff = [(dif - lambda_initial) for dif in x]
 
-    print(f"X {x}")
-    print("Plotting the result...")
+    logger.debug(f"X {x}")
+    logger.info("Plotting the result...")
 
     plt.figure(figsize=(10, 6))
 
@@ -632,7 +674,7 @@ def cli(
     plt.tight_layout()
     # plt.show()
     plt.savefig("plot.png")
-    print("Done!")
+    logger.info("Done!")
 
 
 if __name__ == "__main__":

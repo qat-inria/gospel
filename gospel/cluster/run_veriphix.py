@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, assert_never
 
 import dask.distributed
 import typer
-from dask_jobqueue import SLURMCluster
 from graphix import command
 from graphix.noise_models import NoiseModel
 from graphix.rng import ensure_rng
@@ -20,6 +19,7 @@ from veriphix.client import Client, Secrets
 from veriphix.trappifiedCanvas import TrappifiedCanvas, TrapStabilizers
 
 import gospel.brickwork_state_transpiler
+from gospel.cluster.dask_interface import get_cluster
 from gospel.scripts.qasm_parser import read_qasm
 
 if TYPE_CHECKING:
@@ -203,30 +203,7 @@ def run(
     port: int | None = None,
     scale: int | None = None,
 ) -> None:
-    if walltime is None and memory is None and cores is None and port is None:
-        cluster = dask.distributed.LocalCluster()
-    else:
-        if walltime is None:
-            raise ValueError("--walltime <hours> is required for running on cleps")
-        if memory is None:
-            raise ValueError("--memory <GB> is required for running on cleps")
-        if cores is None:
-            raise ValueError("--cores <N> is required for running on cleps")
-        if port is None:
-            raise ValueError("--port <N> is required for running on cleps")
-        if scale is None:
-            raise ValueError("--scale <N> is required for running on cleps")
-        cluster = SLURMCluster(
-            account="inria",
-            queue="cpu_devel",
-            cores=cores,
-            memory=f"{memory}GB",
-            walltime=f"{walltime}:00:00",
-            scheduler_options={"dashboard_address": f":{port}"},
-        )
-    if scale is not None:
-        cluster.scale(scale)
-
+    cluster = get_cluster(walltime, memory, cores, port, scale)
     parameters = Parameters(
         d=d, t=t, N=d + t, num_instances=num_instances, threshold=threshold, p_err=p_err
     )
@@ -241,9 +218,9 @@ def run(
     n_failed_trap_rounds = 0
     # n_tolerated_failures = parameters.threshold * parameters.t
 
-    dask_client = dask.distributed.Client(cluster)
+    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
     outcome_circuits = dict(
-        dask_client.gather(
+        dask_client.gather(  # type: ignore[no-untyped-call]
             dask_client.map(
                 for_all_rounds,
                 all_rounds,

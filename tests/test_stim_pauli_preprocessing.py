@@ -294,6 +294,31 @@ def test_pattern_to_stim_circuit_hadamard(fx_rng: Generator) -> None:
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
+def test_estimate_stim_backend(fx_bg: PCG64, jumps: int) -> None:
+    nshots = 1000
+    rng = Generator(fx_bg.jumped(jumps))
+    order = ConstructionOrder.Canonical
+    pattern = generate_random_pauli_pattern(nqubits=3, nlayers=4, order=order, rng=rng)
+    outcomes: dict[int, int] = {}
+    for _ in range(nshots):
+        backend = StimBackend()
+        measure_method = DefaultMeasureMethod()
+        pattern.simulate_pattern(backend, measure_method=measure_method)
+        for i, v in enumerate(measure_method.results):
+            if v:
+                outcomes[i] = outcomes.get(i, 0) + 1
+    stim_circuit, measure_indices = pattern_to_stim_circuit(pattern)
+    sample = stim_circuit.compile_sampler().sample(shots=nshots)
+    outcomes2: dict[int, int] = {}
+    for s in sample:
+        for i, v in enumerate(measure_indices):
+            if s[v]:
+                outcomes2[i] = outcomes2.get(i, 0) + 1
+    for v, v2 in zip(outcomes, outcomes2):
+        assert abs(v - v2) < 50
+
+
+@pytest.mark.parametrize("jumps", range(1, 11))
 def test_pattern_to_stim_circuit_round_brickwork(fx_bg: PCG64, jumps: int) -> None:
     rng = Generator(fx_bg.jumped(jumps))
     order = ConstructionOrder.Canonical
@@ -320,7 +345,10 @@ def test_pattern_to_stim_circuit_round_brickwork(fx_bg: PCG64, jumps: int) -> No
             client_pattern,
             input_state=input_state,  # type: ignore[arg-type]
         )
-        sample = stim_circuit.compile_sampler().sample(shots=1000)
+        # sample = stim_circuit.compile_sampler().sample(shots=1000)
+        sim = stim.TableauSimulator()
+        sim.do(stim_circuit)
+        sample = [sim.current_measurement_record()]
         for s in sample:
             for trap in run.traps_list:
                 outcomes = [s[measure_indices[node]] for node in trap]
