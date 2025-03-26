@@ -109,11 +109,48 @@ def perform_simulation(
         test_outcome_table[(ConstructionOrder.Canonical, False)]
         + test_outcome_table[(ConstructionOrder.Canonical, True)]
     )
+    separate_binary_lists_can = [[0 if v == np.False_ else 1 for v in d.values()] for d in test_outcome_table_canonical]
+    n_failures = 0
+    total_rows = len(separate_binary_lists_can)
+    print("For canonical order:")
+    for row_idx, row in enumerate(separate_binary_lists_can):
+        row_sum = sum(row)
+        if row_sum != 0:
+            n_failures += 1
+            #print(f"Iteration {row_idx}: ❌ Trap round failed", flush=True)
+        else:
+            pass
+            #print(f"Iteration {row_idx}: ✅ Trap round passed", flush=True)
+
+    print(
+            f"Final result: {n_failures}/{total_rows} failed rounds",
+            flush=True,
+        )
+    
     test_outcome_table_deviant = (
         test_outcome_table[(ConstructionOrder.Deviant, False)]
         + test_outcome_table[(ConstructionOrder.Deviant, True)]
     )
-    print(f"LEN {test_outcome_table_canonical}")
+    separate_binary_lists_dev = [[0 if v == np.False_ else 1 for v in d.values()] for d in test_outcome_table_deviant]
+    n_failures_dev = 0
+    total_rows_dev = len(separate_binary_lists_can)
+    print("-" * 50, flush=True)
+    print("For deviant order:")
+    for row_idx, row in enumerate(separate_binary_lists_dev):
+        row_sum_dev = sum(row)
+        if row_sum_dev != 0:
+            n_failures_dev += 1
+            #print(f"Iteration {row_idx}: ❌ Trap round failed", flush=True)
+        else:
+            pass
+            #print(f"Iteration {row_idx}: ✅ Trap round passed", flush=True)
+
+    print(
+            f"Final result: {n_failures_dev}/{total_rows_dev} failed rounds",
+            flush=True,
+        )
+    
+    #print(f"LEN {test_outcome_table_canonical}")
     # convert to old format
     # Create a result dictionary (trap -> outcome)
     # result = {
@@ -525,7 +562,7 @@ def cli(
 
     print("Calculating the lambdas...")
     x = np.exp(log_params)  # Convert log values back to original variables
-    lamba_initial = 1 - depol_prob
+    lamba_initial = 1 - (4/3) * depol_prob
     x_diff = [(dif - lamba_initial) for dif in x]
 
     print(f"X {x}")
