@@ -525,7 +525,7 @@ def cli(
 
     print("Calculating the lambdas...")
     x = np.exp(log_params)  # Convert log values back to original variables
-    lamba_initial = 1 - (4/3) * depol_prob
+    lamba_initial = 1 - depol_prob
     x_diff = [(dif - lamba_initial) for dif in x]
 
     print(f"X {x}")
