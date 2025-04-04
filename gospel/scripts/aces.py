@@ -13,6 +13,7 @@ import numpy.typing as npt
 import seaborn as sns
 import typer
 from graphix import Pattern, command
+from graphix.command import CommandKind
 from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod, PrepareMethod
 from graphix.states import BasicState, State
@@ -119,7 +120,10 @@ def perform_single_simulation(
 
             client_pattern = Pattern(input_nodes=pattern.input_nodes)
             for cmd in pattern:
-                if isinstance(cmd, command.M):
+                if cmd.kind in (CommandKind.X, CommandKind.Z):
+                    # If byproduct, remove it so it's not done by the server
+                    continue
+                if cmd.kind == CommandKind.M:
                     client_pattern.add(command.M(node=cmd.node))
                 else:
                     client_pattern.add(cmd)
@@ -127,12 +131,12 @@ def perform_single_simulation(
             if params.simulate_pattern:
                 measure_method = DefaultMeasureMethod()
 
-                # prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
+                prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
                 input_state = [run.states[i] for i in client_pattern.input_nodes]
                 client_pattern.simulate_pattern(
                     backend="densitymatrix",
                     input_state=input_state,
-                    # prepare_method=prepare_method,
+                    prepare_method=prepare_method,
                     measure_method=measure_method,
                     noise_model=noise_model,
                 )
@@ -191,7 +195,8 @@ def perform_simulation(
     ]
 
     logger.debug(f"nb jobs to run: {len(jobs)}")
-    outcomes = dask_client.gather(dask_client.map(perform_single_simulation, jobs))  # type: ignore[no-untyped-call]
+    # outcomes = dask_client.gather(dask_client.map(perform_single_simulation, jobs))  # type: ignore[no-untyped-call]
+    outcomes = list(map(perform_single_simulation, jobs))
 
     test_outcome_table_canonical = []
     test_outcome_table_deviant = []
