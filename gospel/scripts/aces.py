@@ -127,12 +127,12 @@ def perform_single_simulation(
             if params.simulate_pattern:
                 measure_method = DefaultMeasureMethod()
 
-                prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
+                # prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
                 input_state = [run.states[i] for i in client_pattern.input_nodes]
                 client_pattern.simulate_pattern(
                     backend="densitymatrix",
                     input_state=input_state,
-                    prepare_method=prepare_method,
+                    # prepare_method=prepare_method,
                     measure_method=measure_method,
                     noise_model=noise_model,
                 )
