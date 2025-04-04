@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
+from multiprocessing import freeze_support
 from typing import TYPE_CHECKING, Callable
 
 import dask.distributed
@@ -28,7 +29,7 @@ from gospel.cluster.dask_interface import get_cluster
 from gospel.noise_models.uncorrelated_depolarising_noise_model import (
     UncorrelatedDepolarisingNoiseModel,
 )
-from gospel.stim_pauli_preprocessing import StimBackend
+from gospel.stim_pauli_preprocessing import StimBackend, pattern_to_stim_circuit
 
 if TYPE_CHECKING:
     from graphix.command import BaseN
@@ -52,6 +53,8 @@ class SingleSimulation:
     depol_prob: float
     nshots: int
     manual_shots: bool
+    jumps: int
+    simulate_pattern: bool
 
 
 @dataclass
@@ -66,12 +69,11 @@ def perform_single_simulation(
     params: SingleSimulation,
 ) -> list[tuple[ConstructionOrder, bool, list[dict[int, int]]]]:
     fx_bg = PCG64(42)
-    jumps = 5
 
     noise_model = UncorrelatedDepolarisingNoiseModel(
         entanglement_error_prob=params.depol_prob
     )
-    rng = Generator(fx_bg.jumped(jumps))  # Use the jumped rng
+    rng = Generator(fx_bg.jumped(params.jumps))  # Use the jumped rng
 
     pattern = generate_random_pauli_pattern(
         nqubits=params.nqubits, nlayers=params.nlayers, order=params.order, rng=rng
@@ -122,35 +124,43 @@ def perform_single_simulation(
                 else:
                     client_pattern.add(cmd)
 
-            measure_method = DefaultMeasureMethod()
+            if params.simulate_pattern:
+                measure_method = DefaultMeasureMethod()
 
-            prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
-            input_state = [run.states[i] for i in client_pattern.input_nodes]
-            client_pattern.simulate_pattern(
-                input_state=input_state,
-                prepare_method=prepare_method,
-                measure_method=measure_method,
-            )
-            results = [
-                {int(trap): measure_method.results[trap] for (trap,) in run.traps_list}
-            ]
-            # input_state = {
-            #    i: state_to_basic_state(state) for i, state in enumerate(run.states)
-            # }
-            # circuit, measure_indices = pattern_to_stim_circuit(
-            #     client_pattern,
-            #     input_state=input_state,
-            #     noise_model=noise_model,
-            # )
-            # sample = circuit.compile_sampler().sample(shots=nshots)
-            # results = [
-            #     {trap: s[measure_indices[trap]] for (trap,) in run.traps_list}
-            #     for s in sample
-            # ]
+                prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
+                input_state = [run.states[i] for i in client_pattern.input_nodes]
+                client_pattern.simulate_pattern(
+                    backend="densitymatrix",
+                    input_state=input_state,
+                    prepare_method=prepare_method,
+                    measure_method=measure_method,
+                    noise_model=noise_model,
+                )
+                results = [
+                    {
+                        int(trap): measure_method.results[trap]
+                        for (trap,) in run.traps_list
+                    }
+                ]
+            else:
+                input_state = {
+                    i: state_to_basic_state(state) for i, state in enumerate(run.states)
+                }
+                circuit, measure_indices = pattern_to_stim_circuit(
+                    client_pattern,
+                    input_state=input_state,
+                    noise_model=noise_model,
+                )
+                sample = circuit.compile_sampler().sample(shots=params.nshots)
+                results = [
+                    {trap: s[measure_indices[trap]] for (trap,) in run.traps_list}
+                    for s in sample
+                ]
 
         # Choose the correct outcome table based on order
 
         outcomes.append((params.order, bool(i), results))
+
     return outcomes
 
 
@@ -161,6 +171,7 @@ def perform_simulation(
     shots: int,
     ncircuits: int,
     manual_shots: bool,
+    simulate_pattern: bool,
     dask_client: dask.distributed.Client,
 ) -> tuple[list[dict[int, int]], list[dict[int, int]]]:
     nshots = max(1, shots // 2 // ncircuits)
@@ -172,11 +183,14 @@ def perform_simulation(
             depol_prob=depol_prob,
             nshots=nshots,
             manual_shots=manual_shots,
+            simulate_pattern=simulate_pattern,
+            jumps=circuit * 2 + int(order == ConstructionOrder.Deviant),
         )
-        for _circuit in range(ncircuits)
+        for circuit in range(ncircuits)
         for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant)
     ]
 
+    logger.debug(f"nb jobs to run: {len(jobs)}")
     outcomes = dask_client.gather(dask_client.map(perform_single_simulation, jobs))  # type: ignore[no-untyped-call]
 
     test_outcome_table_canonical = []
@@ -526,6 +540,7 @@ def cli(
     ncircuits: int = 10,
     verbose: bool = False,
     manual_shots: bool = False,
+    simulate_pattern: bool = False,
     walltime: int | None = None,
     memory: int | None = None,
     cores: int | None = None,
@@ -535,9 +550,9 @@ def cli(
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
         format="%(asctime)s %(levelname)-8s %(message)s",
-        level=level,
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    logger.setLevel(level)
 
     cluster = get_cluster(walltime, memory, cores, port, scale)
     dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
@@ -553,6 +568,7 @@ def cli(
         shots=shots,
         ncircuits=ncircuits,
         manual_shots=manual_shots,
+        simulate_pattern=simulate_pattern,
         dask_client=dask_client,
     )
 
@@ -593,8 +609,8 @@ def cli(
     rhs = np.concatenate(
         (py_failure_proba_can, py_failure_proba_dev)
     )  # Combine constant vectors
-    logger.debug(lhs.shape, lhs)
-    logger.debug(rhs.shape, rhs)
+    # logger.debug(lhs.shape, lhs)
+    # logger.debug(rhs.shape, rhs)
 
     log_rhs = np.log(rhs)  # log constant vectors
 
@@ -678,4 +694,5 @@ def cli(
 
 
 if __name__ == "__main__":
+    freeze_support()
     typer.run(cli)
