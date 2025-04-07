@@ -85,11 +85,10 @@ def perform_single_simulation(
     pattern = generate_random_pauli_pattern(
         nqubits=params.nqubits, nlayers=params.nlayers, order=params.order, rng=rng
     )
-    client_pattern = remove_flow(pattern)
-
     # Add measurement commands to the output nodes
     for onode in pattern.output_nodes:
         pattern.add(command.M(node=onode))
+    client_pattern = remove_flow(pattern)
 
     secrets = Secrets(r=False, a=False, theta=False)
     client = Client(pattern=pattern, secrets=secrets)
