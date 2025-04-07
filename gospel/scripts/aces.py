@@ -3,7 +3,9 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
+from enum import Enum
 from multiprocessing import freeze_support
+from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
 import dask.distributed
@@ -39,6 +41,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class Method(Enum):
+    Stim = "stim"
+    Graphix = "graphix"
+    Veriphix = "veriphix"
+
+
 def state_to_basic_state(state: State) -> BasicState:
     bs = BasicState.try_from_statevector(Statevec(state).psi)
     if bs is None:
@@ -53,9 +61,8 @@ class SingleSimulation:
     nlayers: int
     depol_prob: float
     nshots: int
-    manual_shots: bool
     jumps: int
-    simulate_pattern: bool
+    method: Method
 
 
 @dataclass
@@ -100,7 +107,8 @@ def perform_single_simulation(
 
         run = TrappifiedCanvas(col)
 
-        if params.nshots == 1 and params.manual_shots:
+        if params.method == Method.Veriphix:
+            assert params.nshots == 1
             backend = StimBackend()
             trap_outcomes = client.delegate_test_run(  # no noise model, things go wrong
                 backend=backend, run=run, noise_model=noise_model
@@ -128,7 +136,8 @@ def perform_single_simulation(
                 else:
                     client_pattern.add(cmd)
 
-            if params.simulate_pattern:
+            if params.method == Method.Graphix:
+                assert params.nshots == 1
                 measure_method = DefaultMeasureMethod()
 
                 prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
@@ -174,8 +183,7 @@ def perform_simulation(
     depol_prob: float,
     shots: int,
     ncircuits: int,
-    manual_shots: bool,
-    simulate_pattern: bool,
+    method: Method,
     dask_client: dask.distributed.Client,
 ) -> tuple[list[dict[int, int]], list[dict[int, int]]]:
     nshots = max(1, shots // 2 // ncircuits)
@@ -186,8 +194,7 @@ def perform_simulation(
             nlayers=nlayers,
             depol_prob=depol_prob,
             nshots=nshots,
-            manual_shots=manual_shots,
-            simulate_pattern=simulate_pattern,
+            method=method,
             jumps=circuit * 2 + int(order == ConstructionOrder.Deviant),
         )
         for circuit in range(ncircuits)
@@ -544,13 +551,13 @@ def cli(
     shots: int = 10,
     ncircuits: int = 10,
     verbose: bool = False,
-    manual_shots: bool = False,
-    simulate_pattern: bool = False,
+    method: Method = Method.Stim,
     walltime: int | None = None,
     memory: int | None = None,
     cores: int | None = None,
     port: int | None = None,
     scale: int | None = None,
+    target: Path = Path("plot.png"),
 ) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
@@ -572,8 +579,7 @@ def cli(
         depol_prob=depol_prob,
         shots=shots,
         ncircuits=ncircuits,
-        manual_shots=manual_shots,
-        simulate_pattern=simulate_pattern,
+        method=Method,
         dask_client=dask_client,
     )
 
@@ -694,7 +700,7 @@ def cli(
 
     plt.tight_layout()
     # plt.show()
-    plt.savefig("plot.png")
+    plt.savefig(target)
     logger.info("Done!")
 
 
