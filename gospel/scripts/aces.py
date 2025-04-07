@@ -14,13 +14,12 @@ import numpy as np
 import numpy.typing as npt
 import seaborn as sns
 import typer
-from graphix import Pattern, command
-from graphix.command import CommandKind
+from graphix import command
 from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod, PrepareMethod
 from graphix.states import BasicState, State
 from numpy.random import PCG64, Generator
-from veriphix.client import Client, Secrets
+from veriphix.client import Client, Secrets, remove_flow
 from veriphix.trappifiedCanvas import TrappifiedCanvas
 
 from gospel.brickwork_state_transpiler import (
@@ -86,6 +85,7 @@ def perform_single_simulation(
     pattern = generate_random_pauli_pattern(
         nqubits=params.nqubits, nlayers=params.nlayers, order=params.order, rng=rng
     )
+    client_pattern = remove_flow(pattern)
 
     # Add measurement commands to the output nodes
     for onode in pattern.output_nodes:
@@ -119,56 +119,42 @@ def perform_single_simulation(
                     for (trap,), outcome in zip(run.traps_list, trap_outcomes)
                 }
             ]
+        # all nodes have to be prepared for test runs
+        # don't reinitialise them since we don't care for blindness right now
+
+        # print(f"len input ste {len(input_state)}")
+        # print(f"input ste {input_state}")
+
+        elif params.method == Method.Graphix:
+            assert params.nshots == 1
+            measure_method = DefaultMeasureMethod()
+
+            prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
+            input_state = [run.states[i] for i in client_pattern.input_nodes]
+            client_pattern.simulate_pattern(
+                backend="densitymatrix",
+                input_state=input_state,
+                prepare_method=prepare_method,
+                measure_method=measure_method,
+                noise_model=noise_model,
+            )
+            results = [
+                {int(trap): measure_method.results[trap] for (trap,) in run.traps_list}
+            ]
         else:
-            # all nodes have to be prepared for test runs
-            # don't reinitialise them since we don't care for blindness right now
-
-            # print(f"len input ste {len(input_state)}")
-            # print(f"input ste {input_state}")
-
-            client_pattern = Pattern(input_nodes=pattern.input_nodes)
-            for cmd in pattern:
-                if cmd.kind in (CommandKind.X, CommandKind.Z):
-                    # If byproduct, remove it so it's not done by the server
-                    continue
-                if cmd.kind == CommandKind.M:
-                    client_pattern.add(command.M(node=cmd.node))
-                else:
-                    client_pattern.add(cmd)
-
-            if params.method == Method.Graphix:
-                assert params.nshots == 1
-                measure_method = DefaultMeasureMethod()
-
-                prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
-                input_state = [run.states[i] for i in client_pattern.input_nodes]
-                client_pattern.simulate_pattern(
-                    backend="densitymatrix",
-                    input_state=input_state,
-                    prepare_method=prepare_method,
-                    measure_method=measure_method,
-                    noise_model=noise_model,
-                )
-                results = [
-                    {
-                        int(trap): measure_method.results[trap]
-                        for (trap,) in run.traps_list
-                    }
-                ]
-            else:
-                input_state = {
-                    i: state_to_basic_state(state) for i, state in enumerate(run.states)
-                }
-                circuit, measure_indices = pattern_to_stim_circuit(
-                    client_pattern,
-                    input_state=input_state,
-                    noise_model=noise_model,
-                )
-                sample = circuit.compile_sampler().sample(shots=params.nshots)
-                results = [
-                    {trap: s[measure_indices[trap]] for (trap,) in run.traps_list}
-                    for s in sample
-                ]
+            input_state = {
+                i: state_to_basic_state(state) for i, state in enumerate(run.states)
+            }
+            circuit, measure_indices = pattern_to_stim_circuit(
+                client_pattern,
+                input_state=input_state,
+                noise_model=noise_model,
+            )
+            sample = circuit.compile_sampler().sample(shots=params.nshots)
+            results = [
+                {trap: s[measure_indices[trap]] for (trap,) in run.traps_list}
+                for s in sample
+            ]
 
         # Choose the correct outcome table based on order
 

@@ -17,8 +17,8 @@ def main(
     for method in Method:
         cli(
             method=method,
-            ncircuits=500,
-            shots=1000,
+            ncircuits=5000,
+            shots=10000,
             target=f"aces-{method}.png",
             walltime=walltime,
             memory=memory,
