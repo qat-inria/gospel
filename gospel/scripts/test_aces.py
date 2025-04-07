@@ -6,7 +6,10 @@ import typer
 
 from gospel.scripts.aces import Method, cli
 
+app = typer.Typer(pretty_exceptions_show_locals=False)
 
+
+@app.command()
 def main(
     walltime: int | None = None,
     memory: int | None = None,
@@ -30,4 +33,4 @@ def main(
 
 if __name__ == "__main__":
     freeze_support()
-    typer.run(main)
+    app()
