@@ -129,13 +129,19 @@ def perform_single_simulation(
                 {int(trap): measure_method.results[trap] for (trap,) in run.traps_list}
             ]
         else:
-            input_state = {
-                i: state_to_basic_state(state) for i, state in enumerate(run.states)
-            }
+            input_state = {}
+            fixed_states = {}
+            for node, state in enumerate(run.states):
+                basic_state = state_to_basic_state(state)
+                if node in client_pattern.input_nodes:
+                    input_state[node] = basic_state
+                else:
+                    fixed_states[node] = basic_state
             circuit, measure_indices = pattern_to_stim_circuit(
                 client_pattern,
                 input_state=input_state,
                 noise_model=noise_model,
+                fixed_states=fixed_states,
             )
             sample = circuit.compile_sampler().sample(shots=params.nshots)
             results = [

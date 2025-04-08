@@ -295,6 +295,7 @@ def pattern_to_stim_circuit(
     pattern: Pattern,
     noise_model: NoiseModel | None = None,
     input_state: dict[int, BasicState] | BasicState = BasicState.PLUS,
+    fixed_states: dict[int, BasicState] | None = None,
 ) -> tuple[stim.Circuit, dict[int, int]]:
     circuit = stim.Circuit()
     if isinstance(input_state, BasicState):
@@ -321,8 +322,8 @@ def pattern_to_stim_circuit(
 
     for cmd in actual_pattern:
         if cmd.kind == CommandKind.N:
-            if isinstance(input_state, dict):
-                basic_state_or_none = input_state.get(cmd.node)
+            if fixed_states is not None:
+                basic_state_or_none = fixed_states.get(cmd.node)
             else:
                 basic_state_or_none = None
             if basic_state_or_none is None:
