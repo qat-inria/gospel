@@ -13,9 +13,9 @@ from graphix.sim.base_backend import (
 )
 from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod
-from graphix.states import BasicState, BasicStates
+from graphix.states import BasicState, BasicStates, State
 from numpy.random import PCG64, Generator
-from veriphix.client import Client, Secrets
+from veriphix.client import Client, Secrets, remove_flow
 from veriphix.trappifiedCanvas import TrappifiedCanvas
 
 from gospel.brickwork_state_transpiler import (
@@ -318,6 +318,13 @@ def test_estimate_stim_backend(fx_bg: PCG64, jumps: int) -> None:
         assert abs(v - v2) < 50
 
 
+def state_to_basic_state(state: State) -> BasicState:
+    bs = BasicState.try_from_statevector(Statevec(state).psi)
+    if bs is None:
+        raise ValueError(f"Not a basic state: {state}")
+    return bs
+
+
 @pytest.mark.parametrize("jumps", range(1, 11))
 def test_pattern_to_stim_circuit_round_brickwork(fx_bg: PCG64, jumps: int) -> None:
     rng = Generator(fx_bg.jumped(jumps))
@@ -331,24 +338,21 @@ def test_pattern_to_stim_circuit_round_brickwork(fx_bg: PCG64, jumps: int) -> No
     test_runs = client.create_test_runs(manual_colouring=colors)
     for col in test_runs:
         run = TrappifiedCanvas(col)
-        input_state = {
-            i: BasicState.try_from_statevector(Statevec(state).psi)
-            for i, state in enumerate(run.states)
-        }
-        client_pattern = Pattern(input_nodes=pattern.input_nodes)
-        for cmd in pattern:
-            if isinstance(cmd, command.M):
-                client_pattern.add(command.M(node=cmd.node))
+        client_pattern = remove_flow(pattern)
+        input_state = {}
+        fixed_states = {}
+        for node, state in enumerate(run.states):
+            basic_state = state_to_basic_state(state)
+            if node in client_pattern.input_nodes:
+                input_state[node] = basic_state
             else:
-                client_pattern.add(cmd)
+                fixed_states[node] = basic_state
         stim_circuit, measure_indices = pattern_to_stim_circuit(
             client_pattern,
             input_state=input_state,  # type: ignore[arg-type]
+            fixed_states=fixed_states,
         )
-        # sample = stim_circuit.compile_sampler().sample(shots=1000)
-        sim = stim.TableauSimulator()
-        sim.do(stim_circuit)
-        sample = [sim.current_measurement_record()]
+        sample = stim_circuit.compile_sampler().sample(shots=1000)
         for s in sample:
             for trap in run.traps_list:
                 outcomes = [s[measure_indices[node]] for node in trap]

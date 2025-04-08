@@ -164,7 +164,7 @@ def perform_simulation(
     method: Method,
     dask_client: dask.distributed.Client,
 ) -> tuple[list[dict[int, int]], list[dict[int, int]]]:
-    nshots = max(1, shots // 2 // ncircuits)
+    nshots = max(1, shots // 4 // ncircuits)
     jobs = [
         SingleSimulation(
             order=order,
