@@ -297,12 +297,17 @@ def pattern_to_stim_circuit(
     input_state: dict[int, BasicState] | BasicState = BasicState.PLUS,
 ) -> tuple[stim.Circuit, dict[int, int]]:
     circuit = stim.Circuit()
-    for node in pattern.input_nodes:
-        basic_state = (
-            input_state if isinstance(input_state, BasicState) else input_state[node]
-        )
-        for clifford in basic_state_to_clifford_gates(basic_state):
-            circuit.append(str(clifford), targets=[node])  # type: ignore[call-overload]
+    if isinstance(input_state, BasicState):
+        for clifford in basic_state_to_clifford_gates(input_state):
+            circuit.append(str(clifford), targets=pattern.input_nodes)  # type: ignore[call-overload]
+    else:
+        other_nodes = set(input_state.keys()) - set(pattern.input_nodes)
+        if other_nodes:
+            raise ValueError(f"Not input states: {other_nodes}")
+        for node in pattern.input_nodes:
+            basic_state = input_state[node]
+            for clifford in basic_state_to_clifford_gates(basic_state):
+                circuit.append(str(clifford), targets=[node])  # type: ignore[call-overload]
     if noise_model is None:
         actual_pattern: NoiseCommands = list(pattern)
     else:

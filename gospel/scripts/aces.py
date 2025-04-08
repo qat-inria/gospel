@@ -100,12 +100,7 @@ def perform_single_simulation(
     outcomes = []
 
     for i, col in enumerate(test_runs):
-        # Define noise model
-
-        # generate trappified canvas (input state is refreshed)
-
         run = TrappifiedCanvas(col)
-
         if params.method == Method.Veriphix:
             assert params.nshots == 1
             backend = StimBackend()
@@ -118,16 +113,9 @@ def perform_single_simulation(
                     for (trap,), outcome in zip(run.traps_list, trap_outcomes)
                 }
             ]
-        # all nodes have to be prepared for test runs
-        # don't reinitialise them since we don't care for blindness right now
-
-        # print(f"len input ste {len(input_state)}")
-        # print(f"input ste {input_state}")
-
         elif params.method == Method.Graphix:
             assert params.nshots == 1
             measure_method = DefaultMeasureMethod()
-
             prepare_method = FixedPrepareMethod(dict(enumerate(run.states)))
             input_state = [run.states[i] for i in client_pattern.input_nodes]
             client_pattern.simulate_pattern(
@@ -156,7 +144,6 @@ def perform_single_simulation(
             ]
 
         # Choose the correct outcome table based on order
-
         outcomes.append((params.order, bool(i), results))
 
     return outcomes
