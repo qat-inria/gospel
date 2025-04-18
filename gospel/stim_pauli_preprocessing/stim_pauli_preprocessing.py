@@ -27,6 +27,8 @@ from gospel.noise_models.single_pauli_noise_model import SinglePauliNoise
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    import numpy as np
+    import numpy.typing as npt
     from graphix.noise_models.noise_model import Noise, NoiseCommands, NoiseModel
 
 if TYPE_CHECKING:
@@ -202,13 +204,19 @@ def cut_pattern(pattern: Pattern) -> tuple[Pattern, Pattern]:
     return (pauli_pattern, non_pauli_pattern)
 
 
+class StimBackendState(BackendState):
+    def flatten(self) -> npt.NDArray[np.complex128]:
+        """Return flattened state."""
+        return NotImplemented
+
+
 class StimBackend(Backend):
     def __init__(
         self,
         sim: stim.TableauSimulator | None = None,
         branch: dict[int, bool] | None = None,
     ) -> None:
-        super().__init__(BackendState())
+        super().__init__(StimBackendState())
         if sim is None:
             self.__sim = stim.TableauSimulator()
         else:
