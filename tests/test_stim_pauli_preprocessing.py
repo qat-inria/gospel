@@ -23,6 +23,7 @@ from gospel.brickwork_state_transpiler import (
     generate_random_pauli_pattern,
     get_bipartite_coloring,
 )
+from gospel.noise_models import SinglePauliNoiseModel
 from gospel.scripts import compare_backend_results
 from gospel.stim_pauli_preprocessing import (
     StimBackend,
@@ -358,3 +359,88 @@ def test_pattern_to_stim_circuit_round_brickwork(fx_bg: PCG64, jumps: int) -> No
                 outcomes = [s[measure_indices[node]] for node in trap]
                 trap_outcome = sum(outcomes) % 2
                 assert trap_outcome == 0
+
+
+# test round with deterministic noise to assess validity of new stim implem
+# ideally, do this for all backends
+
+
+@pytest.mark.parametrize("jumps", range(1, 2))  # 11
+def test_pattern_to_stim_circuit_noisy_deterministic(fx_bg: PCG64, jumps: int) -> None:
+    rng = Generator(fx_bg.jumped(jumps))
+
+    # pattern on 3 qubits
+    # rz deterministic could transpile it
+    pattern = Pattern(input_nodes=[0])
+    pattern.add(command.N(node=1))
+    pattern.add(command.N(node=2))
+    pattern.add(command.E(nodes=(0, 1)))
+    pattern.add(command.E(nodes=(1, 2)))
+    pattern.add(command.M(node=0, angle=rng.random()))
+    pattern.add(command.M(node=1))
+    pattern.add(command.X(node=2, domain={2}))
+    pattern.add(command.Z(node=2, domain={1}))
+
+    # TODO pattern.extend [list comd]
+
+    # measure output nodes
+    for onode in pattern.output_nodes:
+        pattern.add(command.M(node=onode))
+
+    # manual colouring?
+    # these are sets
+    colors = ({0, 2}, {1})
+
+    # set up client with no secrets
+    secrets = Secrets(r=False, a=False, theta=False)
+    client = Client(pattern=pattern, secrets=secrets)
+    # set up test runs
+    test_runs = client.create_test_runs(manual_colouring=colors)
+    for error_type in ["X", "Z"]:
+        print(f"error type {error_type}")
+        for col in test_runs:
+            print("colour tested", col)
+            run = TrappifiedCanvas(col)
+            client_pattern = remove_flow(pattern)
+            input_state = {}
+            fixed_states = {}
+            for node, state in enumerate(run.states):
+                basic_state = state_to_basic_state(state)
+                if node in client_pattern.input_nodes:
+                    input_state[node] = basic_state
+                else:
+                    fixed_states[node] = basic_state
+
+            # set noise model
+            noise_model = SinglePauliNoiseModel(prob=1, error_type=error_type)
+            stim_circuit, measure_indices = pattern_to_stim_circuit(
+                client_pattern,
+                input_state=input_state,  # type: ignore[arg-type]
+                fixed_states=fixed_states,
+                noise_model=noise_model,
+            )
+            sample = stim_circuit.compile_sampler().sample(shots=10)
+
+            # assert correct trap lights up
+            for s in sample:
+                for trap in run.traps_list:
+                    outcomes = [s[measure_indices[node]] for node in trap]
+                    outcomes_dict = {node: s[measure_indices[node]] for node in trap}
+                    # trap_outcome = sum(outcomes) % 2
+                    # assert trap_outcome == 0
+                    print(f"outcomes of trap {trap}: {outcomes}")
+                    print(outcomes_dict)
+
+                # check traps for each sample
+                match noise_model:
+                    case SinglePauliNoiseModel(prob=1, error_type="X"):
+                        if 0 in outcomes_dict:
+                            assert not outcomes_dict[0] and outcomes_dict[2]
+                        elif 1 in outcomes_dict:
+                            assert not outcomes_dict[1]
+                    case SinglePauliNoiseModel(prob=1, error_type="Z"):
+                        if 0 in outcomes_dict:
+                            assert not outcomes_dict[0] and not outcomes_dict[2]
+                        elif 1 in outcomes_dict:
+                            assert outcomes_dict[1]
+                print("tests ok")

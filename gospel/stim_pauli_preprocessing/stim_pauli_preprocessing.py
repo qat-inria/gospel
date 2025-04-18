@@ -22,6 +22,8 @@ from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod
 from graphix.states import BasicState, BasicStates, State
 
+from gospel.noise_models.single_pauli_noise_model import SinglePauliNoise
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -279,6 +281,7 @@ class StimBackend(Backend):
             case TwoQubitDepolarisingNoise(prob=prob):
                 (q0, q1) = nodes
                 self.sim.depolarize2(q0, q1, p=prob)
+            # add case here
             case _:
                 raise ValueError(f"Unsupported noise: {noise} and {nodes}")
 
@@ -368,6 +371,21 @@ def pattern_to_stim_circuit(
                 case TwoQubitDepolarisingNoise(prob=prob):
                     (q0, q1) = cmd.nodes
                     circuit.append("DEPOLARIZE2", [q0, q1], prob)
+                # add case here
+                case SinglePauliNoise(
+                    prob=prob, error_type=et
+                ):  #  case SinglePauliNoise(error_type='X')
+                    (q,) = cmd.nodes
+                    if et == "X":
+                        circuit.append("X_ERROR", [q], prob)
+                    elif et == "Z":
+                        circuit.append("Z_ERROR", [q], prob)
+                    else:
+                        raise ValueError(
+                            f"Unsupported single-Pauli: {et} and {cmd.nodes}"
+                        )
+                    # deterministic case just a gate
+                    # circuit.append(et, [q])
                 case _:
                     raise ValueError(f"Unsupported noise: {cmd.noise} and {cmd.nodes}")
 
