@@ -35,7 +35,7 @@ def test_delegate_test_run(fx_bg: PCG64, jumps: int) -> None:
     for onode in pattern.output_nodes:
         pattern.add(command.M(node=onode))
 
-    client_pattern = remove_flow(pattern)
+    client_pattern = remove_flow(pattern)  # type: ignore[no-untyped-call]
 
     secrets = Secrets(r=False, a=False, theta=False)
     client = Client(pattern=pattern, secrets=secrets)

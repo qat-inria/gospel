@@ -88,7 +88,7 @@ def perform_single_simulation(
     # Add measurement commands to the output nodes
     for onode in pattern.output_nodes:
         pattern.add(command.M(node=onode))
-    client_pattern = remove_flow(pattern)
+    client_pattern = remove_flow(pattern)  # type: ignore[no-untyped-call]
 
     secrets = Secrets(r=False, a=False, theta=False)
     client = Client(pattern=pattern, secrets=secrets)
@@ -129,17 +129,17 @@ def perform_single_simulation(
                 {int(trap): measure_method.results[trap] for (trap,) in run.traps_list}
             ]
         else:
-            input_state = {}
+            input_state_dict = {}
             fixed_states = {}
             for node, state in enumerate(run.states):
                 basic_state = state_to_basic_state(state)
                 if node in client_pattern.input_nodes:
-                    input_state[node] = basic_state
+                    input_state_dict[node] = basic_state
                 else:
                     fixed_states[node] = basic_state
             circuit, measure_indices = pattern_to_stim_circuit(
                 client_pattern,
-                input_state=input_state,
+                input_state=input_state_dict,
                 noise_model=noise_model,
                 fixed_states=fixed_states,
             )

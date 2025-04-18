@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from multiprocessing import freeze_support
+from pathlib import Path
 
 import typer
 
@@ -22,7 +23,7 @@ def main(
             method=method,
             ncircuits=50000,
             shots=200000,
-            target=f"aces-{method}.png",
+            target=Path(f"aces-{method}.png"),
             walltime=walltime,
             memory=memory,
             cores=cores,

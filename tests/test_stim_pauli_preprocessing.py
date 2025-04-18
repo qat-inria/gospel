@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -32,6 +34,9 @@ from gospel.stim_pauli_preprocessing import (
     preprocess_pauli,
     simulate_pauli,
 )
+
+if TYPE_CHECKING:
+    from typing import Literal
 
 
 def test_simple() -> None:
@@ -339,7 +344,7 @@ def test_pattern_to_stim_circuit_round_brickwork(fx_bg: PCG64, jumps: int) -> No
     test_runs = client.create_test_runs(manual_colouring=colors)
     for col in test_runs:
         run = TrappifiedCanvas(col)
-        client_pattern = remove_flow(pattern)
+        client_pattern = remove_flow(pattern)  # type: ignore[no-untyped-call]
         input_state = {}
         fixed_states = {}
         for node, state in enumerate(run.states):
@@ -350,7 +355,7 @@ def test_pattern_to_stim_circuit_round_brickwork(fx_bg: PCG64, jumps: int) -> No
                 fixed_states[node] = basic_state
         stim_circuit, measure_indices = pattern_to_stim_circuit(
             client_pattern,
-            input_state=input_state,  # type: ignore[arg-type]
+            input_state=input_state,
             fixed_states=fixed_states,
         )
         sample = stim_circuit.compile_sampler().sample(shots=1000)
@@ -396,12 +401,13 @@ def test_pattern_to_stim_circuit_noisy_deterministic(fx_bg: PCG64, jumps: int) -
     client = Client(pattern=pattern, secrets=secrets)
     # set up test runs
     test_runs = client.create_test_runs(manual_colouring=colors)
-    for error_type in ["X", "Z"]:
+    error_types: list[Literal["X", "Z"]] = ["X", "Z"]
+    for error_type in error_types:
         print(f"error type {error_type}")
         for col in test_runs:
             print("colour tested", col)
             run = TrappifiedCanvas(col)
-            client_pattern = remove_flow(pattern)
+            client_pattern = remove_flow(pattern)  # type: ignore[no-untyped-call]
             input_state = {}
             fixed_states = {}
             for node, state in enumerate(run.states):
@@ -415,7 +421,7 @@ def test_pattern_to_stim_circuit_noisy_deterministic(fx_bg: PCG64, jumps: int) -
             noise_model = SinglePauliNoiseModel(prob=1, error_type=error_type)
             stim_circuit, measure_indices = pattern_to_stim_circuit(
                 client_pattern,
-                input_state=input_state,  # type: ignore[arg-type]
+                input_state=input_state,
                 fixed_states=fixed_states,
                 noise_model=noise_model,
             )

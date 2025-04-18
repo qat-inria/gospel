@@ -207,7 +207,7 @@ def cut_pattern(pattern: Pattern) -> tuple[Pattern, Pattern]:
 class StimBackendState(BackendState):
     def flatten(self) -> npt.NDArray[np.complex128]:
         """Return flattened state."""
-        return NotImplemented
+        raise NotImplementedError
 
 
 class StimBackend(Backend):
@@ -270,7 +270,7 @@ class StimBackend(Backend):
             raise ValueError(f"The measurement {measurement} is not in Pauli basis.")
         return apply_pauli_measurement(self.sim, node, pm, False, False, self.branch)
 
-    def apply_single(self, node: int, op: Ops) -> None:
+    def apply_single(self, node: int, op: npt.NDArray[np.complex128]) -> None:
         if op is Ops.X:
             self.sim.x(node)
         elif op is Ops.Z:
@@ -293,7 +293,7 @@ class StimBackend(Backend):
             case _:
                 raise ValueError(f"Unsupported noise: {noise} and {nodes}")
 
-    def finalize(self, output_nodes: list[int]) -> None:
+    def finalize(self, output_nodes: Iterable[int]) -> None:
         pass
 
     def to_pattern(self, input_nodes: list[int], output_nodes: list[int]) -> Pattern:

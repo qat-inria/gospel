@@ -325,8 +325,10 @@ def circuit_to_qiskit(c: Circuit, hadamard_on_inputs: bool = False) -> QuantumCi
             # Qiskit's cx method expects (control, target).
             qc.cx(instr.control, instr.target)
         elif instr.kind == InstructionKind.RX:
+            assert isinstance(instr.angle, float)
             qc.rx(instr.angle, instr.target)
         elif instr.kind == InstructionKind.RZ:
+            assert isinstance(instr.angle, float)
             qc.rz(instr.angle, instr.target)
         else:
             raise ValueError(f"Unsupported instruction: {instr.kind}")

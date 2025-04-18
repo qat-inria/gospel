@@ -158,6 +158,7 @@ def __insert_rotation(
         brick, position = previous_layer.get(instr.target)
         if isinstance(brick, SingleQubitPair):
             gate = brick.get(position)
+            assert isinstance(instr.angle, float)
             if gate.add(axis, instr.angle):
                 return
         else:
@@ -171,6 +172,7 @@ def __insert_rotation(
     assert isinstance(brick, SingleQubitPair)
     gate = brick.get(position)
     assert gate.is_identity()
+    assert isinstance(instr.angle, float)
     added = gate.add(axis, instr.angle)
     assert added
     depth[instr.target] = target_depth + 1
