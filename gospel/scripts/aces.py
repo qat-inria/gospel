@@ -561,7 +561,7 @@ def cli(
         depol_prob=depol_prob,
         shots=shots,
         ncircuits=ncircuits,
-        method=Method,
+        method=method,
         dask_client=dask_client,
     )
 
