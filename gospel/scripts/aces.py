@@ -28,8 +28,12 @@ from gospel.brickwork_state_transpiler import (
     get_bipartite_coloring,
 )
 from gospel.cluster.dask_interface import get_cluster
+from gospel.noise_models.faulty_gate_noise_model import FaultyCZNoiseModel
+from gospel.noise_models.single_pauli_noise_model import (
+    SinglePauliNoiseModel,  # noqa: F401
+)
 from gospel.noise_models.uncorrelated_depolarising_noise_model import (
-    UncorrelatedDepolarisingNoiseModel,
+    UncorrelatedDepolarisingNoiseModel,  # noqa: F401
 )
 from gospel.stim_pauli_preprocessing import StimBackend, pattern_to_stim_circuit
 
@@ -77,9 +81,6 @@ def perform_single_simulation(
 ) -> list[tuple[ConstructionOrder, bool, list[dict[int, int]]]]:
     fx_bg = PCG64(42)
 
-    noise_model = UncorrelatedDepolarisingNoiseModel(
-        entanglement_error_prob=params.depol_prob
-    )
     rng = Generator(fx_bg.jumped(params.jumps))  # Use the jumped rng
 
     pattern = generate_random_pauli_pattern(
@@ -88,6 +89,19 @@ def perform_single_simulation(
     # Add measurement commands to the output nodes
     for onode in pattern.output_nodes:
         pattern.add(command.M(node=onode))
+    # choose first edge.
+    chosen_edges = frozenset(frozenset((0, params.nqubits)))
+
+    noise_model = FaultyCZNoiseModel(
+        entanglement_error_prob=params.depol_prob,
+        edges=pattern.edges,
+        chosen_edges=chosen_edges,
+    )
+    # noise_model = UncorrelatedDepolarisingNoiseModel(
+    #     entanglement_error_prob=params.depol_prob
+    # )
+
+    # print(f"checking depol param {params.depol_prob}")
     client_pattern = remove_flow(pattern)  # type: ignore[no-untyped-call]
 
     secrets = Secrets(r=False, a=False, theta=False)
@@ -615,7 +629,7 @@ def cli(
     x = np.exp(log_params)  # Convert log values back to original variables
     lambda_initial = 1 - 4 / 3 * depol_prob
     x_diff = [(dif - lambda_initial) for dif in x]
-
+    print(f"X {x}")
     logger.debug(f"X {x}")
     logger.info("Plotting the result...")
 

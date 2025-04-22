@@ -56,7 +56,7 @@ class FaultyCZNoiseModel(NoiseModel):
         # need the list type even for a single edge for the test
         # self.chosen_edges = [*self.rng.choice(list(self.edges), size=1).tolist()]
 
-        print(f"chosen edges {chosen_edges}")
+        # print(f"chosen edges {chosen_edges}")
 
         if chosen_edges is not None:
             if edge_count is not None:
@@ -67,7 +67,7 @@ class FaultyCZNoiseModel(NoiseModel):
         else:
             edge_list = list(self.edges)
             if edge_count is None:
-                edge_count = min(6, len(edge_list))
+                edge_count = min(25, len(edge_list))
             selected_indices = self.rng.choice(
                 range(len(edge_list)), size=edge_count, replace=False
             )
@@ -75,7 +75,7 @@ class FaultyCZNoiseModel(NoiseModel):
 
             # list(self.edges)[[self.rng.integers(len(self.edges), size=6)] # [*self.rng.choice(list(self.edges), size=6).tolist()]
 
-        print(f"chosen edges after {self.chosen_edges}")
+        # print(f"chosen edges after {self.chosen_edges}")
 
     def input_nodes(self, nodes: list[int]) -> NoiseCommands:
         """Return the noise to apply to input nodes."""

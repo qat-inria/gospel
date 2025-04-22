@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from multiprocessing import freeze_support
+from pathlib import Path
+
 import numpy as np
 import pytest
 from graphix import command
@@ -17,6 +20,7 @@ from gospel.brickwork_state_transpiler import (
 from gospel.noise_models.uncorrelated_depolarising_noise_model import (
     UncorrelatedDepolarisingNoiseModel,
 )
+from gospel.scripts.aces import Method, cli
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
@@ -80,3 +84,22 @@ def test_delegate_test_run(fx_bg: PCG64, jumps: int) -> None:
             {int(trap): measure_method.results[trap] for (trap,) in run.traps_list}
         ]
         assert results_veriphix == results_graphix
+
+
+@pytest.mark.parametrize("jumps", range(1, 2))
+def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
+    """test if ACES can find one faulty gate. Use the same noise model as hotgat.py.
+    Use dask only locally."""
+
+    freeze_support()
+    cli(
+        nqubits=3,
+        nlayers=2,
+        depol_prob=0.9,
+        shots=1,
+        ncircuits=10,
+        verbose=False,
+        method=Method.Stim,  # use Stim method
+        scale=None,  # for local parallelism
+        target=Path("plot.png"),
+    )
