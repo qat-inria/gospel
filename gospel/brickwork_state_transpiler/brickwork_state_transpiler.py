@@ -423,7 +423,7 @@ def layers_to_circuit(layers: list[Layer]) -> Circuit:
 
 
 def get_hot_traps_of_faulty_gate(
-    nqubits: int, edge: tuple[int, int]
+    nqubits: int, order: ConstructionOrder, edge: tuple[int, int]
 ) -> tuple[int | None, set[int]]:
     """
     For an edge `(u, v)`, return the "kind" of hot traps and the set of hot traps.
@@ -431,29 +431,30 @@ def get_hot_traps_of_faulty_gate(
     and returns `(None, [])` if it is not a faulty gate.
 
     Hot trap kinds are (`+` is the faulty gate, `*` are hot traps):
-    - 0: *+*-*-o-o
-             |   |
-         o-o-o-o-o
+         Canonical  Deviant
+    - 0: *+*-*-o-o  *+*-*-o-o
+             |   |      |   |
+         o-o-o-o-o  o-o-o-o-o
 
-    - 1: o-*+*-*-o
-             |   |
-         o-o-*-o-o
+    - 1: o-*+*-*-o  o-*+*-*-o
+             |   |      |   |
+         o-o-*-o-o  o-o-o-o-o
 
-    - 2: o-o-*-*-o
-             +   |
-         o-o-*-*-o
+    - 2: o-o-*-*-o  o-*-*-*-o
+             +   |      +   |
+         o-o-*-*-o  o-*-*-*-o
 
-    - 3: o-o-*+*-*
-             |   |
-         o-o-o-o-o
+    - 3: o-o-*+*-*  o-o-*+*-*
+             |   |      |   |
+         o-o-o-o-o  o-o-o-o-o
 
-    - 4: o-o-o-o-o
-             |   |
-         o-*+*-*-o
+    - 4: o-o-*-o-o  o-o-o-o-o
+             |   |      |   |
+         o-*+*-*-o  o-*+*-*-o
 
-    - 5: o-o-o-o-o
-             |   |
-         o-o-*+*-*
+    - 5: o-o-o-o-o  o-o-o-o-o
+             |   |      |   |
+         o-o-*+*-*  o-o-*+*-*
     """
     u, v = sorted(edge)
     uy = u % nqubits
@@ -470,12 +471,18 @@ def get_hot_traps_of_faulty_gate(
     if horizontal and ux % 4 == 0 and u_on_top_of_brick:
         return 0, {u, v, v + nqubits}
     if horizontal and ux % 4 == 1 and u_on_top_of_brick:
-        return 1, {u, v, v + 1, v + nqubits}
+        if order == ConstructionOrder.Canonical:
+            return 1, {u, v, v + 1, v + nqubits}
+        return 1, {u, v, v + nqubits}
     if not horizontal and ux % 4 == 2 and u_on_top_of_brick:
-        return 2, {u, v, u + nqubits, v + nqubits}
+        if order == ConstructionOrder.Canonical:
+            return 2, {u, v, u + nqubits, v + nqubits}
+        return 2, {u - nqubits, v - nqubits, u, v, u + nqubits, v + nqubits}
     if horizontal and ux % 4 == 2 and u_on_top_of_brick:
         return 3, {u, v, v + nqubits}
     if horizontal and ux % 4 == 1 and not u_on_top_of_brick:
+        if order == ConstructionOrder.Canonical:
+            return 4, {u, v - 1, v, v + nqubits}
         return 4, {u, v, v + nqubits}
     if horizontal and ux % 4 == 2 and not u_on_top_of_brick:
         return 5, {u, v, v + nqubits}

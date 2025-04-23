@@ -138,6 +138,13 @@ def plot_heatmap(
     )
 
 
+# specific for nqubits = 7 and nlayers = 2
+CHOSEN_EDGES = frozenset(
+    frozenset(edge)
+    for edge in [(0, 7), (9, 16), (18, 19), (43, 50), (39, 46), (48, 55)]
+)
+
+
 def cli(
     order: ConstructionOrder,
     target: Path,
@@ -157,17 +164,11 @@ def cli(
     for onode in pattern.output_nodes:
         pattern.add(command.M(node=onode))
 
-    # specific for nqubits = 7 and nlayers = 2
-    # chosen_edges = frozenset(
-    #     frozenset(edge)
-    #     for edge in [(0, 7), (9, 16), (18, 19), (43, 50), (39, 46), (48, 55)]
-    # )
-
     print("Starting simulation...")
     start = time.time()
     results_table = perform_simulation(
-        pattern, depol_prob=depol_prob, shots=shots
-    )  # chosen_edges=chosen_edges,
+        pattern, depol_prob=depol_prob, shots=shots, chosen_edges=CHOSEN_EDGES
+    )
 
     print(f"Simulation finished in {time.time() - start:.4f} seconds.")
 
