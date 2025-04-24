@@ -422,39 +422,75 @@ def layers_to_circuit(layers: list[Layer]) -> Circuit:
     return circuit
 
 
+HOT_TRAPS: dict[int, dict[ConstructionOrder, frozenset[tuple[int, int]]]] = {
+    0: {
+        ConstructionOrder.Canonical: frozenset([(0, 0), (1, 0), (2, 0)]),
+        ConstructionOrder.Deviant: frozenset([(0, 0), (1, 0), (2, 0)]),
+        ConstructionOrder.DeviantRight: frozenset([(0, 0), (1, 0), (2, 0)]),
+    },
+    1: {
+        ConstructionOrder.Canonical: frozenset([(0, 0), (1, 0), (1, 1), (2, 0)]),
+        ConstructionOrder.Deviant: frozenset([(0, 0), (1, 0), (2, 0)]),
+        ConstructionOrder.DeviantRight: frozenset([(0, 0), (1, 0), (1, 1), (2, 0)]),
+    },
+    2: {
+        ConstructionOrder.Canonical: frozenset([(0, 0), (1, 0), (0, 1), (1, 1)]),
+        ConstructionOrder.Deviant: frozenset(
+            [(-1, 0), (0, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
+        ),
+        ConstructionOrder.DeviantRight: frozenset([(0, 0), (0, 1)]),
+    },
+    3: {
+        ConstructionOrder.Canonical: frozenset([(0, 0), (1, 0), (2, 0)]),
+        ConstructionOrder.Deviant: frozenset([(0, 0), (1, 0), (2, 0)]),
+        ConstructionOrder.DeviantRight: frozenset([(0, 0), (0, 1), (1, 0), (2, 0)]),
+    },
+    4: {
+        ConstructionOrder.Canonical: frozenset([(0, 0), (1, -1), (1, 0), (2, 0)]),
+        ConstructionOrder.Deviant: frozenset([(0, 0), (1, 0), (2, 0)]),
+        ConstructionOrder.DeviantRight: frozenset([(0, 0), (1, -1), (1, 0), (2, 0)]),
+    },
+    5: {
+        ConstructionOrder.Canonical: frozenset([(0, 0), (1, 0), (2, 0)]),
+        ConstructionOrder.Deviant: frozenset([(0, 0), (1, 0), (2, 0)]),
+        ConstructionOrder.DeviantRight: frozenset([(0, 0), (0, -1), (1, 0), (2, 0)]),
+    },
+}
+
+
 def get_hot_traps_of_faulty_gate(
     nqubits: int, order: ConstructionOrder, edge: tuple[int, int]
-) -> tuple[int | None, set[int]]:
+) -> tuple[int, frozenset[int]] | None:
     """
     For an edge `(u, v)`, return the "kind" of hot traps and the set of hot traps.
     This function raises an exception of `edge` does not belong to the brickwork state graph,
-    and returns `(None, [])` if it is not a faulty gate.
+    and returns `None` if it is not a faulty gate.
 
     Hot trap kinds are (`+` is the faulty gate, `*` are hot traps):
-         Canonical  Deviant
-    - 0: *+*-*-o-o  *+*-*-o-o
-             |   |      |   |
-         o-o-o-o-o  o-o-o-o-o
+         Canonical  Deviant    Deviant-right
+    - 0: *+*-*-o-o  *+*-*-o-o  *+*-*-o-o
+             |   |      |   |      |   |
+         o-o-o-o-o  o-o-o-o-o  o-o-o-o-o
 
-    - 1: o-*+*-*-o  o-*+*-*-o
-             |   |      |   |
-         o-o-*-o-o  o-o-o-o-o
+    - 1: o-*+*-*-o  o-*+*-*-o  o-*+*-*-o
+             |   |      |   |      |   |
+         o-o-*-o-o  o-o-o-o-o  o-o-*-o-o
 
-    - 2: o-o-*-*-o  o-*-*-*-o
-             +   |      +   |
-         o-o-*-*-o  o-*-*-*-o
+    - 2: o-o-*-*-o  o-*-*-*-o  o-o-*-o-o
+             +   |      +   |      +   |
+         o-o-*-*-o  o-*-*-*-o  o-o-*-o-o
 
-    - 3: o-o-*+*-*  o-o-*+*-*
-             |   |      |   |
-         o-o-o-o-o  o-o-o-o-o
+    - 3: o-o-*+*-*  o-o-*+*-*  o-o-*+*-*
+             |   |      |   |      |   |
+         o-o-o-o-o  o-o-o-o-o  o-o-*-o-o
 
-    - 4: o-o-*-o-o  o-o-o-o-o
-             |   |      |   |
-         o-*+*-*-o  o-*+*-*-o
+    - 4: o-o-*-o-o  o-o-o-o-o  o-o-*-o-o
+             |   |      |   |      |   |
+         o-*+*-*-o  o-*+*-*-o  o-*+*-*-o
 
-    - 5: o-o-o-o-o  o-o-o-o-o
-             |   |      |   |
-         o-o-*+*-*  o-o-*+*-*
+    - 5: o-o-o-o-o  o-o-o-o-o  o-o-*-o-o
+             |   |      |   |      |   |
+         o-o-*+*-*  o-o-*+*-*  o-o-*+*-*
     """
     u, v = sorted(edge)
     uy = u % nqubits
@@ -469,21 +505,17 @@ def get_hot_traps_of_faulty_gate(
     ):
         raise ValueError("Not an edge")
     if horizontal and ux % 4 == 0 and u_on_top_of_brick:
-        return 0, {u, v, v + nqubits}
-    if horizontal and ux % 4 == 1 and u_on_top_of_brick:
-        if order == ConstructionOrder.Canonical:
-            return 1, {u, v, v + 1, v + nqubits}
-        return 1, {u, v, v + nqubits}
-    if not horizontal and ux % 4 == 2 and u_on_top_of_brick:
-        if order == ConstructionOrder.Canonical:
-            return 2, {u, v, u + nqubits, v + nqubits}
-        return 2, {u - nqubits, v - nqubits, u, v, u + nqubits, v + nqubits}
-    if horizontal and ux % 4 == 2 and u_on_top_of_brick:
-        return 3, {u, v, v + nqubits}
-    if horizontal and ux % 4 == 1 and not u_on_top_of_brick:
-        if order == ConstructionOrder.Canonical:
-            return 4, {u, v - 1, v, v + nqubits}
-        return 4, {u, v, v + nqubits}
-    if horizontal and ux % 4 == 2 and not u_on_top_of_brick:
-        return 5, {u, v, v + nqubits}
-    return None, set()
+        kind = 0
+    elif horizontal and ux % 4 == 1 and u_on_top_of_brick:
+        kind = 1
+    elif not horizontal and ux % 4 == 2 and u_on_top_of_brick:
+        kind = 2
+    elif horizontal and ux % 4 == 2 and u_on_top_of_brick:
+        kind = 3
+    elif horizontal and ux % 4 == 1 and not u_on_top_of_brick:
+        kind = 4
+    elif horizontal and ux % 4 == 2 and not u_on_top_of_brick:
+        kind = 5
+    else:
+        return None
+    return kind, frozenset([u + ox * nqubits + oy for ox, oy in HOT_TRAPS[kind][order]])

@@ -225,14 +225,14 @@ def test_transpile_multiple_cnot(order: ConstructionOrder) -> None:
 @pytest.mark.parametrize("order", list(ConstructionOrder))
 def test_sampled_circuit(fx_bg: PCG64, jumps: int, order: ConstructionOrder) -> None:
     rng = Generator(fx_bg.jumped(jumps))
-    circuit = get_circuit(rng.integers(ncircuits))
+    circuit = get_circuit(int(rng.integers(ncircuits)))
     check_circuit(circuit, order)
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
 def test_get_bipartite_coloring(fx_bg: PCG64, jumps: int) -> None:
     rng = Generator(fx_bg.jumped(jumps))
-    circuit = get_circuit(rng.integers(ncircuits))
+    circuit = get_circuit(int(rng.integers(ncircuits)))
     pattern = transpile(circuit)
     red, blue = get_bipartite_coloring(pattern)
     nodes, edges = pattern.get_graph()
@@ -276,7 +276,7 @@ def test_get_hot_traps_of_faulty_gate() -> None:
     #             |   |
     # o-*+*-*-o-o-o-o-o
     #     |   |
-    # o-o-*-o-o-o-o-o-o
+    # o-o-*-o-o-o-*-o-o
     #             |   |
     # o-o-*-*-o-*+*-*-o
     #     +   |
@@ -284,13 +284,18 @@ def test_get_hot_traps_of_faulty_gate() -> None:
     #             |   |
     #         o-o-*+*-*
     faulty_gates = {
-        (0, 7): (0, {0, 7, 14}),
-        (9, 16): (1, {9, 16, 17, 23}),
-        (18, 19): (2, {18, 19, 25, 26}),
-        (43, 50): (3, {43, 50, 57}),
-        (39, 46): (4, {39, 46, 53}),
-        (48, 55): (5, {48, 55, 62}),
-        (1, 8): (None, set()),
+        (0, 7): (0, frozenset({0, 7, 14})),
+        (9, 16): (1, frozenset({9, 16, 17, 23})),
+        (18, 19): (2, frozenset({18, 19, 25, 26})),
+        (43, 50): (3, frozenset({43, 50, 57})),
+        (39, 46): (4, frozenset({39, 45, 46, 53})),
+        (48, 55): (5, frozenset({48, 55, 62})),
+        (1, 8): None,
     }
     for faulty_gate, expected_answer in faulty_gates.items():
-        assert get_hot_traps_of_faulty_gate(nqubits, faulty_gate) == expected_answer
+        assert (
+            get_hot_traps_of_faulty_gate(
+                nqubits, ConstructionOrder.Canonical, faulty_gate
+            )
+            == expected_answer
+        )

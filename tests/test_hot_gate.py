@@ -9,6 +9,7 @@ from gospel.brickwork_state_transpiler import (
 )
 from gospel.scripts.hot_gate import (
     CHOSEN_EDGES,
+    Method,
     compute_failure_probabilities,
     perform_simulation,
 )
@@ -31,10 +32,16 @@ def test_compute_failure_probabilities(
     compute_failure_probabilities(results_table)
 
 
+@pytest.mark.parametrize("order", list(ConstructionOrder))
 @pytest.mark.parametrize(
-    "order", [ConstructionOrder.Canonical, ConstructionOrder.Deviant]
+    "method",
+    [Method.StimBackend],
 )
-def test_hot_gates(fx_rng: Generator, order: ConstructionOrder) -> None:
+def test_hot_gates(
+    fx_rng: Generator,
+    order: ConstructionOrder,
+    method: Method,
+) -> None:
     nqubits = 7
     nlayers = 2
     shots = 1000
@@ -46,13 +53,17 @@ def test_hot_gates(fx_rng: Generator, order: ConstructionOrder) -> None:
     for onode in pattern.output_nodes:
         pattern.add(command.M(node=onode))
     results_table = perform_simulation(
-        pattern, depol_prob=depol_prob, shots=shots, chosen_edges=CHOSEN_EDGES
+        pattern,
+        method=method,
+        depol_prob=depol_prob,
+        shots=shots,
+        chosen_edges=CHOSEN_EDGES,
     )
     failure_probas = compute_failure_probabilities(results_table)
     hot_traps = {trap for trap, proba in failure_probas.items() if proba >= threshold}
     expected_hot_traps = {
         trap
-        for edge in CHOSEN_EDGES
-        for trap in get_hot_traps_of_faulty_gate(nqubits, order, tuple(edge))[1]
+        for u, v in CHOSEN_EDGES
+        for trap in get_hot_traps_of_faulty_gate(nqubits, order, (u, v))[1]
     }
     assert hot_traps == expected_hot_traps

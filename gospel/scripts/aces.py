@@ -90,7 +90,7 @@ def perform_single_simulation(
     for onode in pattern.output_nodes:
         pattern.add(command.M(node=onode))
     # choose first edge.
-    chosen_edges = frozenset(frozenset((0, params.nqubits)))
+    chosen_edges = frozenset([frozenset((0, params.nqubits))])
 
     noise_model = FaultyCZNoiseModel(
         entanglement_error_prob=params.depol_prob,
@@ -173,12 +173,11 @@ def perform_simulation(
     nqubits: int,
     nlayers: int,
     depol_prob: float,
-    shots: int,
+    nshots: int,
     ncircuits: int,
     method: Method,
     dask_client: dask.distributed.Client,
 ) -> tuple[list[dict[int, int]], list[dict[int, int]]]:
-    nshots = max(1, shots // 4 // ncircuits)
     jobs = [
         SingleSimulation(
             order=order,
@@ -540,7 +539,7 @@ def cli(
     nqubits: int = 5,
     nlayers: int = 10,
     depol_prob: float = 0.001,
-    shots: int = 10,
+    nshots: int = 1,
     ncircuits: int = 10,
     verbose: bool = False,
     method: Method | None = None,
@@ -573,7 +572,7 @@ def cli(
         nqubits=nqubits,
         nlayers=nlayers,
         depol_prob=depol_prob,
-        shots=shots,
+        nshots=nshots,
         ncircuits=ncircuits,
         method=method,
         dask_client=dask_client,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from enum import Enum
 from pathlib import Path  # noqa: TC003
 from typing import TYPE_CHECKING
 
@@ -30,8 +31,15 @@ if TYPE_CHECKING:
     from numpy.random import Generator
 
 
+class Method(Enum):
+    StimBackend = "stim-backend"
+    DensityMatrix = "density-matrix"
+    StimShots = "stim-shots"
+
+
 def perform_simulation(
     pattern: Pattern,
+    method: Method = StimBackend,
     depol_prob: float = 0.0,
     chosen_edges: frozenset[frozenset[int]] | None = None,
     shots: int = 1,
@@ -72,32 +80,35 @@ def perform_simulation(
     results_table = []
     n_failures = 0
 
-    for i in tqdm(range(shots)):  # noqa: B007
-        # reinitialise the backend!
-        backend = StimBackend()
-        # generate trappiefied canvas (input state is refreshed)
+    if method == Method.StimBackend:
+        for i in tqdm(range(shots)):  # noqa: B007
+            # reinitialise the backend!
+            backend = StimBackend()
+            # generate trappiefied canvas (input state is refreshed)
 
-        run = TrappifiedCanvas(test_runs[rng.integers(len(test_runs))], rng=rng)
+            run = TrappifiedCanvas(test_runs[rng.integers(len(test_runs))], rng=rng)
 
-        # Delegate the test run to the client
-        trap_outcomes = client.delegate_test_run(  # no noise model, things go wrong
-            backend=backend, run=run, noise_model=noise_model
-        )
+            # Delegate the test run to the client
+            trap_outcomes = client.delegate_test_run(  # no noise model, things go wrong
+                backend=backend, run=run, noise_model=noise_model
+            )
 
-        # Create a result dictionary (trap -> outcome)
-        result = {
-            trap: outcome for (trap,), outcome in zip(run.traps_list, trap_outcomes)
-        }
+            # Create a result dictionary (trap -> outcome)
+            result = {
+                trap: outcome for (trap,), outcome in zip(run.traps_list, trap_outcomes)
+            }
 
-        results_table.append(result)
+            results_table.append(result)
 
-        # Print pass/fail based on the sum of the trap outcomes
-        if sum(trap_outcomes) != 0:
-            n_failures += 1
-            # print(f"Iteration {i}: ❌ Trap round failed", flush=True)
-        else:
-            pass
-            # print(f"Iteration {i}: ✅ Trap round passed", flush=True)
+            # Print pass/fail based on the sum of the trap outcomes
+            if sum(trap_outcomes) != 0:
+                n_failures += 1
+                # print(f"Iteration {i}: ❌ Trap round failed", flush=True)
+            else:
+                pass
+                # print(f"Iteration {i}: ✅ Trap round passed", flush=True)
+    elif method in {Method.DensityMatrix, Method.StimShots}:
+        raise NotImplementedError
 
     # Final report after completing the test rounds
     print(
