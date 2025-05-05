@@ -112,8 +112,8 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
         nqubits=3,  # nqubits
         nlayers=2,
         depol_prob=0.1,
-        nshots=1,
-        ncircuits=500,
+        nshots=30,
+        ncircuits=30,
         verbose=False,
         method=Method.Stim,  # use Stim method
         scale=None,  # for local parallelism

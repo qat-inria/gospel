@@ -31,7 +31,7 @@ class FaultyCZNoiseModel(NoiseModel):
 
     def __init__(
         self,
-        edges: frozenset[frozenset[int]],
+        edges: frozenset[frozenset[int]] | None = None,
         chosen_edges: frozenset[frozenset[int]] | None = None,
         edge_count: int | None = None,
         prepare_error_prob: float = 0.0,
@@ -65,6 +65,8 @@ class FaultyCZNoiseModel(NoiseModel):
                 )
             self.chosen_edges = chosen_edges
         else:
+            if edges is None:
+                raise ValueError("edges is required.")
             edge_list = list(self.edges)
             if edge_count is None:
                 edge_count = min(25, len(edge_list))
