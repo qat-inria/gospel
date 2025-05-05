@@ -39,6 +39,7 @@ from gospel.stim_pauli_preprocessing import StimBackend, pattern_to_stim_circuit
 
 if TYPE_CHECKING:
     from graphix.command import BaseN
+    from graphix.noise_models.noise_model import NoiseModel
     from graphix.sim.base_backend import Backend
 
 logger = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ class SingleSimulation:
     order: ConstructionOrder
     nqubits: int
     nlayers: int
-    depol_prob: float
+    noise_model: NoiseModel
     nshots: int
     jumps: int
     method: Method
@@ -89,19 +90,9 @@ def perform_single_simulation(
     # Add measurement commands to the output nodes
     for onode in pattern.output_nodes:
         pattern.add(command.M(node=onode))
-    # choose first edge.
-    chosen_edges = frozenset([frozenset((0, params.nqubits))])
 
-    noise_model = FaultyCZNoiseModel(
-        entanglement_error_prob=params.depol_prob,
-        edges=pattern.edges,
-        chosen_edges=chosen_edges,
-    )
-    # noise_model = UncorrelatedDepolarisingNoiseModel(
-    #     entanglement_error_prob=params.depol_prob
-    # )
+    noise_model = params.noise_model
 
-    # print(f"checking depol param {params.depol_prob}")
     client_pattern = remove_flow(pattern)  # type: ignore[no-untyped-call]
 
     secrets = Secrets(r=False, a=False, theta=False)
@@ -172,7 +163,7 @@ def perform_single_simulation(
 def perform_simulation(
     nqubits: int,
     nlayers: int,
-    depol_prob: float,
+    noise_model: NoiseModel,
     nshots: int,
     ncircuits: int,
     method: Method,
@@ -183,7 +174,7 @@ def perform_simulation(
             order=order,
             nqubits=nqubits,
             nlayers=nlayers,
-            depol_prob=depol_prob,
+            noise_model=noise_model,
             nshots=nshots,
             method=method,
             jumps=circuit * 2 + int(order == ConstructionOrder.Deviant),
@@ -228,48 +219,43 @@ def compute_failure_probabilities(
     return {q: occurences_one[q] / occurences[q] for q in occurences}
 
 
-def compute_failure_probabilities_can(
-    failure_proba_can_result: dict[int, float],
+# todo: change names
+def compute_failure_probabilities_can(  # circuit eigenvalues canonical == π can
+    failure_proba_can_result: dict[int, float], n_nodes: int
 ) -> list[float]:
-    failure_proba_can_array = [
-        v for k, v in sorted(failure_proba_can_result.items(), key=lambda x: x[0])
-    ]
-    failure_proba_can_inverted = [1 - x for x in failure_proba_can_array]
-    return [
-        abs(orig - inv)
-        for orig, inv in zip(failure_proba_can_array, failure_proba_can_inverted)
-    ]
+    """_computes  circuit eigenvalues Λ in terms of failure probabilities as see in Eq (15) in gospel paper (version May 2nd 2025)
+        for canonical ordering.
+
+    Parameters
+    ----------
+    n_nodes : int
+        total number of nodes in the graph
+
+    Returns
+    -------
+    list[float]
+    """
+    return [2 * failure_proba_can_result[k] - 1 for k in range(n_nodes)]
 
 
-def compute_failure_probabilities_dev(
-    failure_proba_dev_result: dict[int, float], n_qubits: int, max_index: int
+def compute_failure_probabilities_dev(  # circuit eigenvalues deviant filtered == π dev filtered
+    failure_proba_dev_result: dict[int, float], n_nodes: int, n_qubits: int
 ) -> list[float]:
-    required_indices = []
-    start = n_qubits
-    max_index = max_index - 1
+    """circuit eigenvalues Λ in terms of failure probabilities as see in Eq (15) in gospel paper (version May 2nd 2025)
+    for deviant ordering. Don't need all the information so select only the qubits of even rows and odd columns (starting from 0)
+    n_nodes:  total number of nodes in the greaph
+    n_qubits (width of the circuit)
+    Returns
+    -------
+    _type_
 
-    while start <= max_index:
-        for offset in range(0, n_qubits, 2):
-            current_index = start + offset
-            if current_index > max_index:
-                break
-            required_indices.append(current_index)  # Note the comma to create tuple
-        start += 2 * n_qubits
+    """
 
-    failure_proba_dev_final = {
-        idx: failure_proba_dev_result[idx]
-        for idx in required_indices
-        if idx in failure_proba_dev_result
-    }
-
-    failure_proba_dev_array = [
-        v for k, v in sorted(failure_proba_dev_final.items(), key=lambda x: x[0])
-    ]
-    failure_proba_dev_inverted = [1 - x for x in failure_proba_dev_array]
     return [
-        abs(origi - inve)
-        for origi, inve in zip(failure_proba_dev_array, failure_proba_dev_inverted)
-    ]
+        2 * failure_proba_dev_result[k] - 1
+        for k in range(n_nodes)
+        if (k % n_qubits) % 2 == 0 and (k // n_qubits) % 2 == 1
+    ]  # qb index = i(row) +j(col) * width
 
 
 Coords2D = tuple[int, int]
@@ -282,9 +268,12 @@ MatrixAndMaps = tuple[
 Conditions = list[Callable[[int, int], tuple[bool, list[Edge]]]]
 
 
+# very sparse. Use sparse formats or lists and solve iteratively
 def generate_qubit_edge_matrix_with_unknowns_can(
     n_qubits: int, n_layers: int
 ) -> MatrixAndMaps:
+    # This is generating the brixkwork graph
+    # Can be iported from elsewhere??
     n = n_qubits
     m = 4 * n_layers + 1
     qubits = {}  # Mapping from (i, j) to qubit index
@@ -333,6 +322,7 @@ def generate_qubit_edge_matrix_with_unknowns_can(
     # edge_symbols = [sp.symbols(f'x{i}') for i in range(len(edges))]
 
     # Apply special conditions for qubits
+    # i, j reverted from paper version May 2nd 2025
     conditions: Conditions = [
         (
             lambda i, j: (
@@ -560,18 +550,32 @@ def cli(
     cluster = get_cluster(walltime, memory, cores, port, scale)
     dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
 
+    # TODO change to n_nodes
     node = nqubits * ((4 * nlayers) + 1)
 
     # typer seems not to support default values for Enum
     if method is None:
         method = Method.Stim
 
+    # choose first edge.
+    chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
+
+    noise_model = FaultyCZNoiseModel(
+        entanglement_error_prob=depol_prob,
+        chosen_edges=chosen_edges,
+    )
+    # noise_model = UncorrelatedDepolarisingNoiseModel(
+    #     entanglement_error_prob=params.depol_prob
+    # )
+
+    # print(f"checking depol param {params.depol_prob}")
+
     logger.info("Starting simulations...")
     start = time.time()
     results_canonical, results_deviant = perform_simulation(
         nqubits=nqubits,
         nlayers=nlayers,
-        depol_prob=depol_prob,
+        noise_model=noise_model,
         nshots=nshots,
         ncircuits=ncircuits,
         method=method,
@@ -584,13 +588,17 @@ def cli(
     failure_proba_can_final = compute_failure_probabilities(results_canonical)
     failure_proba_dev_all = compute_failure_probabilities(results_deviant)
 
-    failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final)
+    # computing circuit eigenvalues for both orders
+    # deviant has been filtered to remove redundancy
+    failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final, node)
     failure_proba_dev = compute_failure_probabilities_dev(
         failure_proba_dev_all, nqubits, node
     )
 
-    logger.debug(f"failute proba canonical {failure_proba_can}")
-    logger.debug(f"failute proba deviant {failure_proba_dev}")
+    logger.debug(f"failure proba canonical {failure_proba_can}")
+    logger.debug(f"failure proba deviant {failure_proba_dev}")
+
+    # convert to numpy arrays for later processing
     py_failure_proba_can = np.array(failure_proba_can, dtype=np.float64)
     logger.debug(py_failure_proba_can.shape)
     py_failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)
@@ -600,6 +608,7 @@ def cli(
     qubit_edge_matrix, qubit_map, edge_map = (
         generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
     )
+
     qubit_edge_matrix_dev, qubit_map_dev, edge_map_dev = (
         generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)
     )
