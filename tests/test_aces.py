@@ -17,6 +17,7 @@ from gospel.brickwork_state_transpiler import (
     generate_random_pauli_pattern,
     get_bipartite_coloring,
 )
+from gospel.noise_models.faulty_gate_noise_model import FaultyCZNoiseModel  # noqa: F401
 from gospel.noise_models.uncorrelated_depolarising_noise_model import (
     UncorrelatedDepolarisingNoiseModel,
 )
@@ -91,13 +92,28 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
     """test if ACES can find one faulty gate. Use the same noise model as hotgat.py.
     Use dask only locally."""
 
+    # define noise model
+    # choose first edge.
+    # nqubits = 3
+    # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
+
+    # noise_model = FaultyCZNoiseModel(
+    #     entanglement_error_prob=params.depol_prob,
+    #     edges=pattern.edges,
+    #     chosen_edges=chosen_edges,
+    # )
+
+    # add noise model in params
+    # pattern doesn't exist outside cli...
+
+    # Test passed for Stim, Veriphix (with old stim implem) and Graphix!!
     freeze_support()
     cli(
-        nqubits=3,
+        nqubits=3,  # nqubits
         nlayers=2,
-        depol_prob=0.9,
+        depol_prob=0.1,
         nshots=1,
-        ncircuits=10,
+        ncircuits=500,
         verbose=False,
         method=Method.Stim,  # use Stim method
         scale=None,  # for local parallelism
