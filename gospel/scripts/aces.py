@@ -160,6 +160,12 @@ def perform_single_simulation(
     return outcomes
 
 
+@dataclass
+class SimulationResult:
+    canonical: list[dict[int, int]]
+    deviant: list[dict[int, int]]
+
+
 def perform_simulation(
     nqubits: int,
     nlayers: int,
@@ -168,7 +174,7 @@ def perform_simulation(
     ncircuits: int,
     method: Method,
     dask_client: dask.distributed.Client,
-) -> tuple[list[dict[int, int]], list[dict[int, int]]]:
+) -> SimulationResult:
     jobs = [
         SingleSimulation(
             order=order,
@@ -197,7 +203,7 @@ def perform_simulation(
             elif order == ConstructionOrder.Deviant:
                 test_outcome_table_deviant.extend(results)
 
-    return test_outcome_table_canonical, test_outcome_table_deviant
+    return SimulationResult(test_outcome_table_canonical, test_outcome_table_deviant)
 
 
 def compute_failure_probabilities(
@@ -530,6 +536,58 @@ def generate_qubit_edge_matrix_with_unknowns_dev(
     return matrix_dev, qubits_dev, edges_dev
 
 
+def compute_aces_postprocessing(
+    nqubits: int, node: int, nlayers: int, results: SimulationResult
+) -> npt.NDArray:
+    logger.info("Computing failure probabilities...")
+    failure_proba_can_final = compute_failure_probabilities(results.canonical)
+    failure_proba_dev_all = compute_failure_probabilities(results.deviant)
+
+    failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final)
+    failure_proba_dev = compute_failure_probabilities_dev(
+        failure_proba_dev_all, nqubits, node
+    )
+
+    logger.debug(f"failute proba canonical {failure_proba_can}")
+    logger.debug(f"failute proba deviant {failure_proba_dev}")
+    py_failure_proba_can = np.array(failure_proba_can, dtype=np.float64)
+    logger.debug(py_failure_proba_can.shape)
+    py_failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)
+    logger.debug(py_failure_proba_dev.shape)
+
+    logger.info("Setting up ACES...")
+    qubit_edge_matrix, qubit_map, edge_map = (
+        generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
+    )
+
+    qubit_edge_matrix_dev, qubit_map_dev, edge_map_dev = (
+        generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)
+    )
+    qubit_edge_matrix = np.array(qubit_edge_matrix, dtype=np.float64)
+    qubit_edge_matrix_dev = np.array(qubit_edge_matrix_dev, dtype=np.float64)
+    logger.debug(qubit_edge_matrix.shape)
+    logger.debug(qubit_edge_matrix_dev.shape)
+
+    # Stack the matrices together to form a single system
+    lhs = np.vstack(
+        (qubit_edge_matrix, qubit_edge_matrix_dev)
+    )  # Combine coefficient matrices
+    rhs = np.concatenate(
+        (py_failure_proba_can, py_failure_proba_dev)
+    )  # Combine constant vectors
+    # logger.debug(lhs.shape, lhs)
+    # logger.debug(rhs.shape, rhs)
+
+    log_rhs = np.log(rhs)  # log constant vectors
+
+    log_params, *_ = np.linalg.lstsq(lhs, log_rhs, rcond=None)
+
+    logger.debug(f"log {log_params}")
+
+    logger.info("Calculating the lambdas...")
+    return np.exp(log_params)  # Convert log values back to original variables
+
+
 def cli(
     nqubits: int = 5,
     nlayers: int = 10,
@@ -578,7 +636,7 @@ def cli(
 
     logger.info("Starting simulations...")
     start = time.time()
-    results_canonical, results_deviant = perform_simulation(
+    results = perform_simulation(
         nqubits=nqubits,
         nlayers=nlayers,
         noise_model=noise_model,
@@ -589,54 +647,8 @@ def cli(
     )
 
     logger.info(f"Simulation finished in {time.time() - start:.4f} seconds.")
+    x = compute_aces_postprocessing(nqubits, node, nlayers, results)
 
-    logger.info("Computing failure probabilities...")
-    failure_proba_can_final = compute_failure_probabilities(results_canonical)
-    failure_proba_dev_all = compute_failure_probabilities(results_deviant)
-
-    failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final)
-    failure_proba_dev = compute_failure_probabilities_dev(
-        failure_proba_dev_all, nqubits, node
-    )
-
-    logger.debug(f"failute proba canonical {failure_proba_can}")
-    logger.debug(f"failute proba deviant {failure_proba_dev}")
-    py_failure_proba_can = np.array(failure_proba_can, dtype=np.float64)
-    logger.debug(py_failure_proba_can.shape)
-    py_failure_proba_dev = np.array(failure_proba_dev, dtype=np.float64)
-    logger.debug(py_failure_proba_dev.shape)
-
-    logger.info("Setting up ACES...")
-    qubit_edge_matrix, qubit_map, edge_map = (
-        generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
-    )
-
-    qubit_edge_matrix_dev, qubit_map_dev, edge_map_dev = (
-        generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)
-    )
-    qubit_edge_matrix = np.array(qubit_edge_matrix, dtype=np.float64)
-    qubit_edge_matrix_dev = np.array(qubit_edge_matrix_dev, dtype=np.float64)
-    logger.debug(qubit_edge_matrix.shape)
-    logger.debug(qubit_edge_matrix_dev.shape)
-
-    # Stack the matrices together to form a single system
-    lhs = np.vstack(
-        (qubit_edge_matrix, qubit_edge_matrix_dev)
-    )  # Combine coefficient matrices
-    rhs = np.concatenate(
-        (py_failure_proba_can, py_failure_proba_dev)
-    )  # Combine constant vectors
-    # logger.debug(lhs.shape, lhs)
-    # logger.debug(rhs.shape, rhs)
-
-    log_rhs = np.log(rhs)  # log constant vectors
-
-    log_params, *_ = np.linalg.lstsq(lhs, log_rhs, rcond=None)
-
-    logger.debug(f"log {log_params}")
-
-    logger.info("Calculating the lambdas...")
-    x = np.exp(log_params)  # Convert log values back to original variables
     lambda_initial = 1 - 4 / 3 * depol_prob
     x_diff = [(dif - lambda_initial) for dif in x]
     print(f"X {x}")
