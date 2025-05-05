@@ -160,6 +160,12 @@ def perform_single_simulation(
     return outcomes
 
 
+@dataclass
+class SimulationResult:
+    canonical: list[dict[int, int]]
+    deviant: list[dict[int, int]]
+
+
 def perform_simulation(
     nqubits: int,
     nlayers: int,
@@ -168,7 +174,7 @@ def perform_simulation(
     ncircuits: int,
     method: Method,
     dask_client: dask.distributed.Client,
-) -> tuple[list[dict[int, int]], list[dict[int, int]]]:
+) -> SimulationResult:
     jobs = [
         SingleSimulation(
             order=order,
@@ -197,7 +203,7 @@ def perform_simulation(
             elif order == ConstructionOrder.Deviant:
                 test_outcome_table_deviant.extend(results)
 
-    return test_outcome_table_canonical, test_outcome_table_deviant
+    return SimulationResult(test_outcome_table_canonical, test_outcome_table_deviant)
 
 
 def compute_failure_probabilities(
@@ -525,68 +531,12 @@ def generate_qubit_edge_matrix_with_unknowns_dev(
     return matrix_dev, qubits_dev, edges_dev
 
 
-def cli(
-    nqubits: int = 5,
-    nlayers: int = 10,
-    depol_prob: float = 0.001,
-    nshots: int = 1,
-    ncircuits: int = 10,
-    verbose: bool = False,
-    method: Method | None = None,
-    walltime: int | None = None,
-    memory: int | None = None,
-    cores: int | None = None,
-    port: int | None = None,
-    scale: int | None = None,
-    target: Path = Path("plot.png"),
-) -> None:
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        format="%(asctime)s %(levelname)-8s %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    logger.setLevel(level)
-
-    cluster = get_cluster(walltime, memory, cores, port, scale)
-    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
-
-    # TODO change to n_nodes
-    node = nqubits * ((4 * nlayers) + 1)
-
-    # typer seems not to support default values for Enum
-    if method is None:
-        method = Method.Stim
-
-    # choose first edge.
-    chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
-
-    noise_model = FaultyCZNoiseModel(
-        entanglement_error_prob=depol_prob,
-        chosen_edges=chosen_edges,
-    )
-    # noise_model = UncorrelatedDepolarisingNoiseModel(
-    #     entanglement_error_prob=params.depol_prob
-    # )
-
-    # print(f"checking depol param {params.depol_prob}")
-
-    logger.info("Starting simulations...")
-    start = time.time()
-    results_canonical, results_deviant = perform_simulation(
-        nqubits=nqubits,
-        nlayers=nlayers,
-        noise_model=noise_model,
-        nshots=nshots,
-        ncircuits=ncircuits,
-        method=method,
-        dask_client=dask_client,
-    )
-
-    logger.info(f"Simulation finished in {time.time() - start:.4f} seconds.")
-
+def compute_aces_postprocessing(
+    nqubits: int, node: int, nlayers: int, results: SimulationResult
+) -> npt.NDArray:
     logger.info("Computing failure probabilities...")
-    failure_proba_can_final = compute_failure_probabilities(results_canonical)
-    failure_proba_dev_all = compute_failure_probabilities(results_deviant)
+    failure_proba_can_final = compute_failure_probabilities(results.canonical)
+    failure_proba_dev_all = compute_failure_probabilities(results.deviant)
 
     # computing circuit eigenvalues for both orders
     # deviant has been filtered to remove redundancy
@@ -634,7 +584,70 @@ def cli(
     logger.debug(f"log {log_params}")
 
     logger.info("Calculating the lambdas...")
-    x = np.exp(log_params)  # Convert log values back to original variables
+    return np.exp(log_params)  # Convert log values back to original variables
+
+
+def cli(
+    nqubits: int = 5,
+    nlayers: int = 10,
+    depol_prob: float = 0.001,
+    nshots: int = 1,
+    ncircuits: int = 10,
+    verbose: bool = False,
+    method: Method | None = None,
+    walltime: int | None = None,
+    memory: int | None = None,
+    cores: int | None = None,
+    port: int | None = None,
+    scale: int | None = None,
+    target: Path = Path("plot.png"),
+) -> None:
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)-8s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logger.setLevel(level)
+
+    cluster = get_cluster(walltime, memory, cores, port, scale)
+    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
+
+    # TODO change to n_nodes
+    node = nqubits * ((4 * nlayers) + 1)
+
+    # typer seems not to support default values for Enum
+    if method is None:
+        method = Method.Stim
+
+    # choose first edge.
+    chosen_edges = frozenset([frozenset((0, nqubits))])
+    # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
+
+    noise_model = FaultyCZNoiseModel(
+        entanglement_error_prob=depol_prob,
+        chosen_edges=chosen_edges,
+    )
+    # noise_model = UncorrelatedDepolarisingNoiseModel(
+    #     entanglement_error_prob=params.depol_prob
+    # )
+
+    # print(f"checking depol param {params.depol_prob}")
+
+    logger.info("Starting simulations...")
+    start = time.time()
+    results = perform_simulation(
+        nqubits=nqubits,
+        nlayers=nlayers,
+        noise_model=noise_model,
+        nshots=nshots,
+        ncircuits=ncircuits,
+        method=method,
+        dask_client=dask_client,
+    )
+
+    logger.info(f"Simulation finished in {time.time() - start:.4f} seconds.")
+    x = compute_aces_postprocessing(nqubits, node, nlayers, results)
+
     lambda_initial = 1 - 4 / 3 * depol_prob
     x_diff = [(dif - lambda_initial) for dif in x]
     print(f"X {x}")

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import math
 from multiprocessing import freeze_support
-from pathlib import Path
 
+import dask.distributed
 import numpy as np
 import pytest
 from graphix import command
@@ -17,11 +18,11 @@ from gospel.brickwork_state_transpiler import (
     generate_random_pauli_pattern,
     get_bipartite_coloring,
 )
-from gospel.noise_models.faulty_gate_noise_model import FaultyCZNoiseModel  # noqa: F401
+from gospel.noise_models.faulty_gate_noise_model import FaultyCZNoiseModel
 from gospel.noise_models.uncorrelated_depolarising_noise_model import (
     UncorrelatedDepolarisingNoiseModel,
 )
-from gospel.scripts.aces import Method, cli
+from gospel.scripts.aces import Method, compute_aces_postprocessing, perform_simulation
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
@@ -108,14 +109,46 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
 
     # Test passed for Stim, Veriphix (with old stim implem) and Graphix!!
     freeze_support()
-    cli(
-        nqubits=3,  # nqubits
-        nlayers=2,
-        depol_prob=0.1,
-        nshots=100,
-        ncircuits=1,
-        verbose=False,
-        method=Method.Stim,  # use Stim method
-        scale=None,  # for local parallelism
-        target=Path("plot.png"),
+
+    nqubits = 3
+    nlayers = 2
+    depol_prob = 0.1
+    nshots = 30
+    ncircuits = 30
+    method = Method.Stim
+
+    cluster = dask.distributed.LocalCluster()
+    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
+
+    # TODO change to n_nodes
+    node = nqubits * ((4 * nlayers) + 1)
+
+    # choose first edge.
+    chosen_edges = frozenset([frozenset((0, nqubits))])
+    # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
+
+    noise_model = FaultyCZNoiseModel(
+        entanglement_error_prob=depol_prob,
+        chosen_edges=chosen_edges,
     )
+    # noise_model = UncorrelatedDepolarisingNoiseModel(
+    #     entanglement_error_prob=params.depol_prob
+    # )
+
+    # print(f"checking depol param {params.depol_prob}")
+
+    results = perform_simulation(
+        nqubits=nqubits,
+        nlayers=nlayers,
+        noise_model=noise_model,
+        nshots=nshots,
+        ncircuits=ncircuits,
+        method=method,
+        dask_client=dask_client,
+    )
+
+    x = compute_aces_postprocessing(nqubits, node, nlayers, results)
+
+    assert math.isclose(x[0], 1 - depol_prob * 4 / 3, abs_tol=0.05)
+    for v in x[1:]:
+        assert math.isclose(v, 1, abs_tol=0.05)
