@@ -14,7 +14,8 @@ import numpy as np
 import numpy.typing as npt
 import seaborn as sns
 import typer
-from graphix import command
+from graphix import Pattern, command
+from graphix.command import CommandKind
 from graphix.sim.statevec import Statevec
 from graphix.simulator import DefaultMeasureMethod, PrepareMethod
 from graphix.states import BasicState, State
@@ -274,6 +275,26 @@ MatrixAndMaps = tuple[
 Conditions = list[Callable[[int, int], tuple[bool, list[Edge]]]]
 
 
+def generate_equations(pattern: Pattern) -> dict[int, set[frozenset[int]]]:
+    result = {}
+    nodes, _edges = pattern.get_graph()
+    for node in nodes:
+        active_nodes = {node}
+        lambda_set = set()
+        for cmd in reversed(list(pattern)):
+            if cmd.kind == CommandKind.E:
+                assert isinstance(cmd, command.E)
+                u, v = cmd.nodes
+                if u in active_nodes or v in active_nodes:
+                    lambda_set.add(frozenset({u, v}))
+                if u == node:
+                    active_nodes.add(v)
+                if v == node:
+                    active_nodes.add(u)
+        result[node] = lambda_set
+    return result
+
+
 # very sparse. Use sparse formats or lists and solve iteratively
 def generate_qubit_edge_matrix_with_unknowns_can(
     n_qubits: int, n_layers: int
@@ -374,7 +395,7 @@ def generate_qubit_edge_matrix_with_unknowns_can(
                 or (i % 2 == 0 and (j % 8 == 3 or j % 8 == 5)),
                 [
                     ((i, j - 2), (i, j - 1)),
-                    ((i, j - 1), (i + 1, j)),
+                    ((i, j - 1), (i + 1, j - 1)),
                     ((i, j - 1), (i, j)),
                     ((i, j), (i, j + 1)),
                 ],
@@ -382,7 +403,7 @@ def generate_qubit_edge_matrix_with_unknowns_can(
         ),
     ]
 
-    for f in conditions:
+    for ci, f in enumerate(conditions):
         for i in range(n):
             for j in range(m):
                 condition, special_edges = f(i, j)
@@ -393,11 +414,30 @@ def generate_qubit_edge_matrix_with_unknowns_can(
 
                         # Ensure the edge exists before modifying the matrix
                         if edge in edges:
+                            print(ci, qubits[(i, j)], edge)
                             e_idx = edges[edge]
                             q_idx = qubits[(i, j)]
                             # Use symbolic variables for edges
                             # matrix[q_idx, e_idx] = edge_symbols[e_idx]
                             matrix[q_idx, e_idx] = 1
+
+    print(f"{edges=}")
+    print(f"{matrix=}")
+
+    pattern = generate_random_pauli_pattern(
+        nqubits=n_qubits, nlayers=n_layers, order=ConstructionOrder.Canonical
+    )
+    equations = generate_equations(pattern)
+    for node in range(n * m):
+        lambdas = equations[node]
+        print(node, lambdas)
+        for e_idx, (u, v) in enumerate(edges):
+            print(
+                f"{u=}, {v=}, {int(frozenset({qubits[u], qubits[v]}) in lambdas)=}, {matrix[node, e_idx]=}"
+            )
+            assert matrix[node, e_idx] == int(
+                frozenset({qubits[u], qubits[v]}) in lambdas
+            )
 
     # Return matrix with symbolic edge variables
     return matrix, qubits, edges

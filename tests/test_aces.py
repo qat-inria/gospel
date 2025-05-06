@@ -112,9 +112,9 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
 
     nqubits = 3
     nlayers = 2
-    depol_prob = 0.1
-    nshots = 30
-    ncircuits = 30
+    depol_prob = 0.2
+    nshots = 10000
+    ncircuits = 1
     method = Method.Stim
 
     cluster = dask.distributed.LocalCluster()
@@ -123,32 +123,45 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
     # TODO change to n_nodes
     node = nqubits * ((4 * nlayers) + 1)
 
-    # choose first edge.
-    chosen_edges = frozenset([frozenset((0, nqubits))])
-    # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
+    pattern = generate_random_pauli_pattern(nqubits, nlayers)
+    print(pattern)
+    _nodes, edges_list = pattern.get_graph()
 
-    noise_model = FaultyCZNoiseModel(
-        entanglement_error_prob=depol_prob,
-        chosen_edges=chosen_edges,
-    )
-    # noise_model = UncorrelatedDepolarisingNoiseModel(
-    #     entanglement_error_prob=params.depol_prob
-    # )
+    for u, v in edges_list:
+        if abs(u - v) == 1:
+            continue
+        chosen_edges = frozenset([frozenset((u, v))])
+        # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
 
-    # print(f"checking depol param {params.depol_prob}")
+        noise_model = FaultyCZNoiseModel(
+            entanglement_error_prob=depol_prob,
+            chosen_edges=chosen_edges,
+        )
+        # noise_model = UncorrelatedDepolarisingNoiseModel(
+        #     entanglement_error_prob=params.depol_prob
+        # )
 
-    results = perform_simulation(
-        nqubits=nqubits,
-        nlayers=nlayers,
-        noise_model=noise_model,
-        nshots=nshots,
-        ncircuits=ncircuits,
-        method=method,
-        dask_client=dask_client,
-    )
+        # print(f"checking depol param {params.depol_prob}")
 
-    x = compute_aces_postprocessing(nqubits, node, nlayers, results)
+        results = perform_simulation(
+            nqubits=nqubits,
+            nlayers=nlayers,
+            noise_model=noise_model,
+            nshots=nshots,
+            ncircuits=ncircuits,
+            method=method,
+            dask_client=dask_client,
+        )
 
-    assert math.isclose(x[0], 1 - depol_prob * 4 / 3, abs_tol=0.05)
-    for v in x[1:]:
-        assert math.isclose(v, 1, abs_tol=0.05)
+        x = compute_aces_postprocessing(nqubits, node, nlayers, results)
+        detected_edge = None
+        for i, v2 in enumerate(x):
+            if math.isclose(v2, 1 - depol_prob * 4 / 3, abs_tol=0.05):
+                if detected_edge is None:
+                    detected_edge = i
+                else:
+                    raise ValueError("Already detected edge")
+            else:
+                assert math.isclose(v2, 1, abs_tol=0.05)
+        if detected_edge is None:
+            raise ValueError("No detected edge")
