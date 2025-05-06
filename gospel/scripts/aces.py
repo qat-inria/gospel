@@ -226,43 +226,48 @@ def compute_failure_probabilities(
     return {q: occurences_one[q] / occurences[q] for q in occurences}
 
 
-# todo: change names
-def compute_failure_probabilities_can(  # circuit eigenvalues canonical == π can
-    failure_proba_can_result: dict[int, float], n_nodes: int
+def compute_failure_probabilities_can(
+    failure_proba_can_result: dict[int, float],
 ) -> list[float]:
-    """_computes  circuit eigenvalues Λ in terms of failure probabilities as see in Eq (15) in gospel paper (version May 2nd 2025)
-        for canonical ordering.
-
-    Parameters
-    ----------
-    n_nodes : int
-        total number of nodes in the graph
-
-    Returns
-    -------
-    list[float]
-    """
-    return [2 * failure_proba_can_result[k] - 1 for k in range(n_nodes)]
-
-
-def compute_failure_probabilities_dev(  # circuit eigenvalues deviant filtered == π dev filtered
-    failure_proba_dev_result: dict[int, float], n_nodes: int, n_qubits: int
-) -> list[float]:
-    """circuit eigenvalues Λ in terms of failure probabilities as see in Eq (15) in gospel paper (version May 2nd 2025)
-    for deviant ordering. Don't need all the information so select only the qubits of even rows and odd columns (starting from 0)
-    n_nodes:  total number of nodes in the greaph
-    n_qubits (width of the circuit)
-    Returns
-    -------
-    _type_
-
-    """
-
+    failure_proba_can_array = [
+        v for k, v in sorted(failure_proba_can_result.items(), key=lambda x: x[0])
+    ]
+    failure_proba_can_inverted = [1 - x for x in failure_proba_can_array]
     return [
-        2 * failure_proba_dev_result[k] - 1
-        for k in range(n_nodes)
-        if (k % n_qubits) % 2 == 0 and (k // n_qubits) % 2 == 1
-    ]  # qb index = i(row) +j(col) * width
+        abs(orig - inv)
+        for orig, inv in zip(failure_proba_can_array, failure_proba_can_inverted)
+    ]
+
+
+def compute_failure_probabilities_dev(
+    failure_proba_dev_result: dict[int, float], n_qubits: int, max_index: int
+) -> list[float]:
+    required_indices = []
+    start = n_qubits
+    max_index = max_index - 1
+
+    while start <= max_index:
+        for offset in range(0, n_qubits, 2):
+            current_index = start + offset
+            if current_index > max_index:
+                break
+            required_indices.append(current_index)  # Note the comma to create tuple
+        start += 2 * n_qubits
+
+    failure_proba_dev_final = {
+        idx: failure_proba_dev_result[idx]
+        for idx in required_indices
+        if idx in failure_proba_dev_result
+    }
+
+    failure_proba_dev_array = [
+        v for k, v in sorted(failure_proba_dev_final.items(), key=lambda x: x[0])
+    ]
+    failure_proba_dev_inverted = [1 - x for x in failure_proba_dev_array]
+    return [
+        abs(origi - inve)
+        for origi, inve in zip(failure_proba_dev_array, failure_proba_dev_inverted)
+    ]
 
 
 Coords2D = tuple[int, int]
@@ -276,22 +281,17 @@ Conditions = list[Callable[[int, int], tuple[bool, list[Edge]]]]
 
 
 def generate_equations(pattern: Pattern) -> dict[int, set[frozenset[int]]]:
-    result = {}
-    nodes, _edges = pattern.get_graph()
-    for node in nodes:
-        active_nodes = {node}
-        lambda_set = set()
-        for cmd in reversed(list(pattern)):
-            if cmd.kind == CommandKind.E:
-                assert isinstance(cmd, command.E)
-                u, v = cmd.nodes
-                if u in active_nodes or v in active_nodes:
-                    lambda_set.add(frozenset({u, v}))
-                if u == node:
-                    active_nodes.add(v)
-                if v == node:
-                    active_nodes.add(u)
-        result[node] = lambda_set
+    nodes = pattern.nodes
+    result = {node: set() for node in nodes}
+    active_nodes = {node: {node} for node in nodes}
+    for cmd in reversed(list(pattern)):
+        if cmd.kind == CommandKind.E:
+            u, v = cmd.nodes
+            edge = frozenset({u, v})
+            for target in active_nodes[u] | active_nodes[v]:
+                result[target].add(edge)
+            active_nodes[u].add(v)
+            active_nodes[v].add(u)
     return result
 
 
@@ -324,7 +324,7 @@ def generate_qubit_edge_matrix_with_unknowns_can(
     for i in range(n - 1):
         for j in range(m):
             if (
-                (j + 1) % 8 == 3 and (i + 1) % 2 != 0 and j + 3 < m
+                (j + 1) % 8 == 3 and (i + 1) % 2 != 0  # and j + 3 < m
             ):  # Column j ≡ 3 (mod 8) and odd row i
                 edge = ((i, j), (i + 1, j))
                 edges[edge] = edge_index
@@ -333,7 +333,7 @@ def generate_qubit_edge_matrix_with_unknowns_can(
                 edges[edge] = edge_index
                 edge_index += 1
             if (
-                (j + 1) % 8 == 7 and (i + 1) % 2 == 0 and j + 3 < m
+                (j + 1) % 8 == 7 and (i + 1) % 2 == 0  # and j + 3 < m
             ):  # Column j ≡ 7 (mod 8) and even row i
                 edge = ((i, j), (i + 1, j))
                 edges[edge] = edge_index
@@ -403,7 +403,7 @@ def generate_qubit_edge_matrix_with_unknowns_can(
         ),
     ]
 
-    for ci, f in enumerate(conditions):
+    for _ci, f in enumerate(conditions):
         for i in range(n):
             for j in range(m):
                 condition, special_edges = f(i, j)
@@ -414,15 +414,11 @@ def generate_qubit_edge_matrix_with_unknowns_can(
 
                         # Ensure the edge exists before modifying the matrix
                         if edge in edges:
-                            print(ci, qubits[(i, j)], edge)
                             e_idx = edges[edge]
                             q_idx = qubits[(i, j)]
                             # Use symbolic variables for edges
                             # matrix[q_idx, e_idx] = edge_symbols[e_idx]
                             matrix[q_idx, e_idx] = 1
-
-    print(f"{edges=}")
-    print(f"{matrix=}")
 
     pattern = generate_random_pauli_pattern(
         nqubits=n_qubits, nlayers=n_layers, order=ConstructionOrder.Canonical
@@ -430,11 +426,7 @@ def generate_qubit_edge_matrix_with_unknowns_can(
     equations = generate_equations(pattern)
     for node in range(n * m):
         lambdas = equations[node]
-        print(node, lambdas)
         for e_idx, (u, v) in enumerate(edges):
-            print(
-                f"{u=}, {v=}, {int(frozenset({qubits[u], qubits[v]}) in lambdas)=}, {matrix[node, e_idx]=}"
-            )
             assert matrix[node, e_idx] == int(
                 frozenset({qubits[u], qubits[v]}) in lambdas
             )
@@ -444,11 +436,11 @@ def generate_qubit_edge_matrix_with_unknowns_can(
 
 
 def generate_qubit_edge_matrix_with_unknowns_dev(
-    noqubits: int, nolayers: int
+    n_qubits: int, n_layers: int
 ) -> MatrixAndMaps:
     # assert n % 2 == 0, "The number of rows (n) must be even."
-    n = noqubits
-    m = 4 * nolayers + 1
+    n = n_qubits
+    m = 4 * n_layers + 1
     qubits_dev = {}  # Mapping from (i, j) to qubit index
     edges_dev = {}  # Mapping from edge (start, end) to edge index
     edge_index_dev = 0
@@ -471,7 +463,7 @@ def generate_qubit_edge_matrix_with_unknowns_dev(
     for i in range(n - 1):
         for j in range(m):
             if (
-                (j + 1) % 8 == 3 and (i + 1) % 2 != 0 and j + 3 < m
+                (j + 1) % 8 == 3 and (i + 1) % 2 != 0  # and j + 3 < m
             ):  # Column j ≡ 3 (mod 8) and odd row i
                 edge_dev = ((i, j), (i + 1, j))
                 edges_dev[edge_dev] = edge_index_dev
@@ -480,7 +472,7 @@ def generate_qubit_edge_matrix_with_unknowns_dev(
                 edges_dev[edge_dev] = edge_index_dev
                 edge_index_dev += 1
             if (
-                (j + 1) % 8 == 7 and (i + 1) % 2 == 0 and j + 3 < m
+                (j + 1) % 8 == 7 and (i + 1) % 2 == 0  # and j + 3 < m
             ):  # Column j ≡ 7 (mod 8) and even row i
                 edge_dev = ((i, j), (i + 1, j))
                 edges_dev[edge_dev] = edge_index_dev
@@ -548,7 +540,7 @@ def generate_qubit_edge_matrix_with_unknowns_dev(
     ]
 
     # print(edges_dev)
-    for f in conditions_dev:
+    for _ci, f in enumerate(conditions_dev):
         for i in range(n):
             for j in range(m):
                 if i % 2 == 0 and (
@@ -567,6 +559,35 @@ def generate_qubit_edge_matrix_with_unknowns_dev(
                                 # Use symbolic variables for edges
                                 # matrix_dev[q_idx_dev, e_idx_dev] = edge_symbols_dev[e_idx_dev]
                                 matrix_dev[q_idx_dev, e_idx_dev] = 1
+
+    #   print(f"{edges_dev=}")
+    #   print(f"{matrix_dev=}")
+
+    qubits = {}  # Mapping from (i, j) to qubit index
+    qubit_index = 0
+
+    # Assign an index to each qubit (i, j)
+    for j in range(m):
+        for i in range(n):
+            qubits[(i, j)] = qubit_index
+            qubit_index += 1
+
+    pattern = generate_random_pauli_pattern(
+        nqubits=n_qubits, nlayers=n_layers, order=ConstructionOrder.Deviant
+    )
+    equations = generate_equations(pattern)
+    for (i, j), qubit_dev in qubits_dev.items():
+        node = i + j * n_qubits
+        lambdas = equations[node]
+        #        print(node, lambdas)
+        for e_idx, (u, v) in enumerate(edges_dev):
+            #            print(
+            #                f"{u=}, {v=}, {int(frozenset({qubits[u], qubits[v]}) in lambdas)=}, {matrix_dev[qubit_dev, e_idx]=}"
+            #            )
+            assert matrix_dev[qubit_dev, e_idx] == int(
+                frozenset({qubits[u], qubits[v]}) in lambdas
+            )
+
     # Return matrix with symbolic edge variables
     return matrix_dev, qubits_dev, edges_dev
 
@@ -580,7 +601,7 @@ def compute_aces_postprocessing(
 
     # computing circuit eigenvalues for both orders
     # deviant has been filtered to remove redundancy
-    failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final, node)
+    failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final)
     failure_proba_dev = compute_failure_probabilities_dev(
         failure_proba_dev_all, nqubits, node
     )
@@ -616,6 +637,10 @@ def compute_aces_postprocessing(
     )  # Combine constant vectors
     # logger.debug(lhs.shape, lhs)
     # logger.debug(rhs.shape, rhs)
+    print(qubit_edge_matrix, qubit_map, edge_map)
+    print(f"{np.linalg.matrix_rank(qubit_edge_matrix)=}")
+    print(f"{np.linalg.matrix_rank(qubit_edge_matrix_dev)=}")
+    print(f"{np.linalg.matrix_rank(lhs)=}")
 
     log_rhs = np.log(rhs)  # log constant vectors
 

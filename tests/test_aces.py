@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import math
 from multiprocessing import freeze_support
+from time import time_ns
 
 import dask.distributed
 import numpy as np
 import pytest
-from graphix import command
+from graphix import Pattern, command
+from graphix.command import CommandKind
 from graphix.sim.density_matrix import DensityMatrixBackend
 from graphix.simulator import DefaultMeasureMethod, FixedPrepareMethod
 from numpy.random import PCG64, Generator
@@ -22,7 +24,12 @@ from gospel.noise_models.faulty_gate_noise_model import FaultyCZNoiseModel
 from gospel.noise_models.uncorrelated_depolarising_noise_model import (
     UncorrelatedDepolarisingNoiseModel,
 )
-from gospel.scripts.aces import Method, compute_aces_postprocessing, perform_simulation
+from gospel.scripts.aces import (
+    Method,
+    compute_aces_postprocessing,
+    generate_equations,
+    perform_simulation,
+)
 
 
 @pytest.mark.parametrize("jumps", range(1, 11))
@@ -88,6 +95,56 @@ def test_delegate_test_run(fx_bg: PCG64, jumps: int) -> None:
         assert results_veriphix == results_graphix
 
 
+def generate_equations_reference(pattern: Pattern) -> dict[int, set[frozenset[int]]]:
+    result = {}
+    nodes, _edges = pattern.get_graph()
+    for node in nodes:
+        active_nodes = {node}
+        lambda_set = set()
+        for cmd in reversed(list(pattern)):
+            if cmd.kind == CommandKind.E:
+                u, v = cmd.nodes
+                if u in active_nodes or v in active_nodes:
+                    lambda_set.add(frozenset({u, v}))
+                if u == node:
+                    active_nodes.add(v)
+                if v == node:
+                    active_nodes.add(u)
+        result[node] = lambda_set
+    return result
+
+
+def test_generate_equations() -> None:
+    nqubits = 16
+    nlayers = 16
+    for order in list(ConstructionOrder):
+        pattern = generate_random_pauli_pattern(nqubits, nlayers, order=order)
+        assert generate_equations(pattern) == generate_equations_reference(pattern)
+
+
+def test_benchmark_generate_equations() -> None:
+    nqubits = 16
+    nlayers = 16
+    order = ConstructionOrder.Canonical
+    pattern = generate_random_pauli_pattern(nqubits, nlayers, order=order)
+    start = time_ns()
+    _ = generate_equations(pattern)
+    time = time_ns() - start
+    start = time_ns()
+    _ = generate_equations_reference(pattern)
+    time_ref = time_ns() - start
+    print(f"{time} / {time_ref}")
+
+
+def test_one_brick() -> None:
+    pattern = generate_random_pauli_pattern(2, 1, order=ConstructionOrder.Canonical)
+    eqns = generate_equations(pattern)
+    edges = list(pattern.edges)
+    m = [[int(edge in s) for edge in edges] for _node, s in eqns.items()]
+    print(f"{len(m)=}")
+    print(f"{np.linalg.matrix_rank(m)=}")
+
+
 @pytest.mark.parametrize("jumps", range(1, 2))
 def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
     """test if ACES can find one faulty gate. Use the same noise model as hotgat.py.
@@ -110,8 +167,8 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
     # Test passed for Stim, Veriphix (with old stim implem) and Graphix!!
     freeze_support()
 
-    nqubits = 3
-    nlayers = 2
+    nqubits = 4
+    nlayers = 3
     depol_prob = 0.2
     nshots = 10000
     ncircuits = 1
@@ -123,13 +180,15 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
     # TODO change to n_nodes
     node = nqubits * ((4 * nlayers) + 1)
 
-    pattern = generate_random_pauli_pattern(nqubits, nlayers)
+    pattern = generate_random_pauli_pattern(
+        nqubits, nlayers, order=ConstructionOrder.Deviant
+    )
     print(pattern)
     _nodes, edges_list = pattern.get_graph()
 
+    problematic_edges = set()
+
     for u, v in edges_list:
-        if abs(u - v) == 1:
-            continue
         chosen_edges = frozenset([frozenset((u, v))])
         # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
 
@@ -154,14 +213,21 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
         )
 
         x = compute_aces_postprocessing(nqubits, node, nlayers, results)
-        detected_edge = None
-        for i, v2 in enumerate(x):
-            if math.isclose(v2, 1 - depol_prob * 4 / 3, abs_tol=0.05):
-                if detected_edge is None:
-                    detected_edge = i
+
+        try:
+            detected_edge = None
+            for i, v2 in enumerate(x):
+                if math.isclose(v2, 1 - depol_prob * 4 / 3, abs_tol=0.05):
+                    if detected_edge is None:
+                        detected_edge = i
+                    else:
+                        raise ValueError("Already detected edge")
                 else:
-                    raise ValueError("Already detected edge")
-            else:
-                assert math.isclose(v2, 1, abs_tol=0.05)
-        if detected_edge is None:
-            raise ValueError("No detected edge")
+                    assert math.isclose(v2, 1, abs_tol=0.05)
+            if detected_edge is None:
+                raise ValueError("No detected edge")
+        except (ValueError, AssertionError):
+            problematic_edges.add((u, v))
+
+    if problematic_edges:
+        raise ValueError(f"{problematic_edges=}")
