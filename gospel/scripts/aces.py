@@ -226,47 +226,23 @@ def compute_failure_probabilities(
     return {q: occurences_one[q] / occurences[q] for q in occurences}
 
 
-def compute_failure_probabilities_can(
+def compute_probabilities_difference_can(
     failure_proba_can_result: dict[int, float],
+    n_nodes: int,
 ) -> list[float]:
-    failure_proba_can_array = [
-        v for k, v in sorted(failure_proba_can_result.items(), key=lambda x: x[0])
-    ]
-    failure_proba_can_inverted = [1 - x for x in failure_proba_can_array]
-    return [
-        abs(orig - inv)
-        for orig, inv in zip(failure_proba_can_array, failure_proba_can_inverted)
-    ]
+    # return [1 - 2 * v for _, v  in sorted(failure_proba_can_result.items(), key=lambda x: x[0])]
+    return [1 - 2 * failure_proba_can_result[k] for k in range(n_nodes)]
 
 
-def compute_failure_probabilities_dev(
-    failure_proba_dev_result: dict[int, float], n_qubits: int, max_index: int
+def compute_probabilities_difference_dev(
+    failure_proba_dev_result: dict[int, float],
+    n_nodes: int,
+    n_qubits: int,
 ) -> list[float]:
-    required_indices = []
-    start = n_qubits
-    max_index = max_index - 1
-
-    while start <= max_index:
-        for offset in range(0, n_qubits, 2):
-            current_index = start + offset
-            if current_index > max_index:
-                break
-            required_indices.append(current_index)  # Note the comma to create tuple
-        start += 2 * n_qubits
-
-    failure_proba_dev_final = {
-        idx: failure_proba_dev_result[idx]
-        for idx in required_indices
-        if idx in failure_proba_dev_result
-    }
-
-    failure_proba_dev_array = [
-        v for k, v in sorted(failure_proba_dev_final.items(), key=lambda x: x[0])
-    ]
-    failure_proba_dev_inverted = [1 - x for x in failure_proba_dev_array]
     return [
-        abs(origi - inve)
-        for origi, inve in zip(failure_proba_dev_array, failure_proba_dev_inverted)
+        1 - 2 * failure_proba_dev_result[k]
+        for k in range(n_nodes)
+        if (k % n_qubits) % 2 == 0 and (k // n_qubits) % 2 == 1
     ]
 
 
@@ -601,9 +577,13 @@ def compute_aces_postprocessing(
 
     # computing circuit eigenvalues for both orders
     # deviant has been filtered to remove redundancy
-    failure_proba_can = compute_failure_probabilities_can(failure_proba_can_final)
-    failure_proba_dev = compute_failure_probabilities_dev(
-        failure_proba_dev_all, nqubits, node
+    failure_proba_can = compute_probabilities_difference_can(
+        failure_proba_can_final, node
+    )
+    failure_proba_dev = compute_probabilities_difference_dev(
+        failure_proba_dev_all,
+        node,
+        nqubits,
     )
 
     logger.debug(f"failure proba canonical {failure_proba_can}")
