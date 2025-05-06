@@ -183,13 +183,9 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
     pattern = generate_random_pauli_pattern(
         nqubits, nlayers, order=ConstructionOrder.Deviant
     )
-    print(pattern)
-    _nodes, edges_list = pattern.get_graph()
 
-    problematic_edges = set()
-
-    for u, v in edges_list:
-        chosen_edges = frozenset([frozenset((u, v))])
+    for chosen_edge in pattern.edges:
+        chosen_edges = frozenset({chosen_edge})
         # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
 
         noise_model = FaultyCZNoiseModel(
@@ -214,20 +210,8 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
 
         x = compute_aces_postprocessing(nqubits, node, nlayers, results)
 
-        try:
-            detected_edge = None
-            for i, v2 in enumerate(x):
-                if math.isclose(v2, 1 - depol_prob * 4 / 3, abs_tol=0.05):
-                    if detected_edge is None:
-                        detected_edge = i
-                    else:
-                        raise ValueError("Already detected edge")
-                else:
-                    assert math.isclose(v2, 1, abs_tol=0.05)
-            if detected_edge is None:
-                raise ValueError("No detected edge")
-        except (ValueError, AssertionError):
-            problematic_edges.add((u, v))
-
-    if problematic_edges:
-        raise ValueError(f"{problematic_edges=}")
+        for edge, lam in x.items():
+            if edge == chosen_edge:
+                assert math.isclose(lam, 1 - depol_prob * 4 / 3, abs_tol=0.05)
+            else:
+                assert math.isclose(lam, 1, abs_tol=0.05)

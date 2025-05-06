@@ -276,7 +276,7 @@ def generate_qubit_edge_matrix_from_pattern(
 
 def compute_aces_postprocessing(
     nqubits: int, node: int, nlayers: int, results: SimulationResult
-) -> npt.NDArray:
+) -> dict[frozenset[int], float]:
     logger.setLevel(logging.DEBUG)
     logger.info("Computing failure probabilities...")
     failure_proba_can_final = compute_failure_probabilities(results.canonical)
@@ -303,14 +303,6 @@ def compute_aces_postprocessing(
     logger.debug(py_failure_proba_dev.shape)
 
     logger.info("Setting up ACES...")
-    # qubit_edge_matrix = (
-    #    generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
-    # )
-
-    # qubit_edge_matrix_dev = (
-    #    generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)
-    # )
-
     pattern_can = generate_random_pauli_pattern(
         nqubits=nqubits, nlayers=nlayers, order=ConstructionOrder.Canonical
     )
@@ -335,8 +327,6 @@ def compute_aces_postprocessing(
     qubit_edge_matrix_dev = generate_qubit_edge_matrix_from_pattern(
         pattern_dev, nodes_dev, edges
     )
-    logger.debug(qubit_edge_matrix.shape)
-    logger.debug(qubit_edge_matrix_dev.shape)
 
     # Stack the matrices together to form a single system
     lhs = np.vstack(
@@ -355,7 +345,9 @@ def compute_aces_postprocessing(
     logger.debug(f"log {log_params}")
 
     logger.info("Calculating the lambdas...")
-    return np.exp(log_params)  # Convert log values back to original variables
+    return dict(
+        zip(edges, np.exp(log_params))
+    )  # Convert log values back to original variables
 
 
 def cli(
@@ -417,7 +409,7 @@ def cli(
     )
 
     logger.info(f"Simulation finished in {time.time() - start:.4f} seconds.")
-    x = compute_aces_postprocessing(nqubits, node, nlayers, results)
+    x = compute_aces_postprocessing(nqubits, node, nlayers, results).values()
 
     lambda_initial = 1 - 4 / 3 * depol_prob
     x_diff = [(dif - lambda_initial) for dif in x]
