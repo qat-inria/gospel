@@ -248,11 +248,6 @@ def compute_probabilities_difference_dev(
 
 Coords2D = tuple[int, int]
 Edge = tuple[Coords2D, Coords2D]
-MatrixAndMaps = tuple[
-    npt.NDArray[np.int64],
-    dict[Coords2D, int],
-    dict[Edge, int],
-]
 Conditions = list[Callable[[int, int], tuple[bool, list[Edge]]]]
 
 
@@ -271,10 +266,23 @@ def generate_equations(pattern: Pattern) -> dict[int, set[frozenset[int]]]:
     return result
 
 
+def generate_qubit_edge_matrix_from_pattern(
+    pattern: Pattern, nodes: list[int], edges: list[frozenset[int]]
+) -> npt.NDArray[np.int64]:
+    equations = generate_equations(pattern)
+    edge_index = {edge: index for index, edge in enumerate(edges)}
+    matrix = np.zeros((len(nodes), len(edges)), dtype=np.int64)
+    for row, node in enumerate(nodes):
+        lambdas = equations[node]
+        for edge in lambdas:
+            matrix[row, edge_index[edge]] = 1
+    return matrix
+
+
 # very sparse. Use sparse formats or lists and solve iteratively
 def generate_qubit_edge_matrix_with_unknowns_can(
     n_qubits: int, n_layers: int
-) -> MatrixAndMaps:
+) -> npt.NDArray[np.int64]:
     # This is generating the brixkwork graph
     # Can be iported from elsewhere??
     n = n_qubits
@@ -408,12 +416,12 @@ def generate_qubit_edge_matrix_with_unknowns_can(
             )
 
     # Return matrix with symbolic edge variables
-    return matrix, qubits, edges
+    return matrix
 
 
 def generate_qubit_edge_matrix_with_unknowns_dev(
     n_qubits: int, n_layers: int
-) -> MatrixAndMaps:
+) -> npt.NDArray[np.int64]:
     # assert n % 2 == 0, "The number of rows (n) must be even."
     n = n_qubits
     m = 4 * n_layers + 1
@@ -565,12 +573,13 @@ def generate_qubit_edge_matrix_with_unknowns_dev(
             )
 
     # Return matrix with symbolic edge variables
-    return matrix_dev, qubits_dev, edges_dev
+    return matrix_dev
 
 
 def compute_aces_postprocessing(
     nqubits: int, node: int, nlayers: int, results: SimulationResult
 ) -> npt.NDArray:
+    logger.setLevel(logging.DEBUG)
     logger.info("Computing failure probabilities...")
     failure_proba_can_final = compute_failure_probabilities(results.canonical)
     failure_proba_dev_all = compute_failure_probabilities(results.deviant)
@@ -596,15 +605,38 @@ def compute_aces_postprocessing(
     logger.debug(py_failure_proba_dev.shape)
 
     logger.info("Setting up ACES...")
-    qubit_edge_matrix, qubit_map, edge_map = (
-        generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
+    # qubit_edge_matrix = (
+    #    generate_qubit_edge_matrix_with_unknowns_can(nqubits, nlayers)
+    # )
+
+    # qubit_edge_matrix_dev = (
+    #    generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)
+    # )
+
+    pattern_can = generate_random_pauli_pattern(
+        nqubits=nqubits, nlayers=nlayers, order=ConstructionOrder.Canonical
+    )
+    pattern_dev = generate_random_pauli_pattern(
+        nqubits=nqubits, nlayers=nlayers, order=ConstructionOrder.Deviant
     )
 
-    qubit_edge_matrix_dev, qubit_map_dev, edge_map_dev = (
-        generate_qubit_edge_matrix_with_unknowns_dev(nqubits, nlayers)
+    edges_set = pattern_can.edges
+    assert pattern_dev.edges == edges_set
+    edges = list(edges_set)
+
+    nodes_can = list(range(node))
+    nodes_dev = [
+        row + col * nqubits
+        for col in range(1, 4 * nlayers + 1, 2)
+        for row in range(0, nqubits, 2)
+    ]
+
+    qubit_edge_matrix = generate_qubit_edge_matrix_from_pattern(
+        pattern_can, nodes_can, edges
     )
-    qubit_edge_matrix = np.array(qubit_edge_matrix, dtype=np.float64)
-    qubit_edge_matrix_dev = np.array(qubit_edge_matrix_dev, dtype=np.float64)
+    qubit_edge_matrix_dev = generate_qubit_edge_matrix_from_pattern(
+        pattern_dev, nodes_dev, edges
+    )
     logger.debug(qubit_edge_matrix.shape)
     logger.debug(qubit_edge_matrix_dev.shape)
 
@@ -615,12 +647,8 @@ def compute_aces_postprocessing(
     rhs = np.concatenate(
         (py_failure_proba_can, py_failure_proba_dev)
     )  # Combine constant vectors
-    # logger.debug(lhs.shape, lhs)
-    # logger.debug(rhs.shape, rhs)
-    print(qubit_edge_matrix, qubit_map, edge_map)
-    print(f"{np.linalg.matrix_rank(qubit_edge_matrix)=}")
-    print(f"{np.linalg.matrix_rank(qubit_edge_matrix_dev)=}")
-    print(f"{np.linalg.matrix_rank(lhs)=}")
+    logger.debug(f"{lhs.shape=}")
+    logger.debug(f"{rhs.shape=}")
 
     log_rhs = np.log(rhs)  # log constant vectors
 

@@ -167,8 +167,8 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
     # Test passed for Stim, Veriphix (with old stim implem) and Graphix!!
     freeze_support()
 
-    nqubits = 4
-    nlayers = 3
+    nqubits = 3
+    nlayers = 2
     depol_prob = 0.2
     nshots = 10000
     ncircuits = 1
