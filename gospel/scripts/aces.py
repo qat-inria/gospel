@@ -29,12 +29,11 @@ from gospel.brickwork_state_transpiler import (
     get_bipartite_coloring,
 )
 from gospel.cluster.dask_interface import get_cluster
-from gospel.noise_models.faulty_gate_noise_model import FaultyCZNoiseModel
 from gospel.noise_models.single_pauli_noise_model import (
     SinglePauliNoiseModel,  # noqa: F401
 )
 from gospel.noise_models.uncorrelated_depolarising_noise_model import (
-    UncorrelatedDepolarisingNoiseModel,  # noqa: F401
+    UncorrelatedDepolarisingNoiseModel,
 )
 from gospel.stim_pauli_preprocessing import StimBackend, pattern_to_stim_circuit
 
@@ -350,6 +349,87 @@ def compute_aces_postprocessing(
     )  # Convert log values back to original variables
 
 
+def generate_plot(
+    inferred_lambdas: list[float],
+    vline: float,
+    target: Path = Path("plot.png"),
+) -> None:
+    """generate plot based on data: absolute value.
+    vline for position of theoretical expectation
+    """
+
+    plt.figure(figsize=(10, 6))
+
+    # Create histogram with density curve
+    plt.hist(
+        inferred_lambdas,
+        bins="auto",
+        color="#2ecc71",
+        edgecolor="#27ae60",
+        alpha=0.7,
+        # range=(0, 1),
+        density=True,
+    )
+
+    # Add KDE plot
+    sns.kdeplot(  # type: ignore[no-untyped-call]
+        inferred_lambdas,
+        color="#34495e",
+        linewidth=2,
+        label="KDE",
+    )
+
+    # Add reference lines
+    plt.axvline(
+        vline, color="red", linestyle="--", linewidth=1.5
+    )  # , label="(λ(diff)=0.0)""
+    plt.axvline(
+        np.mean(inferred_lambdas),
+        color="#3498db",
+        linestyle="-",
+        linewidth=1.5,
+        label=f"Mean ({np.mean(inferred_lambdas):.2f})",
+    )
+    plt.axvline(
+        np.median(inferred_lambdas),
+        color="#9b59b6",
+        linestyle="-",
+        linewidth=1.5,
+        label=f"Median ({np.median(inferred_lambdas):.2f})",
+    )
+
+    # Formatting
+    plt.title(r"ACES", fontsize=14)
+    if vline != 0:
+        plt.xlabel(r"${\hat \lambda}$", fontsize=12)
+    else:
+        plt.xlabel(r"${\hat \lambda} - \lambda_{\rm th}$", fontsize=12)
+    plt.ylabel("Density", fontsize=12)
+    plt.legend()
+    plt.grid(alpha=0.3)
+    sns.despine()  # type: ignore[no-untyped-call]
+
+    # Add statistical annotations
+    stats_text = (
+        f"Total edges: {len(inferred_lambdas)}\n"
+        f"Min: {np.min(inferred_lambdas):.3f}\n"
+        f"Max: {np.max(inferred_lambdas):.3f}\n"
+        f"Std: {np.std(inferred_lambdas):.3f}"
+    )
+    plt.text(
+        0.75,
+        0.95,
+        stats_text,
+        transform=plt.gca().transAxes,
+        verticalalignment="top",
+        bbox={"facecolor": "white", "alpha": 0.9},
+    )
+
+    plt.tight_layout()
+    # plt.show()
+    plt.savefig(target)
+
+
 def cli(
     nqubits: int = 5,
     nlayers: int = 10,
@@ -384,15 +464,15 @@ def cli(
 
     # choose first edge.
     chosen_edges = frozenset([frozenset((0, nqubits))])
+    logger.debug(f"Chosen edges {chosen_edges}")
+
     # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
 
-    noise_model = FaultyCZNoiseModel(
-        entanglement_error_prob=depol_prob,
-        chosen_edges=chosen_edges,
-    )
-    # noise_model = UncorrelatedDepolarisingNoiseModel(
-    #     entanglement_error_prob=params.depol_prob
+    # noise_model = FaultyCZNoiseModel(
+    #     entanglement_error_prob=depol_prob,
+    #     chosen_edges=chosen_edges,
     # )
+    noise_model = UncorrelatedDepolarisingNoiseModel(entanglement_error_prob=depol_prob)
 
     # print(f"checking depol param {params.depol_prob}")
 
@@ -409,78 +489,28 @@ def cli(
     )
 
     logger.info(f"Simulation finished in {time.time() - start:.4f} seconds.")
-    x = compute_aces_postprocessing(nqubits, node, nlayers, results).values()
+    inferred_lambdas = compute_aces_postprocessing(
+        nqubits, node, nlayers, results
+    ).values()
 
-    lambda_initial = 1 - 4 / 3 * depol_prob
-    x_diff = [(dif - lambda_initial) for dif in x]
-    print(f"X {x}")
-    logger.debug(f"X {x}")
+    logger.debug(f"Inferred lambdas {inferred_lambdas}")
+
+    # expected theoretical value of the lambdas
+    lambda_expected = 1 - 4 / 3 * depol_prob
+    # compute difference between inferred and theoretical values
+    lambda_diff: list[float] = [l - lambda_expected for l in inferred_lambdas]
+
     logger.info("Plotting the result...")
 
-    plt.figure(figsize=(10, 6))
+    # absolute plot
+    generate_plot(
+        list(inferred_lambdas), vline=1 - 4 * depol_prob / 3
+    )  # typing to list necessary?
 
-    # Create histogram with density curve
-    n, bins, patches = plt.hist(
-        x_diff,
-        bins="auto",
-        color="#2ecc71",
-        edgecolor="#27ae60",
-        alpha=0.7,
-        density=True,
-    )
-
-    # Add KDE plot
-    sns.kdeplot(  # type: ignore[no-untyped-call]
-        x_diff,
-        color="#34495e",
-        linewidth=2,
-        label=r"Density of $\lambda(diff)_{\mathrm{edge}}$",
-    )
-
-    # Add reference lines
-    plt.axvline(0.0, color="red", linestyle="--", linewidth=1.5, label="(λ(diff)=0.0)")
-    plt.axvline(
-        np.mean(x_diff),
-        color="#3498db",
-        linestyle="-",
-        linewidth=1.5,
-        label=f"Mean ({np.mean(x_diff):.2f})",
-    )
-    plt.axvline(
-        np.median(x_diff),
-        color="#9b59b6",
-        linestyle="-",
-        linewidth=1.5,
-        label=f"Median ({np.median(x_diff):.2f})",
-    )
-
-    # Formatting
-    plt.title(r"ACES", fontsize=14)
-    plt.xlabel(r"$\lambda(diff)_{\mathrm{edge}}$", fontsize=12)
-    plt.ylabel("Density", fontsize=12)
-    plt.legend()
-    plt.grid(alpha=0.3)
-    sns.despine()  # type: ignore[no-untyped-call]
-
-    # Add statistical annotations
-    stats_text = (
-        f"Total edges: {len(x_diff)}\n"
-        f"Min: {np.min(x_diff):.2f}\n"
-        f"Max: {np.max(x_diff):.2f}\n"
-        f"Std: {np.std(x_diff):.2f}"
-    )
-    plt.text(
-        0.75,
-        0.95,
-        stats_text,
-        transform=plt.gca().transAxes,
-        verticalalignment="top",
-        bbox={"facecolor": "white", "alpha": 0.9},
-    )
-
-    plt.tight_layout()
-    # plt.show()
-    plt.savefig(target)
+    # difference wrt theoretical expectation
+    generate_plot(
+        list(lambda_diff), vline=0, target=Path("plot_diff.png")
+    )  # typing to list necessary?
     logger.info("Done!")
 
 
