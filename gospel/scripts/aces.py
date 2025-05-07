@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -225,6 +226,80 @@ def compute_failure_probabilities(
     return {q: occurences_one[q] / occurences[q] for q in occurences}
 
 
+def generate_equations(pattern: Pattern) -> dict[int, set[frozenset[int]]]:
+    nodes = pattern.nodes
+    result = {node: set() for node in nodes}
+    active_nodes = {node: {node} for node in nodes}
+    for cmd in reversed(list(pattern)):
+        if cmd.kind == CommandKind.E:
+            u, v = cmd.nodes
+            edge = frozenset({u, v})
+            for target in active_nodes[u] | active_nodes[v]:
+                result[target].add(edge)
+            active_nodes[u].add(v)
+            active_nodes[v].add(u)
+    return result
+
+
+@dataclass
+class EdgeDependency:
+    edge: frozenset[int]
+    order: ConstructionOrder
+    measure_index: int
+    previous_edges: frozenset[int]
+
+
+def generate_edge_dependencies(nqubits: int, nlayers: int) -> list[EdgeDependency]:
+    equations = {}
+    for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant):
+        pattern = generate_random_pauli_pattern(nqubits, nlayers, order=order)
+        equations[order] = generate_equations(pattern)
+    result = []
+    known = set()
+    known_indices = {}
+    while True:
+        new_element = False
+        for order in (ConstructionOrder.Canonical, ConstructionOrder.Deviant):
+            for measure_index, lambdas in equations[order].items():
+                left = lambdas - known
+                try:
+                    (edge,) = left
+                except ValueError:
+                    pass
+                else:
+                    previous_edges = frozenset(
+                        {known_indices[lam] for lam in lambdas if lam != edge}
+                    )
+                    dependency = EdgeDependency(
+                        edge, order, measure_index, previous_edges
+                    )
+                    known.add(edge)
+                    known_indices[edge] = len(result)
+                    result.append(dependency)
+                    new_element = True
+        if not new_element:
+            break
+    return result
+
+
+def compute_aces_postprocessing_iteratively(
+    dependencies: list[EdgeDependency], results: SimulationResult
+) -> dict[frozenset[int], float]:
+    pi = {
+        ConstructionOrder.Canonical: compute_failure_probabilities(results.canonical),
+        ConstructionOrder.Deviant: compute_failure_probabilities(results.deviant),
+    }
+    result_log = []
+    for dependency in dependencies:
+        pi_value = math.log(1 - 2 * pi[dependency.order][dependency.measure_index])
+        for edge in dependency.previous_edges:
+            pi_value -= result_log[edge]
+        result_log.append(pi_value)
+    return {
+        dependency.edge: math.exp(v) for dependency, v in zip(dependencies, result_log)
+    }
+
+
 def compute_probabilities_difference_can(
     failure_proba_can_result: dict[int, float],
     n_nodes: int,
@@ -245,21 +320,6 @@ def compute_probabilities_difference_dev(
     ]
 
 
-def generate_equations(pattern: Pattern) -> dict[int, set[frozenset[int]]]:
-    nodes = pattern.nodes
-    result = {node: set() for node in nodes}
-    active_nodes = {node: {node} for node in nodes}
-    for cmd in reversed(list(pattern)):
-        if cmd.kind == CommandKind.E:
-            u, v = cmd.nodes
-            edge = frozenset({u, v})
-            for target in active_nodes[u] | active_nodes[v]:
-                result[target].add(edge)
-            active_nodes[u].add(v)
-            active_nodes[v].add(u)
-    return result
-
-
 def generate_qubit_edge_matrix_from_pattern(
     pattern: Pattern, nodes: list[int], edges: list[frozenset[int]]
 ) -> npt.NDArray[np.int64]:
@@ -273,10 +333,47 @@ def generate_qubit_edge_matrix_from_pattern(
     return matrix
 
 
+def generate_qubit_edge_matrix(
+    nqubits: int, nlayers: int
+) -> tuple[list[frozenset[int]], npt.NDArray[np.int64]]:
+    pattern_can = generate_random_pauli_pattern(
+        nqubits=nqubits, nlayers=nlayers, order=ConstructionOrder.Canonical
+    )
+    pattern_dev = generate_random_pauli_pattern(
+        nqubits=nqubits, nlayers=nlayers, order=ConstructionOrder.Deviant
+    )
+
+    edges_set = pattern_can.edges
+    assert pattern_dev.edges == edges_set
+    edges = list(edges_set)
+
+    nnodes = nqubits * (4 * nlayers + 1)
+    nodes_can = list(range(nnodes))
+    nodes_dev = [
+        row + col * nqubits
+        for col in range(1, 4 * nlayers + 1, 2)
+        for row in range(0, nqubits, 2)
+    ]
+
+    qubit_edge_matrix = generate_qubit_edge_matrix_from_pattern(
+        pattern_can, nodes_can, edges
+    )
+    qubit_edge_matrix_dev = generate_qubit_edge_matrix_from_pattern(
+        pattern_dev, nodes_dev, edges
+    )
+
+    # Stack the matrices together to form a single system
+    lhs = np.vstack(
+        (qubit_edge_matrix, qubit_edge_matrix_dev)
+    )  # Combine coefficient matrices
+    logger.debug(f"{lhs.shape=}")
+    logger.debug(f"{lhs=}")
+    return edges, lhs
+
+
 def compute_aces_postprocessing(
     nqubits: int, node: int, nlayers: int, results: SimulationResult
 ) -> dict[frozenset[int], float]:
-    logger.setLevel(logging.DEBUG)
     logger.info("Computing failure probabilities...")
     failure_proba_can_final = compute_failure_probabilities(results.canonical)
     failure_proba_dev_all = compute_failure_probabilities(results.deviant)
@@ -302,40 +399,12 @@ def compute_aces_postprocessing(
     logger.debug(py_failure_proba_dev.shape)
 
     logger.info("Setting up ACES...")
-    pattern_can = generate_random_pauli_pattern(
-        nqubits=nqubits, nlayers=nlayers, order=ConstructionOrder.Canonical
-    )
-    pattern_dev = generate_random_pauli_pattern(
-        nqubits=nqubits, nlayers=nlayers, order=ConstructionOrder.Deviant
-    )
-
-    edges_set = pattern_can.edges
-    assert pattern_dev.edges == edges_set
-    edges = list(edges_set)
-
-    nodes_can = list(range(node))
-    nodes_dev = [
-        row + col * nqubits
-        for col in range(1, 4 * nlayers + 1, 2)
-        for row in range(0, nqubits, 2)
-    ]
-
-    qubit_edge_matrix = generate_qubit_edge_matrix_from_pattern(
-        pattern_can, nodes_can, edges
-    )
-    qubit_edge_matrix_dev = generate_qubit_edge_matrix_from_pattern(
-        pattern_dev, nodes_dev, edges
-    )
-
-    # Stack the matrices together to form a single system
-    lhs = np.vstack(
-        (qubit_edge_matrix, qubit_edge_matrix_dev)
-    )  # Combine coefficient matrices
+    edges, lhs = generate_qubit_edge_matrix(nqubits, nlayers)
     rhs = np.concatenate(
         (py_failure_proba_can, py_failure_proba_dev)
     )  # Combine constant vectors
-    logger.debug(f"{lhs.shape=}")
     logger.debug(f"{rhs.shape=}")
+    logger.debug(f"{rhs=}")
 
     log_rhs = np.log(rhs)  # log constant vectors
 

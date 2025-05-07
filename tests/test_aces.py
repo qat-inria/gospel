@@ -27,6 +27,8 @@ from gospel.noise_models.uncorrelated_depolarising_noise_model import (
 from gospel.scripts.aces import (
     Method,
     compute_aces_postprocessing,
+    compute_aces_postprocessing_iteratively,
+    generate_edge_dependencies,
     generate_equations,
     perform_simulation,
 )
@@ -145,8 +147,7 @@ def test_one_brick() -> None:
     print(f"{np.linalg.matrix_rank(m)=}")
 
 
-@pytest.mark.parametrize("jumps", range(1, 2))
-def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
+def test_single_deterministic_noisy_gate() -> None:
     """test if ACES can find one faulty gate. Use the same noise model as hotgat.py.
     Use dask only locally."""
 
@@ -209,6 +210,78 @@ def test_single_deterministic_noisy_gate(fx_bg: PCG64, jumps: int) -> None:
         )
 
         x = compute_aces_postprocessing(nqubits, node, nlayers, results)
+
+        for edge, lam in x.items():
+            if edge == chosen_edge:
+                assert math.isclose(lam, 1 - depol_prob * 4 / 3, abs_tol=0.05)
+            else:
+                assert math.isclose(lam, 1, abs_tol=0.05)
+
+
+def test_single_deterministic_noisy_gate_iteratively() -> None:
+    """test if ACES can find one faulty gate. Use the same noise model as hotgat.py.
+    Use dask only locally."""
+
+    # define noise model
+    # choose first edge.
+    # nqubits = 3
+    # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
+
+    # noise_model = FaultyCZNoiseModel(
+    #     entanglement_error_prob=params.depol_prob,
+    #     edges=pattern.edges,
+    #     chosen_edges=chosen_edges,
+    # )
+
+    # add noise model in params
+    # pattern doesn't exist outside cli...
+
+    # Test passed for Stim, Veriphix (with old stim implem) and Graphix!!
+    freeze_support()
+
+    nqubits = 3
+    nlayers = 2
+    depol_prob = 0.2
+    nshots = 10000
+    ncircuits = 1
+    method = Method.Stim
+
+    cluster = dask.distributed.LocalCluster()
+    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
+
+    pattern = generate_random_pauli_pattern(
+        nqubits, nlayers, order=ConstructionOrder.Deviant
+    )
+
+    dependencies = generate_edge_dependencies(nqubits, nlayers)
+
+    for chosen_edge in pattern.edges:
+        chosen_edges = frozenset({chosen_edge})
+        # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
+
+        noise_model = FaultyCZNoiseModel(
+            entanglement_error_prob=depol_prob,
+            chosen_edges=chosen_edges,
+        )
+        # noise_model = UncorrelatedDepolarisingNoiseModel(
+        #     entanglement_error_prob=params.depol_prob
+        # )
+
+        # print(f"checking depol param {params.depol_prob}")
+
+        results = perform_simulation(
+            nqubits=nqubits,
+            nlayers=nlayers,
+            noise_model=noise_model,
+            nshots=nshots,
+            ncircuits=ncircuits,
+            method=method,
+            dask_client=dask_client,
+        )
+
+        x = compute_aces_postprocessing_iteratively(dependencies, results)
+
+        assert x.keys() == pattern.edges
 
         for edge, lam in x.items():
             if edge == chosen_edge:

@@ -299,3 +299,13 @@ def test_get_hot_traps_of_faulty_gate() -> None:
             )
             == expected_answer
         )
+
+
+@pytest.mark.parametrize("nqubits", range(1, 7))
+@pytest.mark.parametrize("nlayers", range(1, 7))
+def test_brickwork_graph_size(nqubits: int, nlayers: int) -> None:
+    pattern = generate_random_pauli_pattern(nqubits=nqubits, nlayers=nlayers)
+    assert len(pattern.nodes) == nqubits * (4 * nlayers + 1)
+    assert len(pattern.edges) == nlayers * (5 * nqubits - 1) + (1 - nqubits % 2) * (
+        nlayers % 2
+    )
