@@ -109,8 +109,8 @@ def pauli_measurement_to_clifford_gates(
             return []
         case Sign.MINUS, Axis.Z:
             return [Clifford.X]
-        case _:
-            raise ValueError("unreachable")
+        case never:
+            assert_never(never)
 
 
 def apply_pauli_measurement(

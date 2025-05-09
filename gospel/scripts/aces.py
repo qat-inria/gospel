@@ -80,7 +80,13 @@ class FixedPrepareMethod(PrepareMethod):
 
 def perform_single_simulation(
     params: SingleSimulation,
-) -> list[tuple[ConstructionOrder, bool, list[dict[int, int]]]]:
+) -> list[
+    tuple[
+        ConstructionOrder,
+        bool,
+        list[tuple[list[list[int]], list[int], list[list[int]]]],
+    ]
+]:
     fx_bg = PCG64(42)
 
     rng = Generator(fx_bg.jumped(params.jumps))  # Use the jumped rng
@@ -114,10 +120,7 @@ def perform_single_simulation(
                 backend=backend, run=run, noise_model=noise_model
             )
             results = [
-                {
-                    int(trap): outcome
-                    for (trap,), outcome in zip(run.traps_list, trap_outcomes)
-                }
+                ([trap_outcomes], list(range(len(trap_outcomes))), run.traps_list)
             ]
         elif params.method == Method.Graphix:
             assert params.nshots == 1
@@ -132,7 +135,11 @@ def perform_single_simulation(
                 noise_model=noise_model,
             )
             results = [
-                {int(trap): measure_method.results[trap] for (trap,) in run.traps_list}
+                (
+                    [measure_method.results],
+                    list(range(len(measure_method.results))),
+                    run.traps_list,
+                )
             ]
         else:
             input_state_dict = {}
@@ -150,10 +157,7 @@ def perform_single_simulation(
                 fixed_states=fixed_states,
             )
             sample = circuit.compile_sampler().sample(shots=params.nshots)
-            results = [
-                {trap: s[measure_indices[trap]] for (trap,) in run.traps_list}
-                for s in sample
-            ]
+            results = [(sample, measure_indices, run.traps_list)]
 
         # Choose the correct outcome table based on order
         outcomes.append((params.order, bool(i), results))
@@ -163,8 +167,8 @@ def perform_single_simulation(
 
 @dataclass
 class SimulationResult:
-    canonical: list[dict[int, int]]
-    deviant: list[dict[int, int]]
+    canonical: list[tuple[list[list[int]], list[int], list[list[int]]]]
+    deviant: list[tuple[list[list[int]], list[int], list[list[int]]]]
 
 
 def perform_simulation(
@@ -174,7 +178,7 @@ def perform_simulation(
     nshots: int,
     ncircuits: int,
     method: Method,
-    dask_client: dask.distributed.Client,
+    dask_client: dask.distributed.Client | None,
 ) -> SimulationResult:
     jobs = [
         SingleSimulation(
@@ -191,8 +195,10 @@ def perform_simulation(
     ]
 
     logger.debug(f"nb jobs to run: {len(jobs)}")
-    # outcomes = dask_client.gather(dask_client.map(perform_single_simulation, jobs))  # type: ignore[no-untyped-call]
-    outcomes = list(map(perform_single_simulation, jobs))
+    if dask_client is None:
+        outcomes = list(map(perform_single_simulation, jobs))
+    else:
+        outcomes = dask_client.gather(dask_client.map(perform_single_simulation, jobs))  # type: ignore[no-untyped-call]
 
     test_outcome_table_canonical = []
     test_outcome_table_deviant = []
@@ -208,22 +214,20 @@ def perform_simulation(
 
 
 def compute_failure_probabilities(
-    results_table: list[dict[int, int]],
-) -> dict[int, float]:
-    occurences = {}
-    occurences_one = {}
+    nnodes: int,
+    results_table: list[tuple[list[list[int]], list[int], list[list[int]]]],
+) -> npt.NDArray[np.float64]:
+    occurrences = np.zeros(nnodes, dtype=np.int64)
+    occurrences_one = np.zeros(nnodes, dtype=np.int64)
 
-    for results in results_table:
-        for q, r in results.items():
-            if q not in occurences:
-                occurences[q] = 1
-                occurences_one[q] = r
-            else:
-                occurences[q] += 1
-                if r == 1:
-                    occurences_one[q] += 1
+    for samples, measure_indices, traps_list in results_table:
+        nsamples = len(samples)
+        ones = np.array(samples).sum(axis=0)
+        for (trap,) in traps_list:
+            occurrences[trap] += nsamples
+            occurrences_one[trap] += ones[measure_indices[trap]]
 
-    return {q: occurences_one[q] / occurences[q] for q in occurences}
+    return occurrences_one / occurrences
 
 
 def generate_equations(pattern: Pattern) -> dict[int, set[frozenset[int]]]:
@@ -283,12 +287,18 @@ def generate_edge_dependencies(nqubits: int, nlayers: int) -> list[EdgeDependenc
 
 
 def compute_aces_postprocessing_iteratively(
-    dependencies: list[EdgeDependency], results: SimulationResult
+    nnodes: int, dependencies: list[EdgeDependency], results: SimulationResult
 ) -> dict[frozenset[int], float]:
+    start = time.time()
     pi = {
-        ConstructionOrder.Canonical: compute_failure_probabilities(results.canonical),
-        ConstructionOrder.Deviant: compute_failure_probabilities(results.deviant),
+        ConstructionOrder.Canonical: compute_failure_probabilities(
+            nnodes, results.canonical
+        ),
+        ConstructionOrder.Deviant: compute_failure_probabilities(
+            nnodes, results.deviant
+        ),
     }
+    logger.info(f"Failure probabilities in {time.time() - start:.4f} seconds.")
     result_log = []
     for dependency in dependencies:
         pi_value = math.log(1 - 2 * pi[dependency.order][dependency.measure_index])
@@ -372,20 +382,20 @@ def generate_qubit_edge_matrix(
 
 
 def compute_aces_postprocessing(
-    nqubits: int, node: int, nlayers: int, results: SimulationResult
+    nqubits: int, nnodes: int, nlayers: int, results: SimulationResult
 ) -> dict[frozenset[int], float]:
     logger.info("Computing failure probabilities...")
-    failure_proba_can_final = compute_failure_probabilities(results.canonical)
-    failure_proba_dev_all = compute_failure_probabilities(results.deviant)
+    failure_proba_can_final = compute_failure_probabilities(nnodes, results.canonical)
+    failure_proba_dev_all = compute_failure_probabilities(nnodes, results.deviant)
 
     # computing circuit eigenvalues for both orders
     # deviant has been filtered to remove redundancy
     failure_proba_can = compute_probabilities_difference_can(
-        failure_proba_can_final, node
+        failure_proba_can_final, nnodes
     )
     failure_proba_dev = compute_probabilities_difference_dev(
         failure_proba_dev_all,
-        node,
+        nnodes,
         nqubits,
     )
 
@@ -503,8 +513,8 @@ def cli(
     nqubits: int = 5,
     nlayers: int = 10,
     depol_prob: float = 0.001,
-    nshots: int = 1,
-    ncircuits: int = 10,
+    nshots: int = 10000,
+    ncircuits: int = 1,
     verbose: bool = False,
     method: Method | None = None,
     walltime: int | None = None,
@@ -521,19 +531,21 @@ def cli(
     )
     logger.setLevel(level)
 
-    cluster = get_cluster(walltime, memory, cores, port, scale)
-    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
+    if walltime is None and scale is None:
+        dask_client = None
+    else:
+        cluster = get_cluster(walltime, memory, cores, port, scale)
+        dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
 
-    # TODO change to n_nodes
-    node = nqubits * ((4 * nlayers) + 1)
+    nnodes = nqubits * ((4 * nlayers) + 1)
 
     # typer seems not to support default values for Enum
     if method is None:
         method = Method.Stim
 
     # choose first edge.
-    chosen_edges = frozenset([frozenset((0, nqubits))])
-    logger.debug(f"Chosen edges {chosen_edges}")
+    # chosen_edges = frozenset([frozenset((0, nqubits))])
+    # logger.debug(f"Chosen edges {chosen_edges}")
 
     # chosen_edges = frozenset([frozenset((nqubits, 2 * nqubits))])
 
@@ -558,10 +570,16 @@ def cli(
     )
 
     logger.info(f"Simulation finished in {time.time() - start:.4f} seconds.")
-    inferred_lambdas = compute_aces_postprocessing(
-        nqubits, node, nlayers, results
+    start = time.time()
+    dependencies = generate_edge_dependencies(nqubits, nlayers)
+    inferred_lambdas = compute_aces_postprocessing_iteratively(
+        nnodes, dependencies, results
     ).values()
+    # inferred_lambdas = compute_aces_postprocessing(
+    #    nqubits, nnodes, nlayers, results
+    # ).values()
 
+    logger.info(f"Lambda inferred in {time.time() - start:.4f} seconds.")
     logger.debug(f"Inferred lambdas {inferred_lambdas}")
 
     # expected theoretical value of the lambdas

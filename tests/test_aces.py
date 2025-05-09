@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import math
-from multiprocessing import freeze_support
 from time import time_ns
 
-import dask.distributed
 import numpy as np
 import pytest
 from graphix import Pattern, command
@@ -166,7 +164,6 @@ def test_single_deterministic_noisy_gate() -> None:
     # pattern doesn't exist outside cli...
 
     # Test passed for Stim, Veriphix (with old stim implem) and Graphix!!
-    freeze_support()
 
     nqubits = 3
     nlayers = 2
@@ -174,9 +171,6 @@ def test_single_deterministic_noisy_gate() -> None:
     nshots = 10000
     ncircuits = 1
     method = Method.Stim
-
-    cluster = dask.distributed.LocalCluster()
-    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
 
     # TODO change to n_nodes
     node = nqubits * ((4 * nlayers) + 1)
@@ -206,7 +200,7 @@ def test_single_deterministic_noisy_gate() -> None:
             nshots=nshots,
             ncircuits=ncircuits,
             method=method,
-            dask_client=dask_client,
+            dask_client=None,
         )
 
         x = compute_aces_postprocessing(nqubits, node, nlayers, results)
@@ -237,17 +231,14 @@ def test_single_deterministic_noisy_gate_iteratively() -> None:
     # pattern doesn't exist outside cli...
 
     # Test passed for Stim, Veriphix (with old stim implem) and Graphix!!
-    freeze_support()
 
     nqubits = 3
     nlayers = 2
+    nnodes = nqubits * (4 * nlayers + 1)
     depol_prob = 0.2
     nshots = 10000
     ncircuits = 1
     method = Method.Stim
-
-    cluster = dask.distributed.LocalCluster()
-    dask_client = dask.distributed.Client(cluster)  # type: ignore[no-untyped-call]
 
     pattern = generate_random_pauli_pattern(
         nqubits, nlayers, order=ConstructionOrder.Deviant
@@ -276,10 +267,10 @@ def test_single_deterministic_noisy_gate_iteratively() -> None:
             nshots=nshots,
             ncircuits=ncircuits,
             method=method,
-            dask_client=dask_client,
+            dask_client=None,
         )
 
-        x = compute_aces_postprocessing_iteratively(dependencies, results)
+        x = compute_aces_postprocessing_iteratively(nnodes, dependencies, results)
 
         assert x.keys() == pattern.edges
 
